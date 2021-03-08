@@ -20,13 +20,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+// initially started with the sketch from:
+// https://hackaday.io/project/175237-add-bluetooth-to-treadmill
+
 #include <Arduino.h>
+//#include <ArduinoOTA.h>
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h> // notify
+#include <math.h>
+#include <SPI.h>
+#include <TFT_eSPI.h>
+#include <Rotary.h>
+#include <Button2.h>
 
+#define VERSION "0.0.1"
+#define MQTTDEVICEID "ESP32_FTMS1"
 
 // note: this version currently only allows manual setting of speed and incline
 //       via the push-button rotary encoder (testing purpose)
@@ -52,16 +65,11 @@
 // Zwift Forum Posts
 // https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19 
 
-
-#include <math.h>
-//#include <TM1637Display.h>
-#include <SPI.h>
-#include <TFT_eSPI.h>
-#include <Rotary.h>
-#include <Button2.h>
+// embedded webserver status &  (manual) control
+// https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
 
-#define MQTTDEVICEID "ESP32_FTMS1"
+
 #define DEBUG 1
 //#define DEBUG_MQTT 1
 #include "debug_print.h"
@@ -89,6 +97,9 @@
 #define SPEED_SENSOR1   12
 #define SPEED_SENSOR2   13
 
+void updateDisplay(bool clear);
+void InitAsync_Webserver();
+
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
@@ -104,7 +115,7 @@ unsigned long sw_timer_clock;
 const float kmphinterval1 = 1.0;
 const float kmphinterval2 = 0.5;
 const float kmphinterval3 = 0.1;
-const int debounce_ms = 400;
+
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
@@ -118,21 +129,15 @@ Button2 encBtnP(ENC_BUTTON_PUSH);
 Rotary rotary = Rotary(ENC_BUTTON_A, ENC_BUTTON_B);
 
 
-// variables will change:
-int buttonState = 0; // variable for reading the pushbutton status
-bool        is_inst_stride_len_present = 1;   /* True if Instantaneous Stride Length is present in the measurement. */
-bool        is_total_distance_present = 1;    /* True if Total Distance is present in the measurement. */
-bool        is_running = 1;                   /* True if running, False if walking. */
-uint16_t    inst_speed = 40;                  /* Instantaneous Speed. */
+uint16_t    inst_speed;
 uint16_t    inst_incline;
 uint16_t    inst_grade;
-
 uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
 uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
+uint16_t    inst_elevation_gain = 0;
 uint32_t    total_distance = 0;
 double      elevation_gain = 0;
 double      elevation;
-uint16_t    inst_elevation_gain = 0;
 
 float kmph; // kilometer per hour
 float mps;  // meter per second
@@ -140,24 +145,20 @@ double angle;
 double grade_deg;
 
 float incline;
-byte  fakePos[1] = {1};
 
 bool bleClientConnected = false;
+bool bleClientConnectedPrev = false;
 
 TFT_eSPI tft = TFT_eSPI();
 
+bool isWifiAvailable = false;
+AsyncWebServer server(80);
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
-// FTMS characteristics:
-// Treadmill Data (notify)
-// Supported Speed Range C.1 Read N/A None
-// Supported Inclination Range C.2 Read N/A None
-//  C.1: Mandatory if the Speed Target Setting feature is supported; otherwise Optional.
-//  C.2: Mandatory if the Inclination Target Setting feature is supported; otherwise Optional.
-#define FTMSService                         BLEUUID((uint16_t)0x1826)
+#define FTMSService BLEUUID((uint16_t)0x1826)
 //#define TreadmillDataCharacterisic          BLEUUID((uint16_t)0x2ACD) // opt       - notify
 //#define FitnessMachineFeatureCharacteristic BLEUUID((uint16_t)0x2ACC) // mandatory - read
-//define FitnessMachineStatusCharacterisic   BLEUUID((uint16_t)0x2ADA) // mandatory if control point supported - notify
+//#define FitnessMachineStatusCharacterisic   BLEUUID((uint16_t)0x2ADA) // mandatory if control point supported - notify
 //#define SupportedSpeedRangeCharacteristic   BLEUUID((uint16_t)0x2AD4) // 
 //#define SupportedInclineRangeCharacteristic BLEUUID((uint16_t)0x2AD5) // 
 //#define ControlPointCharacterisic           BLEUUID((uint16_t)0x2AD9) // opt       - write/indicate
@@ -180,9 +181,6 @@ BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
 						      BLECharacteristic::PROPERTY_READ);
 
 BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901));
-
-//uint8_t treadmillData[34] = {};
-//uint16_t flags = 0x1000; // set bit 3 of first byte (0), incline data
 
 // seems kind of a standard callback function
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -242,6 +240,14 @@ void buttonInit()
     }
     else {
       set_speed = !set_speed; // toggle
+      // clear upper status line
+      tft.fillRect(2, 2, 200, 18, TFT_BLACK);
+      tft.setTextColor(TFT_WHITE);
+      tft.setTextFont(2);
+      tft.setCursor(100, 4);
+      if (set_speed) tft.print("SPEED");
+      else           tft.print("INCLINE");
+
       DEBUG_PRINTLN("Button PUSH short click...");
       DEBUG_PRINTLN(set_speed);
     } // short push-button
@@ -331,19 +337,35 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-  tft.println("Setup Done");
-  Serial.println("setup done");
+  isWifiAvailable = setupWifi() ? false : true;
 
-  //delay(2000);
+  if (isWifiAvailable)
+    InitAsync_Webserver();
+
+  tft.println("Setup Done");
+  DEBUG_PRINTLN("setup done");
+
+  delay(2000);
+  updateDisplay(true);
 }
 
 void loop() {
   buttonLoop();
   unsigned char result = rotary.process();
 
-  //kmph    = 10;     // DEBUG DEBUG DEBUG
-  //incline = 3.0;    // DEBUG DEBUG DEBUG
-  //angle   = 5.71;   // DEBUG DEBUG DEBUG
+  // if changed to connected ...
+  if (bleClientConnected && !bleClientConnectedPrev) {
+    bleClientConnectedPrev = true;
+    DEBUG_PRINTLN("BT Client connected!");
+    tft.fillCircle(229, 11, 9, TFT_SKYBLUE);
+  }
+  else if (!bleClientConnected && bleClientConnectedPrev) {
+    bleClientConnectedPrev = false;
+    DEBUG_PRINTLN("BT Client disconnected!");
+    tft.fillCircle(229, 11, 9, TFT_BLACK);
+    tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+  }
+
 
   if (result == DIR_CW) {
     if (set_speed) {
@@ -409,23 +431,16 @@ void loop() {
     DEBUG_PRINT("ele  m:  "); DEBUG_PRINTLN(elevation_gain);
     
 
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextFont(2);
-    tft.setCursor(0, 5);
-    if (set_speed) tft.println("SET SPEED");
-    else           tft.println("SET INCLINE");
+    // tft.setTextFont(2);
+    // tft.setCursor(0, 20);
+    // tft.println("---------");
+    // tft.print("SPEED (km/h):  "); tft.println(kmph);
+    // tft.print("INCLINE (%):   "); tft.println(incline);
+    // tft.print("DIST (m)       "); tft.println(total_distance);
+    // tft.print("ELEVATION (m): "); tft.println(elevation_gain);
 
-    tft.setTextFont(2);
-    tft.setCursor(0, 20);
-    tft.println("---------");
-    tft.print("SPEED (km/h):  "); tft.println(kmph);
-    tft.print("INCLINE (%):   "); tft.println(incline);
-    tft.print("DIST (m)       "); tft.println(total_distance);
-    tft.print("ELEVATION (m): "); tft.println(elevation_gain);
+    updateDisplay(false);
 
-    if (bleClientConnected) {
-      tft.println("Bluetooth Connected");
-    }
 
     // treadmill data fields:
     // 0,1    0: flags,		         16
