@@ -128,15 +128,15 @@ const char index_html[] PROGMEM = R"rawliteral(
   </p>
   <p>
     <i class="fas fa-tachometer-alt" style="color:#00add6;"></i>
-    <!-- <span class="dht-labels">Rpm</span> -->
-    <span id="rpm">%RPM%</span>
-    <sup class="units">rpm</sup>
+    <!-- <span class="dht-labels">Incline</span> -->
+    <span id="incline">%INCLINE%</span>
+    <sup class="units">%</sup>
   </p>
     <p>
-    <i class="fas fa-tachometer-alt" style="color:#00add6;"></i>
-    <!-- <span class="dht-labels">Totalrevcount</span> -->
-    <span id="totalrevcount">%TOTALREVCOUNT%</span>
-    <sup class="units">total</sup>
+    <i class="fas fa-mountain" style="color:#00add6;"></i>
+    <!-- <span class="dht-labels">elevation</span> -->
+    <span id="elevation">%ELEVATION%</span>
+    <sup class="units">M</sup>
   </p>
   <p>
   <a href=/reset\><button class="button button3">&nbsp;Reset&nbsp;</button></a>
@@ -164,6 +164,17 @@ setInterval(function ( ) {
     }
   };
   xhttp.open("GET", "/distance", true);
+  xhttp.send();
+}, 1000 ) ;
+
+setInterval(function ( ) {
+  var xhttp = new XMLHttpRequest();
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("incline").innerHTML = this.responseText;
+    }
+  };
+  xhttp.open("GET", "/incline", true);
   xhttp.send();
 }, 1000 ) ;
 
