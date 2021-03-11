@@ -20,7 +20,6 @@ int setupWifi() {
   WiFi.begin(wifi_ssid, wifi_pass);
 
   while (WiFi.status() != WL_CONNECTED) {
-
     delay(500);
     DEBUG_PRINT(".");
     tft.print(".");
@@ -57,6 +56,21 @@ int setupWifi() {
 }
 
 
+
+// Replaces placeholder with DHT values
+String processor(const String& var){
+  if(var == "HOUR"){
+    return readHour();
+  }
+  else if(var == "MINUTE"){
+    return readMinute();
+  }
+  else if(var == "SECOND"){
+    return readSecond();
+  }
+  return String();
+}
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -78,35 +92,82 @@ const char index_html[] PROGMEM = R"rawliteral(
       padding-bottom: 15px;
     }
 
-.button {
-  border: none;
-  color: white;
-  padding: 15px 32px;
-  text-align: center;
-  text-decoration: none;
-  display: inline-block;
-  font-size: 16px;
-  margin: 4px 2px;
-  cursor: pointer;
-}
-.button1 {background-color: #4CAF50;} /* Green */
-.button2 {background-color: #008CBA;} /* Blue */
-.button3 {background-color: #cc0000;} /* Red */
+    .button {
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+    }
+    .button_start        { background-color: #4CAF50; } /* Green */
+    .button_stop         { background-color: #cc0000; } /* Red   */
+    .button_reset        { background-color: #008CBA; } /* Blue  */
+
+    .button_speed_up     { background-color: #cc0000; } /* Red   */
+    .button_incline_up   { background-color: #cc0000; } /* Red   */
+    .button_speed_down   { background-color: #4CAF50; } /* Green */
+    .button_incline_down { background-color: #4CAF50; } /* Green */
+    .button_int1         { background-color: #00C8DC; } /* Light-Blue  */
+    .button_int2         { background-color: #008CBA; } /* Blue  */
+    .button_int3         { background-color: #008CBA; } /* Blue  */
+
   </style>
 </head>
 <body>
-   <p>
-    <i class="fas fa-running" style="color:#059e8a;"></i>
-    <!-- <span class="dht-labels">Speed</span> -->
-    <span id="speed">%SPEED%</span>
-    <sup class="units">kph</sup>
+  <div>
+    <div class="speed-dist">
+      <p>
+        <i class="fas fa-running" style="color:#059e8a;"></i>
+        <span id="speed">n/a</span>
+        <sup class="units">kph</sup>
+      </p>
+      <p>
+        <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
+        &nbsp;&nbsp;
+        <span id="distance">n/a</span>
+        <sup class="units">KM</sup>
+      </p>
+    </div>
+    <div class="incline-elevation">
+      <p>
+        <i class="fas fa-tachometer-alt" style="color:#00add6;"></i>
+        <span id="incline">%INCLINE%</span>
+        <sup class="units">%</sup>
+      </p>
+      <p>
+        <i class="fas fa-mountain" style="color:#00add6;"></i>
+        <span id="elevation">%ELEVATION%</span>
+        <sup class="units">M</sup>
+      </p>
+    </div>
+  </div>
+
+  <p>
+    SPEED:
+    <button id="speed_up" class="button button_speed_up" onclick="buttonclick(this);">
+      &nbsp;UP&nbsp;
+    </button>
+    <button id="speed_down" class="button button_speed_down" onclick="buttonclick(this);">
+      DOWN
+    </button>
   </p>
-    <p>
-    <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
-    &nbsp;&nbsp;
-    <!-- <span class="dht-labels">Distance</span> -->
-    <span id="distance">%DISTANCE%</span>
-    <sup class="units">M</sup>
+  <p>
+    INCLINE:
+    <button id="incline_up" class="button button_incline_up" onclick="buttonclick(this);">
+      &nbsp;UP&nbsp;
+    </button>
+    <button id="incline_down" class="button button_incline_down" onclick="buttonclick(this);">
+      DOWN
+    </button>
+  </p>
+  <p>
+    <button id="interval_01" class="button button_int1" onclick="buttonclick(this);">0.1</button>
+    <button id="interval_05" class="button button_int2" onclick="buttonclick(this);">0.5</button>
+    <button id="interval_10" class="button button_int3" onclick="buttonclick(this);">1.0</button>
   </p>
   <p>
    <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
@@ -116,35 +177,73 @@ const char index_html[] PROGMEM = R"rawliteral(
     <span id="minute">%MINUTE%</span>
     :
     <span id="second">%SECOND%</span>
+    <br>
+    <a href="/start"><button class="button button_start">START</button></a>
+    <a href="/stop" ><button class="button button_stop" >STOP</button></a>
+    <a href="/reset"><button class="button button_reset">RESET</button></a>
   </p>
-   <p>
-    <i class="fas fa-arrows-alt-h" style="color:#059e8a;"></i>
-    <!-- <span class="dht-labels">Zoffset</span> -->
-    <span id="zoffset">%ZOFFSET%</span>
-    <sup class="units">kph</sup>
-  <br>
-    <a href=/zoffsetup\><button class="button button1">&nbsp;Up&nbsp;</button></a>
-    <a href=/><button class="button button2">Down</button></a>
-  </p>
-  <p>
-    <i class="fas fa-tachometer-alt" style="color:#00add6;"></i>
-    <!-- <span class="dht-labels">Incline</span> -->
-    <span id="incline">%INCLINE%</span>
-    <sup class="units">%</sup>
-  </p>
-    <p>
-    <i class="fas fa-mountain" style="color:#00add6;"></i>
-    <!-- <span class="dht-labels">elevation</span> -->
-    <span id="elevation">%ELEVATION%</span>
-    <sup class="units">M</sup>
-  </p>
-  <p>
-  <a href=/reset\><button class="button button3">&nbsp;Reset&nbsp;</button></a>
-  </p>
-  <h4>FootPod</h4>
+  <hr>
+  <footer>
+    <address>
+      <a href="https://github.com/lefty01/ESP32_TTGO_FTMS">ESP32 Treadmill Sensor</a>
+    </address>
+  </footer>
+
 
 </body>
+
 <script>
+
+function buttonclick(e) {
+  console.log(e.id);
+
+  if (e.id === "speed_up") {
+    fetch("/speed/up", {
+      method: 'PUT'
+    });
+  }
+  if (e.id === "speed_down") {
+    fetch("/speed/down", {
+      method: 'PUT'
+    });
+  }
+  if (e.id === "incline_up") {
+    fetch("/incline/up", {
+      method: 'PUT'
+    });
+  }
+  if (e.id === "incline_down") {
+    fetch("/incline/down", {
+      method: 'PUT'
+    });
+  }
+
+  if (e.id === "interval_01") {
+    document.getElementById("interval_01").style.backgroundColor = "#00C8DC";
+    document.getElementById("interval_05").style.backgroundColor = "#008CBA";
+    document.getElementById("interval_10").style.backgroundColor = "#008CBA";
+    fetch("/speed/intervall/1", {
+      method: 'PUT'
+    });
+  }
+  if (e.id === "interval_05") {
+    document.getElementById("interval_01").style.backgroundColor = "#008CBA";
+    document.getElementById("interval_05").style.backgroundColor = "#00C8DC";
+    document.getElementById("interval_10").style.backgroundColor = "#008CBA";
+    fetch("/speed/intervall/2", {
+      method: 'PUT'
+    });
+  }
+  if (e.id === "interval_10") {
+    document.getElementById("interval_01").style.backgroundColor = "#008CBA";
+    document.getElementById("interval_05").style.backgroundColor = "#008CBA";
+    document.getElementById("interval_10").style.backgroundColor = "#00C8DC";
+    fetch("/speed/intervall/3", {
+      method: 'PUT'
+    });
+  }
+}
+
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
   xhttp.onreadystatechange = function() {
@@ -154,7 +253,7 @@ setInterval(function ( ) {
   };
   xhttp.open("GET", "/speed", true);
   xhttp.send();
-}, 1000 ) ;
+}, 1000);
 
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
@@ -165,7 +264,7 @@ setInterval(function ( ) {
   };
   xhttp.open("GET", "/distance", true);
   xhttp.send();
-}, 1000 ) ;
+}, 1000);
 
 setInterval(function ( ) {
   var xhttp = new XMLHttpRequest();
@@ -187,7 +286,7 @@ setInterval(function ( ) {
   };
   xhttp.open("GET", "/elevation", true);
   xhttp.send();
-}, 1000 ) ;
+}, 1000);
 
 </script>
 </html>)rawliteral";
@@ -200,7 +299,6 @@ void InitAsync_Webserver()
   // as well as the Zoffsetdown button call function
 
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    //readZoffsetdown();
     request->send_P(200, "text/html", index_html);
   });
 
@@ -212,7 +310,7 @@ void InitAsync_Webserver()
 
   server.on("/distance", HTTP_GET, [](AsyncWebServerRequest *request) {
     char dist[8];
-    snprintf(dist, 8, "%d", total_distance);
+    snprintf(dist, 8, "%.2f", total_distance/1000);
     request->send_P(200, "text/plain", dist);
   });
 
@@ -228,18 +326,37 @@ void InitAsync_Webserver()
     request->send_P(200, "text/plain", ele);
   });
 
-  // server.on("/zoffset", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readZoffset().c_str());
-  // });
-  // server.on("/totalrevcount", HTTP_GET, [](AsyncWebServerRequest *request){
-  //   request->send_P(200, "text/plain", readTotalrevcount().c_str());
-  // });
-  // // Send a GET request to <IP>/sensor/<number>/action/<action>
-  // server.on("/zoffsetup", HTTP_GET, [] (AsyncWebServerRequest *request) {
-  //   readZoffsetup();
-  //   request->send_P(200, "text/html", index_html, processor);
-  // });
+  // PUT requests to set speed and incline (not on the machine)
+  server.on("/speed/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
+    speed_up();
+    request->send_P(200, "text/html", index_html);
+  });
+  server.on("/speed/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
+    speed_down();
+    request->send_P(200, "text/html", index_html);
+  });
+  server.on("/incline/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
+    incline_up();
+    request->send_P(200, "text/html", index_html);
+  });
+  server.on("/incline/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
+    incline_down();
+    request->send_P(200, "text/html", index_html);
+  });
 
+  server.on("^\\/speed\\/intervall\\/([0-9]+)$",
+		     HTTP_PUT, [](AsyncWebServerRequest *request) {
+    String interval = request->pathArg(0);
+    set_speed_interval(interval.toInt());
+    request->send_P(200, "text/html", index_html);
+  });
+
+
+  // timer: start, stop, reset
+  server.on("/reset", HTTP_GET, [] (AsyncWebServerRequest *request) {
+    do_reset();
+    request->redirect("/");
+  });
 
   // Start server
   server.begin();

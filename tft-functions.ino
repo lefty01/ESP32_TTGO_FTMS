@@ -13,11 +13,8 @@ void updateDisplay(bool clear)
   else           tft.print("INCLINE");
 
   if (clear) {
-    //tft.fillRect(1, 1, 238, 8, TFT_SKYBLUE);
     tft.drawRect(1, 1, 238, 20, TFT_GREENYELLOW);
-    // drawFastVLine(int32_t x, int32_t y, int32_t h, uint32_t color)
-    // drawFastHLine(int32_t x, int32_t y, int32_t w, uint32_t color)
-    tft.drawFastVLine(TFT_WIDTH / 2, 20, TFT_HEIGHT - 20, TFT_WHITE);
+    tft.drawFastVLine(TFT_WIDTH / 2, 22, TFT_HEIGHT - 22, TFT_WHITE);
     tft.drawFastHLine(1, TFT_HEIGHT / 2 + 20, 238, TFT_WHITE);
   }
 
@@ -36,7 +33,7 @@ void updateDisplay(bool clear)
   // dist bot left
   tft.fillRect(0, TFT_HEIGHT - 40, 118, 40, TFT_BLACK);
   tft.setCursor(4, TFT_HEIGHT - 20);
-  tft.println(total_distance);
+  tft.println(total_distance/1000);
 
   // elevation bot right
   tft.fillRect(TFT_WIDTH / 2 + 2, TFT_HEIGHT - 40, 118, 40, TFT_BLACK);

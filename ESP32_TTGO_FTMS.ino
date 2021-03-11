@@ -37,6 +37,7 @@
 #include <TFT_eSPI.h>
 #include <Rotary.h>
 #include <Button2.h>
+#include <TimeLib.h>  //https://playground.arduino.cc/Code/Time/
 
 #define VERSION "0.0.1"
 #define MQTTDEVICEID "ESP32_FTMS1"
@@ -109,13 +110,19 @@ volatile boolean set_speed = true;
 #define EVERY_SECOND 1000
 unsigned long sw_timer_clock;
 
+// my treadmill stats:
 // Taurus 9.5:
 // Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
 // Steigung:        0   - 15 %    (increments 1 %)
-const float kmphinterval1 = 1.0;
-const float kmphinterval2 = 0.5;
-const float kmphinterval3 = 0.1;
-
+const float max_speed   = 22.0;
+const float min_speed   =  0.5;
+const float max_incline = 15.0;
+const float min_incline =  0;
+const float speed_interval_10 = 1.0;
+const float speed_interval_05 = 0.5;
+const float speed_interval_01 = 0.1;
+const float incline_interval  = 1.0;
+volatile float speed_interval = speed_interval_01;
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
@@ -135,8 +142,8 @@ uint16_t    inst_grade;
 uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
 uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
 uint16_t    inst_elevation_gain = 0;
-uint32_t    total_distance = 0;
-double      elevation_gain = 0;
+double      total_distance = 0; // m
+double      elevation_gain = 0; // m
 double      elevation;
 
 float kmph; // kilometer per hour
@@ -153,6 +160,16 @@ TFT_eSPI tft = TFT_eSPI();
 
 bool isWifiAvailable = false;
 AsyncWebServer server(80);
+
+String readHour() {
+    return String(hour());
+}
+String readMinute() {
+    return String(minute());
+}
+String readSecond() {
+    return String(second());
+}
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
 #define FTMSService BLEUUID((uint16_t)0x1826)
@@ -221,6 +238,15 @@ void InitBLE() {
   
   pAdvertising->start();
 
+}
+
+void do_reset()
+{
+  setTime(0,0,0,0,0,0);
+  total_distance = 0;
+  elevation_gain = 0;
+  kmph = 0.5;
+  incline = 0;
 }
 
 
@@ -306,6 +332,53 @@ int8_t getIncline() {
   return percent;
 }
 
+void speed_up()
+{
+  kmph += speed_interval;
+  if (kmph > max_speed) kmph = max_speed;
+  DEBUG_PRINT("speed_up, new speed: ");
+  DEBUG_PRINTLN(kmph);
+}
+void speed_down()
+{
+  kmph -= speed_interval;
+  if (kmph < min_speed) kmph = min_speed;
+  DEBUG_PRINT("speed_down, new speed: ");
+  DEBUG_PRINTLN(kmph);
+}
+void incline_up()
+{
+  incline += incline_interval;
+  if (incline > max_incline) incline = max_incline;
+  angle = atan2(incline, 100);
+  grade_deg = angle * 57.296;
+  DEBUG_PRINT("incline_up, new incline: ");
+  DEBUG_PRINTLN(incline);
+}
+void incline_down()
+{
+  incline -= incline_interval;
+  if (incline <= min_incline) incline = min_incline;
+  angle = atan2(incline, 100);
+  grade_deg = angle * 57.296;
+  DEBUG_PRINT("incline_down, new incline: ");
+  DEBUG_PRINTLN(incline);
+}
+
+void set_speed_interval(int i)
+{
+  DEBUG_PRINT("set_speed_interval: ");
+  DEBUG_PRINTLN(i);
+  switch(i) {
+  case 1: speed_interval = speed_interval_01; break;
+  case 2: speed_interval = speed_interval_05; break;
+  case 3: speed_interval = speed_interval_10; break;
+  default:
+    DEBUG_PRINTLN("INVALID SPEED INTERVAL");
+    break;
+  }
+}
+
 
 void setup() {
   DEBUG_BEGIN(115200);
@@ -342,10 +415,16 @@ void setup() {
   if (isWifiAvailable)
     InitAsync_Webserver();
 
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
   tft.println("Setup Done");
+  tft.print("Version:");
+  tft.println(VERSION);
   DEBUG_PRINTLN("setup done");
 
-  delay(2000);
+  delay(3000);
   updateDisplay(true);
 }
 
@@ -369,26 +448,18 @@ void loop() {
 
   if (result == DIR_CW) {
     if (set_speed) {
-      kmph += 0.5;
-      if (kmph > 22) kmph = 22;
+      speed_up();
     }
     else {
-      incline += 1;
-      if (incline > 15) incline = 15;
-      angle = atan2(incline, 100);
-      grade_deg = angle * 57.296;
+      incline_up();
     }
   }
   else if (result == DIR_CCW) {
     if (set_speed) {
-      kmph -= 0.5;
-      if (kmph < 0.5) kmph = 0.5;
+      speed_down();
     }
     else {
-      incline -= 1;
-      if (incline <= 0) incline = 0;
-      angle = atan2(incline, 100);
-      grade_deg = angle * 57.296;
+      incline_down();
     }
   }
   // if (t2_valid) {
@@ -427,17 +498,8 @@ void loop() {
     DEBUG_PRINT("kmph:    "); DEBUG_PRINTLN(kmph);
     DEBUG_PRINT("incline: "); DEBUG_PRINTLN(incline);
     DEBUG_PRINT("angle:   "); DEBUG_PRINTLN(grade_deg);
-    DEBUG_PRINT("dist m:  "); DEBUG_PRINTLN(total_distance);
+    DEBUG_PRINT("dist km: "); DEBUG_PRINTLN(total_distance/1000);
     DEBUG_PRINT("ele  m:  "); DEBUG_PRINTLN(elevation_gain);
-    
-
-    // tft.setTextFont(2);
-    // tft.setCursor(0, 20);
-    // tft.println("---------");
-    // tft.print("SPEED (km/h):  "); tft.println(kmph);
-    // tft.print("INCLINE (%):   "); tft.println(incline);
-    // tft.print("DIST (m)       "); tft.println(total_distance);
-    // tft.print("ELEVATION (m): "); tft.println(elevation_gain);
 
     updateDisplay(false);
 
