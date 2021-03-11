@@ -379,6 +379,27 @@ void set_speed_interval(int i)
   }
 }
 
+String read_speed()
+{
+  //char speed[8];
+  //snprintf(speed, 8, "%.2f", kmph);
+  return String(kmph);
+}
+String read_dist()
+{
+  // char dist[8];
+  // snprintf(dist, 8, "%.2f", total_distance/1000);
+  return String(total_distance / 1000);
+}
+String read_incline()
+{
+  return String(incline);
+}
+String read_elevation()
+{
+  return String(elevation_gain);
+}
+
 
 void setup() {
   DEBUG_BEGIN(115200);
@@ -426,12 +447,20 @@ void setup() {
 
   delay(3000);
   updateDisplay(true);
+  // indicate bt connection status ... offline
+  tft.fillCircle(229, 11, 9, TFT_BLACK);
+  tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+  setTime(0,0,0,0,0,0);
 }
 
 void loop() {
   buttonLoop();
   unsigned char result = rotary.process();
 
+  // // re-connect to wifi
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(1000);
+  // }
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
