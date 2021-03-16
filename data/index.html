@@ -1,0 +1,90 @@
+<!DOCTYPE HTML><html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="author" content="Andreas Loeffler">
+
+    <title>ESP32 Treadmill Sensor/Control</title>
+
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+    <script src="index.js"></script>
+  </head>
+  <body>
+    <div>
+      <div class="speed-dist">
+
+        <i class="fas fa-running" style="color:#059e8a;"></i>
+        <span id="speed">%SPEED%</span>
+        <sup class="units">kph</sup>
+
+        <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
+        &nbsp;&nbsp;
+        <span id="distance">%DISTANCE%</span>
+        <sup class="units">KM</sup>
+
+      </div>
+      <div class="incline-elevation">
+
+        <i class="fas fa-chart-line" style="color:#00add6;"></i>
+        <span id="incline">%INCLINE%</span>
+        <sup class="units">&percnt;</sup>
+
+        <i class="fas fa-mountain" style="color:#00add6;"></i>
+        <span id="elevation">%ELEVATION%</span>
+        <sup class="units">M</sup>
+
+      </div>
+    </div>
+
+    <p>
+      <button id="interval_01" class="button button_int1" onclick="buttonclick(this);">0.1</button>
+      <button id="interval_05" class="button button_int2" onclick="buttonclick(this);">0.5</button>
+      <button id="interval_10" class="button button_int3" onclick="buttonclick(this);">1.0</button>
+    </p>
+
+    <p>
+      SPEED:
+      <button id="speed_up" class="button button_speed_up" onclick="buttonclick(this);">
+	&nbsp;UP&nbsp;
+      </button>
+      <button id="speed_down" class="button button_speed_down" onclick="buttonclick(this);">
+	DOWN
+      </button>
+    </p>
+    <p>
+      INCLINE:
+      <button id="incline_up" class="button button_incline_up" onclick="buttonclick(this);">
+	&nbsp;UP&nbsp;
+      </button>
+      <button id="incline_down" class="button button_incline_down" onclick="buttonclick(this);">
+	DOWN
+      </button>
+    </p>
+
+    <p>
+      <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
+      <!-- <span class="dht-labels">Time</span> -->
+      <span id="hour">%HOUR%</span>
+      :
+      <span id="minute">%MINUTE%</span>
+      :
+      <span id="second">%SECOND%</span>
+      <br>
+      <a href="/start"><button class="button button_start">START</button></a>
+      <a href="/stop" ><button class="button button_stop" >STOP</button></a>
+      <a href="/reset"><button class="button button_reset">RESET</button></a>
+    </p>
+    <hr>
+    <footer>
+      <address>
+	<a href="https://github.com/lefty01/ESP32_TTGO_FTMS">ESP32 Treadmill Sensor</a>
+	<br>
+	version: %VERSION%
+      </address>
+    </footer>
+
+  </body>
+</html>

@@ -27,7 +27,8 @@
 //#include <ArduinoOTA.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-
+#include <ArduinoJson.h>
+#include <SPIFFS.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -38,8 +39,10 @@
 #include <Rotary.h>
 #include <Button2.h>
 #include <TimeLib.h>  //https://playground.arduino.cc/Code/Time/
+#include <Wire.h>
+#include <MPU6050_light.h>
 
-#define VERSION "0.0.1"
+#define VERSION "0.0.2"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // note: this version currently only allows manual setting of speed and incline
@@ -108,7 +111,9 @@ volatile boolean t2_valid = false;
 volatile boolean set_speed = true;
 
 #define EVERY_SECOND 1000
-unsigned long sw_timer_clock;
+#define WIFI_CHECK   30 * EVERY_SECOND
+unsigned long sw_timer_clock = 0;
+unsigned long wifi_reconnect_timer = 0;
 
 // my treadmill stats:
 // Taurus 9.5:
@@ -160,16 +165,10 @@ TFT_eSPI tft = TFT_eSPI();
 
 bool isWifiAvailable = false;
 AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 
-String readHour() {
-    return String(hour());
-}
-String readMinute() {
-    return String(minute());
-}
-String readSecond() {
-    return String(second());
-}
+MPU6050 mpu(Wire);
+
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
 #define FTMSService BLEUUID((uint16_t)0x1826)
@@ -240,7 +239,28 @@ void InitBLE() {
 
 }
 
-void do_reset()
+
+void initSPIFFS() {
+  if (!SPIFFS.begin()) {
+    DEBUG_PRINTLN("Cannot mount SPIFFS volume...");
+    while (1) {
+      bool on = millis() % 200 < 50;//onboard_led.on = millis() % 200 < 50;
+      // onboard_led.update();
+      if (on)
+	tft.fillScreen(TFT_RED);
+      else
+	tft.fillScreen(TFT_BLACK);
+    }
+  }
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_GREEN);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("initSPIFFS Done!");  
+}
+
+
+void doReset()
 {
   setTime(0,0,0,0,0,0);
   total_distance = 0;
@@ -301,6 +321,7 @@ void buttonInit()
   });
 
 }
+
 void buttonLoop()
 {
     btn1.loop();
@@ -339,6 +360,7 @@ void speed_up()
   DEBUG_PRINT("speed_up, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
+
 void speed_down()
 {
   kmph -= speed_interval;
@@ -346,6 +368,7 @@ void speed_down()
   DEBUG_PRINT("speed_down, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
+
 void incline_up()
 {
   incline += incline_interval;
@@ -355,6 +378,7 @@ void incline_up()
   DEBUG_PRINT("incline_up, new incline: ");
   DEBUG_PRINTLN(incline);
 }
+
 void incline_down()
 {
   incline -= incline_interval;
@@ -385,19 +409,32 @@ String read_speed()
   //snprintf(speed, 8, "%.2f", kmph);
   return String(kmph);
 }
+
 String read_dist()
 {
   // char dist[8];
   // snprintf(dist, 8, "%.2f", total_distance/1000);
   return String(total_distance / 1000);
 }
+
 String read_incline()
 {
   return String(incline);
 }
+
 String read_elevation()
 {
   return String(elevation_gain);
+}
+
+String readHour() {
+    return String(hour());
+}
+String readMinute() {
+    return String(minute());
+}
+String readSecond() {
+    return String(second());
 }
 
 
@@ -421,6 +458,8 @@ void setup() {
   attachInterrupt(SPEED_SENSOR1, speedSensor1_ISR, FALLING);
   attachInterrupt(SPEED_SENSOR2, speedSensor2_ISR, FALLING);
 
+  Wire.begin();
+
   InitBLE();
   
   // initial min treadmill speed
@@ -435,6 +474,25 @@ void setup() {
 
   if (isWifiAvailable)
     InitAsync_Webserver();
+  //else show offline msg, halt or reboot?!
+
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_RED);
+  tft.setCursor(20, 40);
+  
+  byte status = mpu.begin();
+  DEBUG_PRINT("MPU6050 status: ");
+  DEBUG_PRINTLN(status);
+  //while (status != 0)
+  //{ } // stop everything if could not connect to MPU6050
+  if (status != 0)
+    tft.println("MPU6050 setup failed!");
+  else {
+    DEBUG_PRINTLN(F("Calculating offsets, do not move MPU6050"));
+    tft.println("Calculating offsets, do not move MPU6050");
+    delay(3000);
+    mpu.calcOffsets(); // gyro and accelero
+  }
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
@@ -455,12 +513,23 @@ void setup() {
 
 void loop() {
   buttonLoop();
+  mpu.update();
   unsigned char result = rotary.process();
 
   // // re-connect to wifi
   // while (WiFi.status() != WL_CONNECTED) {
   //   delay(1000);
   // }
+  if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
+    wifi_reconnect_timer = millis();
+    DEBUG_PRINTLN("Reconnecting to WiFi...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    wifi_reconnect_timer = millis();
+  }
+
+
+  
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
@@ -504,6 +573,13 @@ void loop() {
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
+
+    DEBUG_PRINT("X : ");
+    DEBUG_PRINT(mpu.getAngleX());
+    DEBUG_PRINT("\tY : ");
+    DEBUG_PRINT(mpu.getAngleY());
+    DEBUG_PRINT("\tZ : ");
+    DEBUG_PRINTLN(mpu.getAngleZ());
 
     //int8_t incline = getIncline();
     //uint8_t speed = getSpeed();
