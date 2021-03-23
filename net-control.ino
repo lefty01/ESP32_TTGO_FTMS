@@ -61,13 +61,13 @@ String processor(const String& var){
   else if (var == "SECOND")
     return readSecond();
   else if (var == "SPEED")
-    return read_speed();
+    return readSpeed();
   else if (var == "DISTANCE")
-    return read_dist();
+    return readDist();
   else if (var == "INCLINE")
-    return read_incline();
+    return readIncline();
   else if (var == "ELEVATION")
-    return read_elevation();
+    return readElevation();
   else if (var == "VERSION")
     return VERSION;
 
@@ -75,79 +75,115 @@ String processor(const String& var){
 }
 
 
+
 void onRootRequest(AsyncWebServerRequest *request) {
   request->send(SPIFFS, "/index.html", "text/html", false, processor);
 }
 
 
-void InitAsync_Webserver()
+void initAsyncWebserver()
 {
   server.on("/", HTTP_GET, onRootRequest);
   server.serveStatic("/", SPIFFS, "/");
 
-  server.on("/speed", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_speed().c_str());
-  });
-
-  server.on("/distance", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_dist().c_str());
-  });
-
-  server.on("/incline", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_incline().c_str());
-  });
-
-  server.on("/elevation", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_elevation().c_str());
-  });
-
-
-  // PUT requests to set speed and incline (not on the machine)
-  server.on("/speed/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    speed_up();
-    //request->send_P(200, "text/html", index_html);
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-  });
-  server.on("/speed/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    speed_down();
-    //request->send_P(200, "text/html", index_html);
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-  });
-  server.on("/incline/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    incline_up();
-    //request->send_P(200, "text/html", index_html);
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-  });
-  server.on("/incline/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    incline_down();
-    //request->send_P(200, "text/html", index_html);
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-  });
-  server.on("^\\/speed\\/intervall\\/([0-9]+)$",
-		     HTTP_PUT, [](AsyncWebServerRequest *request) {
-    String interval = request->pathArg(0);
-    set_speed_interval(interval.toInt());
-    //request->send_P(200, "text/html", index_html);
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-  });
-
-  server.on("/hour", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readHour().c_str());
-  });
-  server.on("/minute", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readMinute().c_str());
-  });
-  server.on("/second", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readSecond().c_str());
-  });
-
-  // timer: start, stop, reset
-  server.on("/reset", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    doReset();
-    request->redirect("/");
-  });
-
   // Start server
   server.begin();
+}
+
+
+
+
+// ----------------------------------------------------------------------------
+// WebSocket initialization
+// ----------------------------------------------------------------------------
+
+void notifyClients() {
+  StaticJsonDocument<192> doc;
+
+  doc["speed"]          = kmph;
+  doc["incline"]        = incline;
+  doc["speed_interval"] = speed_interval;
+  doc["distance"]       = total_distance / 1000;
+  doc["elevation"]      = elevation_gain;
+  doc["hour"]   = readHour();
+  doc["minute"] = readMinute();
+  doc["second"] = readSecond();
+
+  char buffer[192];
+  size_t len = serializeJson(doc, buffer);
+  DEBUG_PRINT("serialize json len: ");
+  DEBUG_PRINTLN(len);
+  ws.textAll(buffer, len);
+}
+
+
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+  AwsFrameInfo *info = (AwsFrameInfo*)arg;
+
+  if (info->final && info->index == 0 &&
+      info->len == len && info->opcode == WS_TEXT) {
+
+    StaticJsonDocument<32> doc;
+    DeserializationError err = deserializeJson(doc, data, len);
+
+    if (err) {
+      DEBUG_PRINT(F("deserializeJson() failed with code "));
+      DEBUG_PRINTLN(err.f_str());
+      return;
+    }
+
+    const char* command = doc["command"]; // e.g. "speed_interval"
+    const char* value   = doc["value"];   // e.g. "0.5", "down"
+
+    if (strcmp(command, "speed") == 0) {
+      if (strcmp(value, "up") == 0)
+	speedUp();
+      if (strcmp(value, "down") == 0)
+	speedDown();
+    }
+    if (strcmp(command, "incline") == 0) {
+      if (strcmp(value, "up") == 0)
+	inclineUp();
+      if (strcmp(value, "down") == 0)
+	inclineDown();
+    }
+    if (strcmp(command, "speed_interval") == 0) {
+      if (strcmp(value, "0.1") == 0)
+	setSpeedInterval(0.1);
+      if (strcmp(value, "0.5") == 0)
+	setSpeedInterval(0.5);
+      if (strcmp(value, "1.0") == 0)
+	setSpeedInterval(1.0);
+    }
+    notifyClients();
+  }
+}
+
+void onEvent(AsyncWebSocket       *server,
+             AsyncWebSocketClient *client,
+             AwsEventType          type, // connect/disconnect/data/pong
+             void                 *arg,
+             uint8_t              *data,
+             size_t                len) {
+  switch (type) {
+  case WS_EVT_CONNECT:
+    DEBUG_PRINTF("WebSocket client #%u connected from %s\n", client->id(),
+		 client->remoteIP().toString().c_str());
+    break;
+  case WS_EVT_DISCONNECT:
+    DEBUG_PRINTF("WebSocket client #%u disconnected\n", client->id());
+    break;
+  case WS_EVT_DATA:
+    handleWebSocketMessage(arg, data, len);
+    break;
+  case WS_EVT_PONG:
+  case WS_EVT_ERROR:
+    break;
+  }
+}
+
+void initWebSocket() {
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
 }
 

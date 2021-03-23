@@ -8,7 +8,7 @@
     <title>ESP32 Treadmill Sensor/Control</title>
 
     <link rel="icon" type="image/x-icon" href="favicon.ico">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
     <script src="index.js"></script>
   </head>
@@ -40,26 +40,26 @@
     </div>
 
     <p>
-      <button id="interval_01" class="button button_int1" onclick="buttonclick(this);">0.1</button>
-      <button id="interval_05" class="button button_int2" onclick="buttonclick(this);">0.5</button>
-      <button id="interval_10" class="button button_int3" onclick="buttonclick(this);">1.0</button>
+      <button id="interval_01" class="button button_int1">0.1</button>
+      <button id="interval_05" class="button button_int2">0.5</button>
+      <button id="interval_10" class="button button_int3">1.0</button>
     </p>
 
     <p>
       SPEED:
-      <button id="speed_up" class="button button_speed_up" onclick="buttonclick(this);">
+      <button id="speed_up" class="button button_speed_up">
 	&nbsp;UP&nbsp;
       </button>
-      <button id="speed_down" class="button button_speed_down" onclick="buttonclick(this);">
+      <button id="speed_down" class="button button_speed_down">
 	DOWN
       </button>
     </p>
     <p>
       INCLINE:
-      <button id="incline_up" class="button button_incline_up" onclick="buttonclick(this);">
+      <button id="incline_up" class="button button_incline_up">
 	&nbsp;UP&nbsp;
       </button>
-      <button id="incline_down" class="button button_incline_down" onclick="buttonclick(this);">
+      <button id="incline_down" class="button button_incline_down">
 	DOWN
       </button>
     </p>
@@ -73,9 +73,9 @@
       :
       <span id="second">%SECOND%</span>
       <br>
-      <a href="/start"><button class="button button_start">START</button></a>
-      <a href="/stop" ><button class="button button_stop" >STOP</button></a>
-      <a href="/reset"><button class="button button_reset">RESET</button></a>
+      <button id="start" class="button button_start">START</button>
+      <button id="stop"  class="button button_stop" >STOP</button>
+      <button id="reset" class="button button_reset">RESET</button>
     </p>
     <hr>
     <footer>

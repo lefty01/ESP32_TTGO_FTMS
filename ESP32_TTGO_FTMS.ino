@@ -42,11 +42,8 @@
 #include <Wire.h>
 #include <MPU6050_light.h>
 
-#define VERSION "0.0.2"
+#define VERSION "0.0.5"
 #define MQTTDEVICEID "ESP32_FTMS1"
-
-// note: this version currently only allows manual setting of speed and incline
-//       via the push-button rotary encoder (testing purpose)
 
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
@@ -56,15 +53,14 @@
 // the Battery Level Characteristic represents the remaining power level of a battery
 // in a device which can be read by a Client.
 
-// Where a characteristic can be notified or indicated, a Client Characteristic Configuration descriptor shall
-// be included in that characteristic as required by the Core Specification
+// Where a characteristic can be notified or indicated, a Client Characteristic Configuration
+// descriptor shall be included in that characteristic as required by the Core Specification
 
 // use Fitness Machine Service UUID: 0x1826 (server)
 // with Treadmill Data Characteristic 0x2acd
 
 // gy-521-mpu-6050: https://de.aliexpress.com/item/32340949017.html
 // http://cool-web.de/esp8266-esp32/gy-521-mpu-6050-gyroskop-beschleunigung-sensor-i2c-esp32-odroid-go.htm
-
 
 // Zwift Forum Posts
 // https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19 
@@ -89,10 +85,10 @@
 
 
 // start / stop button for timer ...
-#define BUTTON_1        33
+#define BUTTON_1        33 // do (data) reset
 #define BUTTON_2        25
 #define BUTTON_3        26
-#define BUTTON_4        27
+#define BUTTON_4        27 // toggle sensor(auto) and manual mode
 
 #define ENC_BUTTON_PUSH 15
 #define ENC_BUTTON_A    37
@@ -102,18 +98,20 @@
 #define SPEED_SENSOR2   13
 
 void updateDisplay(bool clear);
-void InitAsync_Webserver();
+void initAsyncWebserver();
 
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
 volatile boolean t2_valid = false;
-volatile boolean set_speed = true;
+volatile boolean set_speed = true; // speed or incline via rotary encoder
+volatile boolean manual_speed_incline = true;//false
 
 #define EVERY_SECOND 1000
 #define WIFI_CHECK   30 * EVERY_SECOND
 unsigned long sw_timer_clock = 0;
 unsigned long wifi_reconnect_timer = 0;
+unsigned long wifi_reconnect_counter = 0;
 
 // my treadmill stats:
 // Taurus 9.5:
@@ -210,7 +208,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
 };
 
 
-void InitBLE() {
+void initBLE() {
   BLEDevice::init(MQTTDEVICEID); // set server name (here: MQTTDEVICEID)
   // create BLE Server, set callback for connect/disconnect
   pServer = BLEDevice::createServer();
@@ -256,7 +254,8 @@ void initSPIFFS() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
-  tft.println("initSPIFFS Done!");  
+  tft.println("initSPIFFS Done!");
+  delay(1000);
 }
 
 
@@ -267,6 +266,9 @@ void doReset()
   elevation_gain = 0;
   kmph = 0.5;
   incline = 0;
+
+  // calibrate
+
 }
 
 
@@ -301,9 +303,8 @@ void buttonInit()
   });
 
   btn1.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINTLN("Button 1 SHORT click...");
-    total_distance = 0;
-    elevation_gain = 0;
+    DEBUG_PRINTLN("Do Reset (Button 1 SHORT click)");
+    doReset();
   });
 
   btn2.setPressedHandler([](Button2 & b) {
@@ -316,8 +317,9 @@ void buttonInit()
     //b3();
   });
   btn4.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINTLN("Button 4 SHORT click...");
-    //b4();
+    DEBUG_PRINT("Toggle Sensor(Auto)/Manual Mode: ");
+    manual_speed_incline = !manual_speed_incline;
+    DEBUG_PRINTLN(manual_speed_incline);
   });
 
 }
@@ -345,33 +347,34 @@ void  speedSensor2_ISR() {
   }
 }
 
-int8_t getIncline() {
-  int8_t percent;
-
-  percent = 7;
-
-  return percent;
-}
-
-void speed_up()
+void speedUp()
 {
+  if (!manual_speed_incline)
+    return;
+
   kmph += speed_interval;
   if (kmph > max_speed) kmph = max_speed;
   DEBUG_PRINT("speed_up, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
 
-void speed_down()
+void speedDown()
 {
+  if (!manual_speed_incline)
+    return;
+
   kmph -= speed_interval;
   if (kmph < min_speed) kmph = min_speed;
   DEBUG_PRINT("speed_down, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
 
-void incline_up()
+void inclineUp()
 {
-  incline += incline_interval;
+  if (!manual_speed_incline)
+    return;
+
+  incline += incline_interval; // incline in %
   if (incline > max_incline) incline = max_incline;
   angle = atan2(incline, 100);
   grade_deg = angle * 57.296;
@@ -379,8 +382,11 @@ void incline_up()
   DEBUG_PRINTLN(incline);
 }
 
-void incline_down()
+void inclineDown()
 {
+  if (!manual_speed_incline)
+    return;
+
   incline -= incline_interval;
   if (incline <= min_incline) incline = min_incline;
   angle = atan2(incline, 100);
@@ -389,58 +395,112 @@ void incline_down()
   DEBUG_PRINTLN(incline);
 }
 
-void set_speed_interval(int i)
-{
-  DEBUG_PRINT("set_speed_interval: ");
-  DEBUG_PRINTLN(i);
-  switch(i) {
-  case 1: speed_interval = speed_interval_01; break;
-  case 2: speed_interval = speed_interval_05; break;
-  case 3: speed_interval = speed_interval_10; break;
-  default:
-    DEBUG_PRINTLN("INVALID SPEED INTERVAL");
-    break;
-  }
+float getIncline() {
+  float x = mpu.getAngleX() * (-1);
+  DEBUG_PRINT("sensor angle (-X): ");
+  DEBUG_PRINTLN(x);
+  grade_deg = min_incline > x ? min_incline : x;
+  grade_deg = max_incline < x ? max_incline : x;
+
+  //angle = grade_deg / RAD_2_DEG;
+  incline = tan(grade_deg / RAD_2_DEG) * 100;
+  DEBUG_PRINTLN(incline);
+  // probably need some more smoothing here ...
+  // ...
+
+  return incline;
 }
 
-String read_speed()
+void setSpeed(float speed)
+{
+  kmph = speed;
+  if (speed > max_speed) kmph = max_speed;
+  if (speed < min_speed) kmph = min_speed;
+
+  DEBUG_PRINT("setSpeed: ");
+  DEBUG_PRINTLN(kmph);
+}
+
+void setSpeedInterval(float interval)
+{
+  DEBUG_PRINT("set_speed_interval: ");
+  DEBUG_PRINTLN(interval);
+
+  if ((interval < 0.1) || (interval > 2.0)) {
+    DEBUG_PRINTLN("INVALID SPEED INTERVAL");
+  }
+  // switch(i) {
+  // case 1: speed_interval = speed_interval_01; break;
+  // case 2: speed_interval = speed_interval_05; break;
+  // case 3: speed_interval = speed_interval_10; break;
+  // default:
+  //   DEBUG_PRINTLN("INVALID SPEED INTERVAL");
+  //   break;
+  // }
+  speed_interval = interval;
+}
+
+String readSpeed()
 {
   //char speed[8];
   //snprintf(speed, 8, "%.2f", kmph);
   return String(kmph);
 }
 
-String read_dist()
+String readDist()
 {
   // char dist[8];
   // snprintf(dist, 8, "%.2f", total_distance/1000);
   return String(total_distance / 1000);
 }
 
-String read_incline()
+String readIncline()
 {
   return String(incline);
 }
 
-String read_elevation()
+String readElevation()
 {
   return String(elevation_gain);
 }
 
+
 String readHour() {
-    return String(hour());
+  return String(hour());
 }
+
 String readMinute() {
-    return String(minute());
+  int m = minute();
+  String mStr(m);
+
+  if (m < 10)
+    mStr = "0" + mStr;
+
+  return mStr;
 }
+
 String readSecond() {
-    return String(second());
+  int s = second();
+  String sStr(s);
+
+  if (s < 10)
+    sStr = "0" + sStr;
+
+  return sStr;
 }
 
 
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
+
+  // initial min treadmill speed
+  kmph = 0.5;
+  incline = 0;
+  grade_deg = 0;
+  angle = 0;
+  elevation = 0;
+  elevation_gain = 0;
 
   buttonInit();
 
@@ -460,20 +520,17 @@ void setup() {
 
   Wire.begin();
 
-  InitBLE();
+  initBLE();
   
-  // initial min treadmill speed
-  kmph = 0.5;
-  incline = 0;
-  grade_deg = 0;
-  angle = 0;
-  elevation = 0;
-  elevation_gain = 0;
+  initSPIFFS();
 
   isWifiAvailable = setupWifi() ? false : true;
 
-  if (isWifiAvailable)
-    InitAsync_Webserver();
+  if (isWifiAvailable) {
+    DEBUG_PRINTLN("Init Webserver");
+    initAsyncWebserver();
+    initWebSocket();
+  }
   //else show offline msg, halt or reboot?!
 
   tft.fillScreen(TFT_BLACK);
@@ -495,7 +552,7 @@ void setup() {
   }
 
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
+  tft.setTextColor(TFT_GREEN);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("Setup Done");
@@ -516,20 +573,21 @@ void loop() {
   mpu.update();
   unsigned char result = rotary.process();
 
-  // // re-connect to wifi
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(1000);
-  // }
+  // re-connect to wifi
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
     wifi_reconnect_timer = millis();
+    isWifiAvailable = false;
     DEBUG_PRINTLN("Reconnecting to WiFi...");
     WiFi.disconnect();
     WiFi.reconnect();
-    wifi_reconnect_timer = millis();
+  }
+  if (!isWifiAvailable && (WiFi.status() == WL_CONNECTED)) {
+    // connection was lost and now got reconnected ...
+    isWifiAvailable = true;
+    wifi_reconnect_counter++;
   }
 
 
-  
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
@@ -543,45 +601,57 @@ void loop() {
     tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
   }
 
-
+  // manual speed/inclune settings via rotary ecoder switch
   if (result == DIR_CW) {
     if (set_speed) {
-      speed_up();
+      speedUp();
     }
     else {
-      incline_up();
+      inclineUp();
     }
   }
   else if (result == DIR_CCW) {
     if (set_speed) {
-      speed_down();
+      speedDown();
     }
     else {
-      incline_down();
+      inclineDown();
     }
   }
-  // if (t2_valid) {
-  //   unsigned long t = t2 - t1;
-  //   int c = 359712;
-  //   kmph = (1/t) * c;
-  //   DEBUG_PRINTLN(t);
-  //   noInterrupts();
-  //   t1_valid = t2_valid = false;
-  //   interrupts();
-  // }
+
+  // check ir-speed sensor if not manual mode
+  if (!manual_speed_incline && t2_valid) {
+    unsigned long t = t2 - t1;
+    int c = 359712;
+    kmph = (1/t) * c;
+    noInterrupts();
+    t1_valid = t2_valid = false;
+    interrupts();
+  }
 
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
 
-    DEBUG_PRINT("X : ");
-    DEBUG_PRINT(mpu.getAngleX());
-    DEBUG_PRINT("\tY : ");
-    DEBUG_PRINT(mpu.getAngleY());
-    DEBUG_PRINT("\tZ : ");
-    DEBUG_PRINTLN(mpu.getAngleZ());
+    // show reconnect counter in tft
+    // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
+    tft.fillRect(2, 2, 60, 18, TFT_BLACK);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextFont(2);
+    tft.setCursor(3, 4);
+    tft.print(wifi_reconnect_counter);
 
-    //int8_t incline = getIncline();
+    // DEBUG_PRINT("X : ");
+    // DEBUG_PRINT(mpu.getAngleX());
+    // DEBUG_PRINT("\tY : ");
+    // DEBUG_PRINT(mpu.getAngleY());
+    // DEBUG_PRINT("\tZ : ");
+    // DEBUG_PRINTLN(mpu.getAngleZ());
+
+    if (! manual_speed_incline) {
+      incline = getIncline();
+
+    }
     //uint8_t speed = getSpeed();
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
     mps = kmph / 3.6;
@@ -590,16 +660,13 @@ void loop() {
 
     //    elevation += ...
     // sin(a) = h/dist -> with angle as a: h = dist * sin(angle)
-    DEBUG_PRINTLN("elevation:");
+    //DEBUG_PRINTLN("elevation:");
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
     DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);
     
     DEBUG_PRINT("h gain (m): ");DEBUG_PRINTLN(elevation_gain);
     
-
-
-    //    DEBUG_PRINT("loop: "); DEBUG_PRINTLN(millis());
     DEBUG_PRINT("kmph:    "); DEBUG_PRINTLN(kmph);
     DEBUG_PRINT("incline: "); DEBUG_PRINTLN(incline);
     DEBUG_PRINT("angle:   "); DEBUG_PRINTLN(grade_deg);
@@ -607,38 +674,14 @@ void loop() {
     DEBUG_PRINT("ele  m:  "); DEBUG_PRINTLN(elevation_gain);
 
     updateDisplay(false);
-
-
-    // treadmill data fields:
-    // 0,1    0: flags,		         16
-    // 2,3    1: Instantaneous Speed,    16 Kilometer per hour with a resolution of 0.01
-    // 4,5    2: avg speed	         16 Kilometer per hour with a resolution of 0.01
-    // 6,7,8  3: Total Distance	         24 Meters
-    
-    //  9,10  4: Incline                 16 sign, Percent with a resolution of 0.1
-    // 11,12  5: Ramp Angle Setting      16 sign, Degree  with a resolution of 0.1
-    // 13,14  6: Positive Elevation Gain 16 Meters with a resolution of 0.1
-    // 15,16  7: Negative Elevation Gain 16 Meters with a resolution of 0.1
-
-    // 17     8: Instantaneous Pace       8 Kilometer per minute with a resolution of 0.1
-    // 18     9: Average Pace	          8 Kilometer per minute with a resolution of 0.1
-    // 19,20 10: Total Energy		 16
-    // 21,22 11: Energy Per Hour	 16
-    // 23    12: Energy Per Minute	  8
-    // 24    13: Heart Rate		  8
-    // 25    14: Metabolic Equivalent	  8
-    // 26,27 15: Elapsed Time		 16 seconds
-    // 28,29 16: Remaining Time	         16 seconds
-    // 30,31 17: Force on Belt	         16 signed newton force
-    // 32,33 18: Power Output		 16 signed watts
-    // total bits = 272 = 34 bytes
+    notifyClients();
 
     uint8_t treadmillData[34] = {};
     uint16_t flags = 0x0018;  // b'000000011000
     //                             119876543210
     //                             20
     // get speed and incline ble ready
-    inst_speed   = kmph * 100;  // kilometer per hour with a resolution of 0.01
+    inst_speed   = kmph * 100;    // kilometer per hour with a resolution of 0.01
     inst_incline = incline * 10;  // percent with a resolution of 0.1
     inst_grade   = grade_deg * 10;
     inst_elevation_gain = elevation_gain * 10;
