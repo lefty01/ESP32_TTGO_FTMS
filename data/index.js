@@ -54,7 +54,6 @@ function initButtons() {
   document.getElementById('interval_01').addEventListener('click', onInterval.bind(this, 'interval_01'));
   document.getElementById('interval_05').addEventListener('click', onInterval.bind(this, 'interval_05'));
   document.getElementById('interval_10').addEventListener('click', onInterval.bind(this, 'interval_10'));
-  // root.addEventListener('click', myPrettyHandler.bind(null, event, arg1, ... ));
 
   document.getElementById('speed_up')    .addEventListener('click', onSpeedUp);
   document.getElementById('speed_down')  .addEventListener('click', onSpeedDown);
@@ -63,10 +62,6 @@ function initButtons() {
 }
 
 function onInterval(e, arg) {
-  //e.preventDefault(); // ??
-  //console.log('onInterval');
-  console.log(e);
-  console.log(arg);
 
   if (e === "interval_01") {
     document.getElementById("interval_01").style.backgroundColor = "#00C8DC";
@@ -107,9 +102,3 @@ function onInclineDown(e) {
 				 'value': 'down'}));
 }
 
-// todo: callback with argument...
-// root.addEventListener('click', myPrettyHandler.bind(null, event, arg1, ... ));
-//this.setup = function () {
-//  this.on('tweet', this.handleStreamEvent.bind(this, 'tweet'));
-//  this.on('retweet', this.handleStreamEvent.bind(this, 'retweet'));
-//};
