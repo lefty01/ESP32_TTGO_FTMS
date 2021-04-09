@@ -2,13 +2,62 @@
 
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
+var manualSpeed = true;
+var manualIncline = true;
 
 window.addEventListener('load', onLoad);
 
 function onLoad(event) {
   initWebSocket();
   initButtons();
+  manualAutoToggle();
 }
+
+
+function toggleStopwatch() {
+
+  document.getElementById('stopwatch').style.visibility = 'visible';
+  document.getElementById('stopwatch').style.visibility = 'hidden';
+
+}
+
+function manualAutoToggle() {
+  var speedStyle   = document.getElementById('toggle_manual_speed').style,
+      speedToggle = false,
+      speedC1 = '#059e8a',
+      speedC2 = '#24ffe2';
+  var inclineStyle = document.getElementById('toggle_manual_incline').style,
+      inclineToggle = false,
+      inclineC1 = '#00add6',
+      inclineC2 = '#24ffe2';
+  
+  setInterval(function() {
+    if (!manualSpeed) {
+      speedStyle.color = speedToggle ? speedC1 : speedC2;
+      speedToggle = !speedToggle;
+    }
+    if (!manualIncline) {
+      inclineStyle.color = inclineToggle ? inclineC1 : inclineC2;
+      inclineToggle = !inclineToggle;
+    }
+  }, 1000);
+}
+// (function() {
+//     var s = document.getElementById('titleTable').style,
+//         f = false,
+//         c1 = '#000000',
+//         c2 = '#ffffff';
+
+//     setInterval(function() {
+//         s.backgroundColor = f ? c1 : c2;
+//         s.color = f ? c2 : c1;
+//         f = !f;
+//     }, 500);
+// })();
+
+// style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
+// style="color:#00add6;" -> default manual incline  auto: fade to 
+
 
 
 // ----------------------------------------------------------------------------
@@ -59,6 +108,11 @@ function initButtons() {
   document.getElementById('speed_down')  .addEventListener('click', onSpeedDown);
   document.getElementById('incline_up')  .addEventListener('click', onInclineUp);
   document.getElementById('incline_down').addEventListener('click', onInclineDown);
+
+  // add handler to toggle manual speed/incline by clicking on the runner (kmh) or incline (%) icon
+  document.getElementById('toggle_manual_speed').addEventListener('click', onSensorModeChange.bind(this, 'speed'));
+  document.getElementById('toggle_manual_incline').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
+  
 }
 
 function onInterval(e, arg) {
@@ -85,6 +139,7 @@ function onInterval(e, arg) {
 				   'value': '1.0'}));
   }
 }
+
 function onSpeedUp(e) {
   websocket.send(JSON.stringify({'command': 'speed',
 				 'value': 'up'}));
@@ -102,3 +157,17 @@ function onInclineDown(e) {
 				 'value': 'down'}));
 }
 
+function onSensorModeChange(e, arg) {
+
+  if (e === 'speed') {
+    manualSpeed = !manualSpeed;
+    //document.getElementById('toggle_manual_speed').style.color = manualSpeed ? 
+    websocket.send(JSON.stringify({'command': 'sensor_mode',
+				   'value': 'speed'}));
+  }
+  if (e === 'incline') {
+    manualIncline = !manualIncline;
+    websocket.send(JSON.stringify({'command': 'sensor_mode',
+				   'value': 'incline'}));
+  }
+}

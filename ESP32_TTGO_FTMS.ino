@@ -35,14 +35,17 @@
 #include <BLE2902.h> // notify
 #include <math.h>
 #include <SPI.h>
+
+#define TTGO_T_DISPLAY
 #include <TFT_eSPI.h>
 #include <Rotary.h>
 #include <Button2.h>
-#include <TimeLib.h>  //https://playground.arduino.cc/Code/Time/
+#include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
 #include <Wire.h>
-#include <MPU6050_light.h>
+#include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
+#include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
-#define VERSION "0.0.5"
+#define VERSION "0.0.6F"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -78,6 +81,9 @@
 // todo: do we get this from tft.width() and tft.height()?
 #define TFT_WIDTH  240
 #define TFT_HEIGHT 128
+// -> defined in Setup25_TTGO_T_Display.h (via User_Setup.h)
+
+
 
 #define ADC_EN          14  //ADC_EN is the ADC detection enable port
 //  -> does this interfere with input/pullup???
@@ -85,17 +91,26 @@
 
 
 // start / stop button for timer ...
-#define BUTTON_1        33 // do (data) reset
-#define BUTTON_2        25
-#define BUTTON_3        26
-#define BUTTON_4        27 // toggle sensor(auto) and manual mode
+// #define BUTTON_1        33 // do (data) reset
+// #define BUTTON_2        25
+// #define BUTTON_3        26
+//#define BUTTON_4        27 // toggle sensor(auto) and manual mode
+#define BUTTON_1        35
+#define BUTTON_2        0
 
-#define ENC_BUTTON_PUSH 15
-#define ENC_BUTTON_A    37
-#define ENC_BUTTON_B    17
+
+//Button2 btn1(BUTTON_1);
+//Button2 btn2(BUTTON_2);
+
+
+// #define ENC_BUTTON_PUSH 15
+// #define ENC_BUTTON_A    37
+// #define ENC_BUTTON_B    17
 
 #define SPEED_SENSOR1   12
 #define SPEED_SENSOR2   13
+#define SPEED_SENSE_PIN 37
+
 
 void updateDisplay(bool clear);
 void initAsyncWebserver();
@@ -105,7 +120,21 @@ volatile unsigned long t2;
 volatile boolean t1_valid = false;
 volatile boolean t2_valid = false;
 volatile boolean set_speed = true; // speed or incline via rotary encoder
-volatile boolean manual_speed_incline = true;//false
+//volatile boolean manual_speed_incline = true;//false
+//volatile boolean manual_speed   = false;
+//volatile boolean manual_incline = false;
+
+
+
+//fixme: once and for good ... camle vs. underscore
+
+// fixme: stick with one integer type ... i.e. use uint32_t instead od unsigned long
+enum SensorFlags { MANUAL = 0, SPEED = 1, INCLINE = 2, _NUM_MODES_ = 4};
+uint8_t speedInclineMode = MANUAL;
+boolean hasMPU6050 = false;
+boolean hasVL53L0X = false;
+
+
 
 #define EVERY_SECOND 1000
 #define WIFI_CHECK   30 * EVERY_SECOND
@@ -126,6 +155,7 @@ const float speed_interval_05 = 0.5;
 const float speed_interval_01 = 0.1;
 const float incline_interval  = 1.0;
 volatile float speed_interval = speed_interval_01;
+volatile unsigned long usAvg[8];
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
@@ -133,10 +163,10 @@ volatile float speed_interval = speed_interval_01;
 //const int ledPin =  13;      // the number of the LED pin
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
-Button2 btn3(BUTTON_3);
-Button2 btn4(BUTTON_4);
-Button2 encBtnP(ENC_BUTTON_PUSH);
-Rotary rotary = Rotary(ENC_BUTTON_A, ENC_BUTTON_B);
+// Button2 btn3(BUTTON_3);
+// Button2 btn4(BUTTON_4);
+// Button2 encBtnP(ENC_BUTTON_PUSH);
+// Rotary rotary = Rotary(ENC_BUTTON_A, ENC_BUTTON_B);
 
 
 uint16_t    inst_speed;
@@ -150,6 +180,7 @@ double      elevation_gain = 0; // m
 double      elevation;
 
 float kmph; // kilometer per hour
+float kmph_sense;
 float mps;  // meter per second
 double angle;
 double grade_deg;
@@ -160,6 +191,9 @@ bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
 
 TFT_eSPI tft = TFT_eSPI();
+VL53L0X sensor;
+const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
+
 
 bool isWifiAvailable = false;
 AsyncWebServer server(80);
@@ -170,13 +204,6 @@ MPU6050 mpu(Wire);
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
 #define FTMSService BLEUUID((uint16_t)0x1826)
-//#define TreadmillDataCharacterisic          BLEUUID((uint16_t)0x2ACD) // opt       - notify
-//#define FitnessMachineFeatureCharacteristic BLEUUID((uint16_t)0x2ACC) // mandatory - read
-//#define FitnessMachineStatusCharacterisic   BLEUUID((uint16_t)0x2ADA) // mandatory if control point supported - notify
-//#define SupportedSpeedRangeCharacteristic   BLEUUID((uint16_t)0x2AD4) // 
-//#define SupportedInclineRangeCharacteristic BLEUUID((uint16_t)0x2AD5) // 
-//#define ControlPointCharacterisic           BLEUUID((uint16_t)0x2AD9) // opt       - write/indicate
-
 
 BLEServer* pServer = NULL;
 BLECharacteristic* pTreadmill    = NULL;
@@ -274,63 +301,80 @@ void doReset()
 
 void buttonInit()
 {
-  // encoder push-button handler
-  encBtnP.setTapHandler([](Button2 & b) {
+  // button 1 (GPIO 0) control auto/manual mode and reset timers
+  btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
-    DEBUG_PRINTLN(time);
+    DEBUG_PRINTLN("Button 1 TapHandler");
     if (time > 3000) { // > 3sec enters config menu
-      DEBUG_PRINTLN("very long click ... do nothing");
+      DEBUG_PRINTLN("RESET timer/counter!");
+      doReset();
     }
     else if (time > 600) {
-      DEBUG_PRINTLN("Encoder Button PUSH long click...");
-      // longer click while in select menu exit and restore prev mode
+      DEBUG_PRINTLN("Button 1 long click...");
+      // reset to manual mode
+      speedInclineMode = 0;
+      DEBUG_PRINT("speedInclineMode=");
+      DEBUG_PRINTLN(speedInclineMode);
+      showSpeedInclineMode(speedInclineMode);
+    }
+    else { // button1 short click toggle speed/incline mode
+      DEBUG_PRINTLN("Button 1 short click...");
+      speedInclineMode += 1;
+      speedInclineMode %= _NUM_MODES_;
+      DEBUG_PRINT("speedInclineMode=");
+      DEBUG_PRINTLN(speedInclineMode);
+      showSpeedInclineMode(speedInclineMode);
+    }
 
+  });
+
+  // for testing purpose ... no pratical way to change spee/incline
+  // short  click = up
+  // longer click = down
+  btn2.setTapHandler([](Button2& b) {
+    unsigned int time = b.wasPressedFor();
+    DEBUG_PRINTLN("Button 2 TapHandler");
+    if (time > 3000) { // > 3sec enters config menu
+      //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
+    }
+    else if (time > 500) {
+      DEBUG_PRINTLN("long (>500ms) click...");
+      if ((speedInclineMode & SPEED) == 0)
+	speedDown();
+      if ((speedInclineMode & INCLINE) == 0)
+	inclineDown();
     }
     else {
-      set_speed = !set_speed; // toggle
-      // clear upper status line
-      tft.fillRect(2, 2, 200, 18, TFT_BLACK);
-      tft.setTextColor(TFT_WHITE);
-      tft.setTextFont(2);
-      tft.setCursor(100, 4);
-      if (set_speed) tft.print("SPEED");
-      else           tft.print("INCLINE");
+      DEBUG_PRINTLN("short click...");
+      if ((speedInclineMode & SPEED) == 0)
+	speedUp();
 
-      DEBUG_PRINTLN("Button PUSH short click...");
-      DEBUG_PRINTLN(set_speed);
-    } // short push-button
-
+      if ((speedInclineMode & INCLINE) == 0)
+	inclineUp();
+    }
   });
 
-  btn1.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINTLN("Do Reset (Button 1 SHORT click)");
-    doReset();
-  });
 
-  btn2.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINTLN("Button 2 SHORT click...");
-    //b2();
-  });
-
-  btn3.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINTLN("Button 3 SHORT click...");
-    //b3();
-  });
-  btn4.setPressedHandler([](Button2 & b) {
-    DEBUG_PRINT("Toggle Sensor(Auto)/Manual Mode: ");
-    manual_speed_incline = !manual_speed_incline;
-    DEBUG_PRINTLN(manual_speed_incline);
-  });
-
+  // btn3.setPressedHandler([](Button2 & b) {
+  //   DEBUG_PRINT("Toggle Speed Sensor Auto/Manual: ");
+  //   manual_speed = !manual_speed;
+  //   if (manual_speed) {
+  //     tft.fillCircle(210, 11, 9, TFT_RED);
+  //   }
+  //   else {
+  //     tft.fillCircle(210, 11, 9, TFT_GREEN);
+  //   }
+  //   DEBUG_PRINTLN(manual_speed);
+  // });
 }
 
 void buttonLoop()
 {
     btn1.loop();
     btn2.loop();
-    btn3.loop();
-    btn4.loop();
-    encBtnP.loop();
+    // btn3.loop();
+    // btn4.loop();
+    // encBtnP.loop();
 }
 
 void  speedSensor1_ISR() {
@@ -349,7 +393,7 @@ void  speedSensor2_ISR() {
 
 void speedUp()
 {
-  if (!manual_speed_incline)
+  if (speedInclineMode & SPEED)
     return;
 
   kmph += speed_interval;
@@ -360,7 +404,7 @@ void speedUp()
 
 void speedDown()
 {
-  if (!manual_speed_incline)
+  if (speedInclineMode & SPEED)
     return;
 
   kmph -= speed_interval;
@@ -371,7 +415,7 @@ void speedDown()
 
 void inclineUp()
 {
-  if (!manual_speed_incline)
+  if (speedInclineMode & INCLINE)
     return;
 
   incline += incline_interval; // incline in %
@@ -384,7 +428,7 @@ void inclineUp()
 
 void inclineDown()
 {
-  if (!manual_speed_incline)
+  if (speedInclineMode & INCLINE)
     return;
 
   incline -= incline_interval;
@@ -396,18 +440,30 @@ void inclineDown()
 }
 
 float getIncline() {
-  float x = mpu.getAngleX() * (-1);
-  DEBUG_PRINT("sensor angle (-X): ");
-  DEBUG_PRINTLN(x);
-  grade_deg = min_incline > x ? min_incline : x;
-  grade_deg = max_incline < x ? max_incline : x;
+  // if (hasVL53L0X) {}
+  // if (hasMPU6050) {}
 
-  //angle = grade_deg / RAD_2_DEG;
-  incline = tan(grade_deg / RAD_2_DEG) * 100;
+  // mpu.getAngle[XYZ]
+  float y = mpu.getAngleY();
+  DEBUG_PRINT("sensor angle (Y): ");
+  DEBUG_PRINTLN(y);
+
+  incline = tan(y / RAD_2_DEG) * 100;
+  if (incline <= min_incline) incline = min_incline;
+  if (incline > max_incline)  incline = max_incline;
+
   DEBUG_PRINTLN(incline);
   // probably need some more smoothing here ...
   // ...
-
+  /*
+  if (incline < .. && incline > ...) return 0;
+  if (incline < .. && incline > ...) return 1;
+  if (incline < .. && incline > ...) return 2;
+  ...
+  if (incline < .. && incline > ...) return 14;
+  if (incline < .. && incline > ...) return 15;
+  */
+  
   return incline;
 }
 
@@ -512,8 +568,8 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
-  pinMode(ENC_BUTTON_A, INPUT_PULLUP); // does not work right, need ext. pull-up (here 10k)
-  pinMode(ENC_BUTTON_B, INPUT_PULLUP);
+  // pinMode(ENC_BUTTON_A, INPUT_PULLUP); // does not work right, need ext. pull-up (here 10k)
+  // pinMode(ENC_BUTTON_B, INPUT_PULLUP);
 
   attachInterrupt(SPEED_SENSOR1, speedSensor1_ISR, FALLING);
   attachInterrupt(SPEED_SENSOR2, speedSensor2_ISR, FALLING);
@@ -540,17 +596,39 @@ void setup() {
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
-  //while (status != 0)
-  //{ } // stop everything if could not connect to MPU6050
-  if (status != 0)
+  if (status != 0) {
     tft.println("MPU6050 setup failed!");
+    tft.println(status);
+    delay(3000);
+  }
   else {
     DEBUG_PRINTLN(F("Calculating offsets, do not move MPU6050"));
-    tft.println("Calculating offsets, do not move MPU6050");
+    tft.println("Calculating offsets, do not move MPU6050 (3sec)");
+    mpu.calcOffsets(); // gyro and accel.
     delay(3000);
-    mpu.calcOffsets(); // gyro and accelero
+    speedInclineMode = 3;
+    hasMPU6050 = true;
   }
 
+  sensor.setTimeout(500);
+  if (!sensor.init()) {
+    DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
+    tft.println("VL53L0X setup failed!");
+    delay(3000);
+  }
+  else {
+    DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
+    tft.println("VL53L0X initialized!");
+    hasVL53L0X = true;
+    delay(3000);
+  }
+
+  // tft.fillScreen(TFT_BLACK);
+  // tft.print("speedInclineMode: ");
+  // tft.println(speedInclineMode);
+  // delay(3000);
+
+  
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(4);
@@ -565,13 +643,18 @@ void setup() {
   // indicate bt connection status ... offline
   tft.fillCircle(229, 11, 9, TFT_BLACK);
   tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+
+  // indicate manual/auto mode (green=auto/sensor, red=manual)
+  //tft.fillCircle(210, 11, 9, TFT_RED);
+  showSpeedInclineMode(speedInclineMode);
+
   setTime(0,0,0,0,0,0);
 }
 
 void loop() {
   buttonLoop();
   mpu.update();
-  unsigned char result = rotary.process();
+  //uint8_t result = rotary.process();
 
   // re-connect to wifi
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
@@ -601,32 +684,34 @@ void loop() {
     tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
   }
 
-  // manual speed/inclune settings via rotary ecoder switch
-  if (result == DIR_CW) {
-    if (set_speed) {
-      speedUp();
-    }
-    else {
-      inclineUp();
-    }
-  }
-  else if (result == DIR_CCW) {
-    if (set_speed) {
-      speedDown();
-    }
-    else {
-      inclineDown();
-    }
-  }
+  // // manual speed/inclune settings via rotary ecoder switch
+  // if (result == DIR_CW) {
+  //   if (set_speed) {
+  //     speedUp();
+  //   }
+  //   else {
+  //     inclineUp();
+  //   }
+  // }
+  // else if (result == DIR_CCW) {
+  //   if (set_speed) {
+  //     speedDown();
+  //   }
+  //   else {
+  //     inclineDown();
+  //   }
+  // }
 
   // check ir-speed sensor if not manual mode
-  if (!manual_speed_incline && t2_valid) {
+  if (t2_valid) {
     unsigned long t = t2 - t1;
-    int c = 359712;
-    kmph = (1/t) * c;
+    unsigned long c = 359712; // d=10cm
+    kmph_sense = (float)(1.0/t) * c;
     noInterrupts();
     t1_valid = t2_valid = false;
     interrupts();
+    DEBUG_PRINTLN(t);
+    DEBUG_PRINTLN(kmph_sense);
   }
 
   // testing ... every second
@@ -641,26 +726,16 @@ void loop() {
     tft.setCursor(3, 4);
     tft.print(wifi_reconnect_counter);
 
-    // DEBUG_PRINT("X : ");
-    // DEBUG_PRINT(mpu.getAngleX());
-    // DEBUG_PRINT("\tY : ");
-    // DEBUG_PRINT(mpu.getAngleY());
-    // DEBUG_PRINT("\tZ : ");
-    // DEBUG_PRINTLN(mpu.getAngleZ());
-
-    if (! manual_speed_incline) {
+    if (speedInclineMode & INCLINE) {
       incline = getIncline();
-
     }
-    //uint8_t speed = getSpeed();
+
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
+    if (speedInclineMode & SPEED) kmph = kmph_sense;
     mps = kmph / 3.6;
     total_distance += mps;
     elevation_gain += (sin(angle) * mps);
 
-    //    elevation += ...
-    // sin(a) = h/dist -> with angle as a: h = dist * sin(angle)
-    //DEBUG_PRINTLN("elevation:");
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
     DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);

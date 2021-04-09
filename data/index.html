@@ -16,7 +16,7 @@
     <div>
       <div class="speed-dist">
 
-        <i class="fas fa-running" style="color:#059e8a;"></i>
+        <i id="toggle_manual_speed" class="fas fa-running" style="color:#059e8a;"></i>
         <span id="speed">%SPEED%</span>
         <sup class="units">kph</sup>
 
@@ -28,7 +28,7 @@
       </div>
       <div class="incline-elevation">
 
-        <i class="fas fa-chart-line" style="color:#00add6;"></i>
+        <i id="toggle_manual_incline" class="fas fa-chart-line" style="color:#00add6;"></i>
         <span id="incline">%INCLINE%</span>
         <sup class="units">&percnt;</sup>
 
@@ -63,20 +63,21 @@
 	DOWN
       </button>
     </p>
-
-    <p>
-      <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
-      <!-- <span class="dht-labels">Time</span> -->
-      <span id="hour">%HOUR%</span>
-      :
-      <span id="minute">%MINUTE%</span>
-      :
-      <span id="second">%SECOND%</span>
-      <br>
-      <button id="start" class="button button_start">START</button>
-      <button id="stop"  class="button button_stop" >STOP</button>
-      <button id="reset" class="button button_reset">RESET</button>
-    </p>
+    <div id="stopwatch">
+      <p>
+	<i class="fas fa-stopwatch" style="color:#059e8a;"></i>
+	<!-- <span class="dht-labels">Time</span> -->
+	<span id="hour">%HOUR%</span>
+	:
+	<span id="minute">%MINUTE%</span>
+	:
+	<span id="second">%SECOND%</span>
+	<br>
+	<button id="start" class="button button_start">START</button>
+	<button id="stop"  class="button button_stop" >STOP</button>
+	<button id="reset" class="button button_reset">RESET</button>
+      </p>
+    </div>
     <hr>
     <footer>
       <address>

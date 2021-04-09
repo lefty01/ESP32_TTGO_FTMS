@@ -97,12 +97,17 @@ void initAsyncWebserver()
 // WebSocket initialization
 // ----------------------------------------------------------------------------
 
+
+
+// https://arduinojson.org/v6/assistant/
+
 void notifyClients() {
-  StaticJsonDocument<192> doc;
+  StaticJsonDocument<256> doc;
 
   doc["speed"]          = kmph;
   doc["incline"]        = incline;
   doc["speed_interval"] = speed_interval;
+  doc["sensor_mode"]    = speedInclineMode;
   doc["distance"]       = total_distance / 1000;
   doc["elevation"]      = elevation_gain;
   doc["hour"]   = readHour();
@@ -111,8 +116,8 @@ void notifyClients() {
 
   char buffer[192];
   size_t len = serializeJson(doc, buffer);
-  DEBUG_PRINT("serialize json len: ");
-  DEBUG_PRINTLN(len);
+  //DEBUG_PRINT("serialize json len: ");
+  //DEBUG_PRINTLN(len);
   ws.textAll(buffer, len);
 }
 
@@ -135,6 +140,15 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     const char* command = doc["command"]; // e.g. "speed_interval"
     const char* value   = doc["value"];   // e.g. "0.5", "down"
 
+    if (strcmp(command, "sensor_mode") == 0) {
+      if (strcmp(value, "speed") == 0)
+	speedInclineMode ^= 1; // b'01 toggle bit
+
+      if (strcmp(value, "incline") == 0)
+	speedInclineMode ^= 2; // b'10
+
+      showSpeedInclineMode(speedInclineMode);
+    }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)
 	speedUp();
