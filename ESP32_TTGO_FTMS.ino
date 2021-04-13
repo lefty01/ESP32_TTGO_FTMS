@@ -23,10 +23,14 @@
 // initially started with the sketch from:
 // https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
+// FIXME: incline manual/auto toggle -> not same for incline and speed!!
+// FIXME: if manual incline round up/down to integer
+
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
+#include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 #include <BLEDevice.h>
@@ -38,14 +42,13 @@
 
 #define TTGO_T_DISPLAY
 #include <TFT_eSPI.h>
-#include <Rotary.h>
 #include <Button2.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
-#define VERSION "0.0.6F"
+#define VERSION "0.0.8mqtt1"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -62,15 +65,21 @@
 // use Fitness Machine Service UUID: 0x1826 (server)
 // with Treadmill Data Characteristic 0x2acd
 
-// gy-521-mpu-6050: https://de.aliexpress.com/item/32340949017.html
-// http://cool-web.de/esp8266-esp32/gy-521-mpu-6050-gyroskop-beschleunigung-sensor-i2c-esp32-odroid-go.htm
-
 // Zwift Forum Posts
 // https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19 
 
 // embedded webserver status &  (manual) control
 // https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
+// Parts Used:
+// laufband geschwindigkeit sensor
+// https://de.aliexpress.com/item/4000023371194.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
+// IR Infrarot
+// https://de.aliexpress.com/item/1005001285654366.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
+// GY-521 MPU-6050 MPU6050
+// https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
+// GY-530 VL53L0X (ToF)
+// https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
 
 #define DEBUG 1
@@ -89,27 +98,12 @@
 //  -> does this interfere with input/pullup???
 #define ADC_PIN         34
 
-
-// start / stop button for timer ...
-// #define BUTTON_1        33 // do (data) reset
-// #define BUTTON_2        25
-// #define BUTTON_3        26
-//#define BUTTON_4        27 // toggle sensor(auto) and manual mode
 #define BUTTON_1        35
 #define BUTTON_2        0
 
-
-//Button2 btn1(BUTTON_1);
-//Button2 btn2(BUTTON_2);
-
-
-// #define ENC_BUTTON_PUSH 15
-// #define ENC_BUTTON_A    37
-// #define ENC_BUTTON_B    17
-
-#define SPEED_SENSOR1   12
-#define SPEED_SENSOR2   13
-#define SPEED_SENSE_PIN 37
+#define SPEED_IR_SENSOR1   12
+#define SPEED_IR_SENSOR2   13
+#define SPEED_REED_SWITCH_PIN 37 // REED-Contact
 
 
 void updateDisplay(bool clear);
@@ -119,22 +113,17 @@ volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
 volatile boolean t2_valid = false;
-volatile boolean set_speed = true; // speed or incline via rotary encoder
-//volatile boolean manual_speed_incline = true;//false
-//volatile boolean manual_speed   = false;
-//volatile boolean manual_incline = false;
+//volatile boolean set_speed = true; // speed or incline via rotary encoder
 
 
-
-//fixme: once and for good ... camle vs. underscore
-
+// fixme: once and for good ... camle vs. underscore
 // fixme: stick with one integer type ... i.e. use uint32_t instead od unsigned long
-enum SensorFlags { MANUAL = 0, SPEED = 1, INCLINE = 2, _NUM_MODES_ = 4};
+enum SensorModeFlags { MANUAL = 0, SPEED = 1, INCLINE = 2, _NUM_MODES_ = 4};
 uint8_t speedInclineMode = MANUAL;
 boolean hasMPU6050 = false;
 boolean hasVL53L0X = false;
-
-
+boolean hasIrSense = false;
+boolean hasReed    = false;
 
 #define EVERY_SECOND 1000
 #define WIFI_CHECK   30 * EVERY_SECOND
@@ -154,8 +143,18 @@ const float speed_interval_10 = 1.0;
 const float speed_interval_05 = 0.5;
 const float speed_interval_01 = 0.1;
 const float incline_interval  = 1.0;
+const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
+
 volatile float speed_interval = speed_interval_01;
 volatile unsigned long usAvg[8];
+volatile unsigned long startTime = 0;     // start of revolution in microseconds
+volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
+volatile long accumulatorInterval = 0;    // time sum between display during intervals
+volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
+volatile unsigned int revCount = 0;       // number of revolutions since last display update
+volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
+volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
+float rpmaccumulatorInterval = 0;
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
@@ -179,6 +178,8 @@ double      total_distance = 0; // m
 double      elevation_gain = 0; // m
 double      elevation;
 
+float rpm = 0;
+
 float kmph; // kilometer per hour
 float kmph_sense;
 float mps;  // meter per second
@@ -201,6 +202,9 @@ AsyncWebSocket ws("/ws");
 
 MPU6050 mpu(Wire);
 
+// XXX
+WiFiClient espClient;
+PubSubClient client(espClient); // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
 #define FTMSService BLEUUID((uint16_t)0x1826)
@@ -377,19 +381,53 @@ void buttonLoop()
     // encBtnP.loop();
 }
 
-void  speedSensor1_ISR() {
+void IRAM_ATTR reedSwitch_ISR()
+{
+  // calculate the microseconds since the last interrupt.
+  // Interupt activates on falling edge.
+  uint32_t usNow = micros();
+  uint32_t test_elapsed = usNow - startTime;
+
+  // handle button bounce (ignore if less than 300 microseconds since last interupt)
+  if (test_elapsed < 300) {
+    return;
+  }
+
+  //if (test_elapsed > 1000000) {
+  if (test_elapsed > 1000000) {  // assume the treadmill isn't spinning in 1 second.
+    startTime = usNow; // reset the clock;
+    longpauseTime = 0;
+    return;
+  }
+  if (test_elapsed > longpauseTime / 2) {
+    // acts as a debounce, don't looking for interupts soon after the first hit.
+    //Serial.println(test_elapsed); //Serial.println(" Counted");
+    startTime = usNow;  // reset the clock
+    long elapsed = test_elapsed;
+    longpauseTime = test_elapsed;
+
+    revCount++;
+    workoutDistance += belt_distance;
+    Totalrevcount += 1;
+    accumulatorInterval += elapsed;
+  }
+}
+
+// two IR-Sensors
+void IRAM_ATTR speedSensor1_ISR() {
   if (! t1_valid) {
     t1 = micros();
     t1_valid = true;
   }
 }
 
-void  speedSensor2_ISR() {
+void IRAM_ATTR speedSensor2_ISR() {
   if (t1_valid && !t2_valid) {
     t2 = micros();
     t2_valid = true;
   }
 }
+
 
 void speedUp()
 {
@@ -445,6 +483,10 @@ float getIncline() {
 
   // mpu.getAngle[XYZ]
   float y = mpu.getAngleY();
+  char yStr[5];
+  snprintf(yStr, 5, "%.2f", y);
+  client.publish("home/treadmill/y_angle", yStr);
+
   DEBUG_PRINT("sensor angle (Y): ");
   DEBUG_PRINTLN(y);
 
@@ -463,7 +505,7 @@ float getIncline() {
   if (incline < .. && incline > ...) return 14;
   if (incline < .. && incline > ...) return 15;
   */
-  
+
   return incline;
 }
 
@@ -546,6 +588,30 @@ String readSecond() {
 }
 
 
+void calculateRPM() {
+  // divide number of microseconds in a minute, by the average interval.
+  if (revCount > 0) { // confirm there was at least one spin in the last second
+    hasReed = true;
+    DEBUG_PRINT("revCount="); DEBUG_PRINTLN(revCount);
+    // rpmaccumulatorInterval = 60000000/(accumulatorInterval/revCount);
+    rpm = 60000000 / (accumulatorInterval / revCount);
+
+    accumulatorInterval = 0;
+
+    //Test = Calculate average from last 4 rpms - response too slow
+    accumulator4 -= (accumulator4 >> 2);
+    accumulator4 += rpm;
+  }
+  else {
+    rpm = 0;
+    rpmaccumulatorInterval = 0;
+    accumulator4 = 0;  //average rpm of last 4 samples
+  }
+  revCount = 0;
+  mps = belt_distance * (rpm) / (60 * 1000);
+}
+
+
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -568,11 +634,12 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
-  // pinMode(ENC_BUTTON_A, INPUT_PULLUP); // does not work right, need ext. pull-up (here 10k)
-  // pinMode(ENC_BUTTON_B, INPUT_PULLUP);
-
-  attachInterrupt(SPEED_SENSOR1, speedSensor1_ISR, FALLING);
-  attachInterrupt(SPEED_SENSOR2, speedSensor2_ISR, FALLING);
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
+  attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
+  attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING);
+  //pinMode(SPEED_REED_SWITCH_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
   Wire.begin();
 
@@ -588,6 +655,11 @@ void setup() {
     initWebSocket();
   }
   //else show offline msg, halt or reboot?!
+
+  if (isWifiAvailable) {
+    client.setServer(mqtt_host_int, mqtt_port_int);
+    mqttConnect();
+  }
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_RED);
@@ -628,7 +700,6 @@ void setup() {
   // tft.println(speedInclineMode);
   // delay(3000);
 
-  
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(4);
@@ -684,26 +755,10 @@ void loop() {
     tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
   }
 
-  // // manual speed/inclune settings via rotary ecoder switch
-  // if (result == DIR_CW) {
-  //   if (set_speed) {
-  //     speedUp();
-  //   }
-  //   else {
-  //     inclineUp();
-  //   }
-  // }
-  // else if (result == DIR_CCW) {
-  //   if (set_speed) {
-  //     speedDown();
-  //   }
-  //   else {
-  //     inclineDown();
-  //   }
-  // }
 
   // check ir-speed sensor if not manual mode
-  if (t2_valid) {
+  if (t2_valid) { // hasIrSense = true
+    hasIrSense = true;
     unsigned long t = t2 - t1;
     unsigned long c = 359712; // d=10cm
     kmph_sense = (float)(1.0/t) * c;
@@ -713,6 +768,10 @@ void loop() {
     DEBUG_PRINTLN(t);
     DEBUG_PRINTLN(kmph_sense);
   }
+
+  // from reed sensor
+  calculateRPM();
+
 
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
@@ -731,9 +790,22 @@ void loop() {
     }
 
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
-    if (speedInclineMode & SPEED) kmph = kmph_sense;
-    mps = kmph / 3.6;
-    total_distance += mps;
+    if (speedInclineMode & SPEED) {
+      if (hasIrSense) {
+	kmph = kmph_sense;
+	mps = kmph / 3.6;
+	total_distance += mps;
+      }
+      if (hasReed) {
+	mps = belt_distance * (rpm) / (60 * 1000);
+	kmph = mps * 3.6;
+	total_distance = workoutDistance / 1000; // meter
+      }
+    }
+    else {
+      mps = kmph / 3.6;
+      total_distance += mps;
+    }
     elevation_gain += (sin(angle) * mps);
 
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);

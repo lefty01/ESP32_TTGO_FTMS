@@ -30,7 +30,7 @@ function manualAutoToggle() {
       inclineToggle = false,
       inclineC1 = '#00add6',
       inclineC2 = '#24ffe2';
-  
+
   setInterval(function() {
     if (!manualSpeed) {
       speedStyle.color = speedToggle ? speedC1 : speedC2;
@@ -42,21 +42,9 @@ function manualAutoToggle() {
     }
   }, 1000);
 }
-// (function() {
-//     var s = document.getElementById('titleTable').style,
-//         f = false,
-//         c1 = '#000000',
-//         c2 = '#ffffff';
-
-//     setInterval(function() {
-//         s.backgroundColor = f ? c1 : c2;
-//         s.color = f ? c2 : c1;
-//         f = !f;
-//     }, 500);
-// })();
 
 // style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
-// style="color:#00add6;" -> default manual incline  auto: fade to 
+// style="color:#00add6;" -> default manual incline  auto: fade to #24ffe2
 
 
 
@@ -161,7 +149,7 @@ function onSensorModeChange(e, arg) {
 
   if (e === 'speed') {
     manualSpeed = !manualSpeed;
-    //document.getElementById('toggle_manual_speed').style.color = manualSpeed ? 
+    //document.getElementById('toggle_manual_speed').style.color = manualSpeed ? ...
     websocket.send(JSON.stringify({'command': 'sensor_mode',
 				   'value': 'speed'}));
   }

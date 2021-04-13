@@ -52,6 +52,22 @@ int setupWifi() {
 }
 
 
+void mqttConnect() {
+  DEBUG_PRINT("Attempting MQTT connection...");
+  // Attempt to connect
+  if (client.connect(MQTTDEVICEID, mqtt_user_int, mqtt_pass_int,
+		     "home/treadmill/status", 1, 1, "OFFLINE")) {
+    DEBUG_PRINTLN("connected");
+    // Once connected, publish an announcement...
+    client.publish("home/treadmill/state",  "CONNECTED", true);
+    client.publish("home/treadmill/version", VERSION,    true);
+  } else {
+    DEBUG_PRINT("failed, rc=");
+    DEBUG_PRINTLN(client.state());
+  }
+}
+
+
 // replaces placeholders
 String processor(const String& var){
   if (var == "HOUR")

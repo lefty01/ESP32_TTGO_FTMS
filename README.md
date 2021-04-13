@@ -1,11 +1,29 @@
 # ESP32_TTGO_FTMS
 ESP32 based treadmill speed and incline sensor and BLE Server exposed as FTMS Service
 
+Based/Inspired on/by this project:
+
+https://hackaday.io/project/175237-add-bluetooth-to-treadmill
+
+
+## Parts Used
+* Treadmill Speed Sensor (Reed-Switch)
+  https://de.aliexpress.com/item/4000023371194.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
+* Infrared-Sensor (Obstacle Avoidance Sensor)
+  https://de.aliexpress.com/item/1005001285654366.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
+* 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050
+  https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
+* Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF)
+  https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
+
+
 
 # JSON serialize / deserialize
+## calculate memory requirement
 https://arduinojson.org/v6/assistant/
 
-## serialize
+## serialize websocket data
+```
 {
   "speed": "22.00",
   "incline": "15.0",
@@ -17,31 +35,10 @@ https://arduinojson.org/v6/assistant/
   "minute": "00",
   "second": "00"
 }
-
-### memory / code
-Data structures	144	Bytes needed to stores the JSON objects and arrays in memory 
-Strings	43	Bytes needed to stores the strings in memory 
-Total (minimum)	187	Minimum capacity for the JsonDocument.
-Total (recommended)	256	Including some slack in case the strings change, and rounded to a power of two
-
-```
-StaticJsonDocument<256> doc;
-
-doc["speed"] = "22.00";
-doc["incline"] = "15.0";
-doc["speed_interval"] = "10.0";
-doc["sensor_mode"] = "0";
-doc["distance"] = "9999.99";
-doc["elevation"] = "9999.99";
-doc["hour"] = "00";
-doc["minute"] = "00";
-doc["second"] = "00";
-
-serializeJson(doc, output);
 ```
 
-# measurements
-
+# measurements via oscilloscope
+```
 km/h vs. Period ms
 km/h 	 P ms
 22	  40.8
@@ -54,5 +51,8 @@ km/h 	 P ms
  2	 450
  1	 900
  0.5	1840
+```
 
-this results in diameter of "wheel" magnet-to-axis distance in mm: 25
+From this we can also calculate an average distance the magnet travels on the motor wheel of 0.25088m -> 250mm (the circumference).
+
+
