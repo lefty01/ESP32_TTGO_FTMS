@@ -25,7 +25,7 @@ set datafile sep ' '
 set key top left autotitle columnheader
 set grid
 set autoscale
-set terminal png size 720,650
+set terminal png size 1024,720
 set output 'taurus_incline_dist_tof.png'
 plot 'incline-tof-range-sensor.log' using 1:2 lt rgb 'red' w l smooth csplines title 'Incline'
 

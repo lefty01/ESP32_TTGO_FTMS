@@ -26,13 +26,14 @@ function manualAutoToggle() {
       speedToggle = false,
       speedC1 = '#059e8a',
       speedC2 = '#24ffe2';
+
   var inclineStyle = document.getElementById('toggle_manual_incline').style,
       inclineToggle = false,
       inclineC1 = '#00add6',
       inclineC2 = '#24ffe2';
 
   setInterval(function() {
-    if (!manualSpeed) {
+    if (!manualSpeed) { // toggle icon color in "manual mode"
       speedStyle.color = speedToggle ? speedC1 : speedC2;
       speedToggle = !speedToggle;
     }
@@ -79,8 +80,10 @@ function onMessage(event) {
   document.getElementById('incline')  .innerHTML = data.incline.toFixed(1);
   document.getElementById('elevation').innerHTML = data.elevation.toFixed(1);
   document.getElementById('hour')     .innerHTML = data.hour;
-  document.getElementById('minute')   .innerHTML = data.minute;
+	document.getElementById('minute')   .innerHTML = data.minute;
   document.getElementById('second')   .innerHTML = data.second;
+
+	data.sensor_mode
 }
 
 // ----------------------------------------------------------------------------

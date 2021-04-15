@@ -56,3 +56,8 @@ km/h 	 P ms
 From this we can also calculate an average distance the magnet travels on the motor wheel of 0.25088m -> 250mm (the circumference).
 
 
+# Issues
+IR-Sensor (here Sensor 1) is connected to GPIO12
+
+GPIO36 interrupt, changed reed-sensor to GPIO32
+https://github.com/espressif/esp-idf/issues/4585

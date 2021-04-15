@@ -76,7 +76,6 @@ void updateBTConnectionStatus()
 
 void showSpeedInclineMode(uint8_t mode)
 {
-
   // clear upper status line
   tft.fillRect(2, 2, 200, 18, TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
@@ -84,11 +83,11 @@ void showSpeedInclineMode(uint8_t mode)
   tft.setCursor(100, 4);
 
   tft.print(mode);
-  // if (set_speed) tft.print("SPEED");
-  // else           tft.print("INCLINE");
 
   // two circles indicate weather speed and/or incline is measured
   // via sensor or controlled via website
+  // green: sensor/auto mode
+  // red  : manual mode (via website, or buttons)
   if (mode & SPEED) {
       tft.fillCircle(190, 11, 9, TFT_GREEN);
   }

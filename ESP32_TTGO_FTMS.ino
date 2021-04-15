@@ -48,7 +48,7 @@
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
-#define VERSION "0.0.8mqtt1"
+#define VERSION "0.0.9"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -101,10 +101,9 @@
 #define BUTTON_1        35
 #define BUTTON_2        0
 
-#define SPEED_IR_SENSOR1   12
+#define SPEED_IR_SENSOR1   15
 #define SPEED_IR_SENSOR2   13
-#define SPEED_REED_SWITCH_PIN 37 // REED-Contact
-
+#define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
 void updateDisplay(bool clear);
 void initAsyncWebserver();
@@ -481,30 +480,41 @@ float getIncline() {
   // if (hasVL53L0X) {}
   // if (hasMPU6050) {}
 
+  // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
+
   // mpu.getAngle[XYZ]
-  float y = mpu.getAngleY();
+  //float y = mpu.getAngleY();
+  angle = mpu.getAngleY();
   char yStr[5];
-  snprintf(yStr, 5, "%.2f", y);
+  snprintf(yStr, 5, "%.2f", angle);
   client.publish("home/treadmill/y_angle", yStr);
 
   DEBUG_PRINT("sensor angle (Y): ");
-  DEBUG_PRINTLN(y);
+  DEBUG_PRINTLN(angle);
+  if (angle > 0.1 && angle <= 0.5) return 1;
+  if (angle > 0.5 && angle <= 1.0) return 2;
+  if (angle > 1.0 && angle <= 1.5) return 3;
+  if (angle > 1.5 && angle <= 2.0) return 4;
+  if (angle > 2.0 && angle <= 2.5) return 5;
+  if (angle > 2.5 && angle <= 3.0) return 6;
+  if (angle > 3.0 && angle <= 3.5) return 7;
+  if (angle > 3.5 && angle <= 4.0) return 8;
+  if (angle > 4.0 && angle <= 4.4) return 9;
+  if (angle > 4.4 && angle <= 4.9) return 10;
+  if (angle > 4.9 && angle <= 5.0) return 11;
+  if (angle > 5.0 && angle <= 5.2) return 12;
+  if (angle > 5.2 && angle <= 5.4) return 13;
+  if (angle > 5.4 && angle <= 5.7) return 14;
+  if (angle > 5.7                ) return 15; // measured max = 6.23
+  return 0;
 
-  incline = tan(y / RAD_2_DEG) * 100;
+  incline = tan(angle / RAD_2_DEG) * 100;
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
   DEBUG_PRINTLN(incline);
   // probably need some more smoothing here ...
   // ...
-  /*
-  if (incline < .. && incline > ...) return 0;
-  if (incline < .. && incline > ...) return 1;
-  if (incline < .. && incline > ...) return 2;
-  ...
-  if (incline < .. && incline > ...) return 14;
-  if (incline < .. && incline > ...) return 15;
-  */
 
   return incline;
 }
@@ -770,6 +780,7 @@ void loop() {
   }
 
   // from reed sensor
+  //interrupts();
   calculateRPM();
 
 
