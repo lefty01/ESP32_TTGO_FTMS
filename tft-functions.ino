@@ -1,3 +1,29 @@
+const int BORDER = 2;
+const int HEADER = 16; // percent
+const int HEADER_PX = HEADER * tft.height();
+
+const int X_05 = tft.width()  / 2;
+const int Y_05 = tft.height() / 2;
+
+
+void initSPIFFSDone()
+{
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_GREEN);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("initSPIFFS Done!");
+
+
+    // tft.setTextSize(2);
+    // tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    // tft.setTextDatum(MC_DATUM);
+    // tft.fillScreen(TFT_BLACK);
+
+    // tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    // tft.drawString("Button 0 Long Click Handler", x - 20, y + 30);
+
+}
 
 
 void updateDisplay(bool clear)
@@ -9,8 +35,10 @@ void updateDisplay(bool clear)
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
   tft.setCursor(100, 4);
-  if (set_speed) tft.print("SPEED");
-  else           tft.print("INCLINE");
+
+  tft.print(speedInclineMode);
+  // if (set_speed) tft.print("SPEED");
+  // else           tft.print("INCLINE");
 
   if (clear) {
     tft.drawRect(1, 1, 238, 20, TFT_GREENYELLOW);
@@ -43,4 +71,33 @@ void updateDisplay(bool clear)
 
 void updateBTConnectionStatus()
 {
+}
+
+
+void showSpeedInclineMode(uint8_t mode)
+{
+  // clear upper status line
+  tft.fillRect(2, 2, 200, 18, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextFont(2);
+  tft.setCursor(100, 4);
+
+  tft.print(mode);
+
+  // two circles indicate weather speed and/or incline is measured
+  // via sensor or controlled via website
+  // green: sensor/auto mode
+  // red  : manual mode (via website, or buttons)
+  if (mode & SPEED) {
+      tft.fillCircle(190, 11, 9, TFT_GREEN);
+  }
+  else if((mode & SPEED) == 0) {
+    tft.fillCircle(190, 11, 9, TFT_RED);
+  }
+  if (mode & INCLINE) {
+      tft.fillCircle(210, 11, 9, TFT_GREEN);
+  }
+  else if ((mode & INCLINE) == 0) {
+    tft.fillCircle(210, 11, 9, TFT_RED);
+  }
 }

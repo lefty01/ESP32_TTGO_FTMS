@@ -52,6 +52,22 @@ int setupWifi() {
 }
 
 
+void mqttConnect() {
+  DEBUG_PRINT("Attempting MQTT connection...");
+  // Attempt to connect
+  if (client.connect(MQTTDEVICEID, mqtt_user_int, mqtt_pass_int,
+		     "home/treadmill/status", 1, 1, "OFFLINE")) {
+    DEBUG_PRINTLN("connected");
+    // Once connected, publish an announcement...
+    client.publish("home/treadmill/state",  "CONNECTED", true);
+    client.publish("home/treadmill/version", VERSION,    true);
+  } else {
+    DEBUG_PRINT("failed, rc=");
+    DEBUG_PRINTLN(client.state());
+  }
+}
+
+
 // replaces placeholders
 String processor(const String& var){
   if (var == "HOUR")
@@ -61,340 +77,143 @@ String processor(const String& var){
   else if (var == "SECOND")
     return readSecond();
   else if (var == "SPEED")
-    return read_speed();
+    return readSpeed();
   else if (var == "DISTANCE")
-    return read_dist();
+    return readDist();
   else if (var == "INCLINE")
-    return read_incline();
+    return readIncline();
   else if (var == "ELEVATION")
-    return read_elevation();
+    return readElevation();
   else if (var == "VERSION")
     return VERSION;
 
   return String();
 }
 
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
-  <style>
-    html {
-     font-family: Arial;
-     display: inline-block;
-     margin: 0px auto;
-     text-align: center;
-    }
-    h2 { font-size: 3.0rem; }
-    p   { font-size: 3.0rem; }
-    div { font-size: 2.0rem; }
-    .units { font-size: 1.2rem; }
-    .dht-labels{
-      font-size: 1.5rem;
-      vertical-align:middle;
-      padding-bottom: 15px;
-    }
-
-    .button {
-      border: none;
-      color: white;
-      padding: 15px 32px;
-      text-align: center;
-      text-decoration: none;
-      border-radius: 10px;
-      display: inline-block;
-      font-size: 16px;
-      margin: 4px 2px;
-      cursor: pointer;
-    }
-    .button_start        { background-color: #4CAF50; } /* Green */
-    .button_stop         { background-color: #cc0000; } /* Red   */
-    .button_reset        { background-color: #008CBA; } /* Blue  */
-
-    .button_speed_up     { background-color: #cc0000; } /* Red   */
-    .button_incline_up   { background-color: #cc0000; } /* Red   */
-    .button_speed_down   { background-color: #4CAF50; } /* Green */
-    .button_incline_down { background-color: #4CAF50; } /* Green */
-    .button_int1         { background-color: #00C8DC; } /* Light-Blue  */
-    .button_int2         { background-color: #008CBA; } /* Blue  */
-    .button_int3         { background-color: #008CBA; } /* Blue  */
-
-  </style>
-</head>
-<body>
-  <div>
-    <div class="speed-dist">
-
-        <i class="fas fa-running" style="color:#059e8a;"></i>
-        <span id="speed">%SPEED%</span>
-        <sup class="units">kph</sup>
-
-        <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
-        &nbsp;&nbsp;
-        <span id="distance">%DISTANCE%</span>
-        <sup class="units">KM</sup>
-
-    </div>
-    <div class="incline-elevation">
-
-        <i class="fas fa-chart-line" style="color:#00add6;"></i>
-        <span id="incline">%INCLINE%</span>
-        <sup class="units">&percnt;</sup>
-
-        <i class="fas fa-mountain" style="color:#00add6;"></i>
-        <span id="elevation">%ELEVATION%</span>
-        <sup class="units">M</sup>
-
-    </div>
-  </div>
-
-  <p>
-    <button id="interval_01" class="button button_int1" onclick="buttonclick(this);">0.1</button>
-    <button id="interval_05" class="button button_int2" onclick="buttonclick(this);">0.5</button>
-    <button id="interval_10" class="button button_int3" onclick="buttonclick(this);">1.0</button>
-  </p>
-
-  <p>
-    SPEED:
-    <button id="speed_up" class="button button_speed_up" onclick="buttonclick(this);">
-      &nbsp;UP&nbsp;
-    </button>
-    <button id="speed_down" class="button button_speed_down" onclick="buttonclick(this);">
-      DOWN
-    </button>
-  </p>
-  <p>
-    INCLINE:
-    <button id="incline_up" class="button button_incline_up" onclick="buttonclick(this);">
-      &nbsp;UP&nbsp;
-    </button>
-    <button id="incline_down" class="button button_incline_down" onclick="buttonclick(this);">
-      DOWN
-    </button>
-  </p>
-
-  <p>
-   <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
-    <!-- <span class="dht-labels">Time</span> -->
-    <span id="hour">%HOUR%</span>
-    :
-    <span id="minute">%MINUTE%</span>
-    :
-    <span id="second">%SECOND%</span>
-    <br>
-    <a href="/start"><button class="button button_start">START</button></a>
-    <a href="/stop" ><button class="button button_stop" >STOP</button></a>
-    <a href="/reset"><button class="button button_reset">RESET</button></a>
-  </p>
-  <hr>
-  <footer>
-    <address>
-      <a href="https://github.com/lefty01/ESP32_TTGO_FTMS">ESP32 Treadmill Sensor</a>
-      <br>
-      version: %VERSION%
-    </address>
-  </footer>
 
 
-</body>
-
-<script>
-
-function buttonclick(e) {
-  console.log(e.id);
-
-  if (e.id === "speed_up") {
-    fetch("/speed/up", {
-      method: 'PUT'
-    });
-  }
-  if (e.id === "speed_down") {
-    fetch("/speed/down", {
-      method: 'PUT'
-    });
-  }
-  if (e.id === "incline_up") {
-    fetch("/incline/up", {
-      method: 'PUT'
-    });
-  }
-  if (e.id === "incline_down") {
-    fetch("/incline/down", {
-      method: 'PUT'
-    });
-  }
-
-  if (e.id === "interval_01") {
-    document.getElementById("interval_01").style.backgroundColor = "#00C8DC";
-    document.getElementById("interval_05").style.backgroundColor = "#008CBA";
-    document.getElementById("interval_10").style.backgroundColor = "#008CBA";
-    fetch("/speed/intervall/1", {
-      method: 'PUT'
-    });
-  }
-  if (e.id === "interval_05") {
-    document.getElementById("interval_01").style.backgroundColor = "#008CBA";
-    document.getElementById("interval_05").style.backgroundColor = "#00C8DC";
-    document.getElementById("interval_10").style.backgroundColor = "#008CBA";
-    fetch("/speed/intervall/2", {
-      method: 'PUT'
-    });
-  }
-  if (e.id === "interval_10") {
-    document.getElementById("interval_01").style.backgroundColor = "#008CBA";
-    document.getElementById("interval_05").style.backgroundColor = "#008CBA";
-    document.getElementById("interval_10").style.backgroundColor = "#00C8DC";
-    fetch("/speed/intervall/3", {
-      method: 'PUT'
-    });
-  }
+void onRootRequest(AsyncWebServerRequest *request) {
+  request->send(SPIFFS, "/index.html", "text/html", false, processor);
 }
 
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("speed").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/speed", true);
-  xhttp.send();
-}, 1000);
 
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("distance").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/distance", true);
-  xhttp.send();
-}, 1000);
-
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("incline").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/incline", true);
-  xhttp.send();
-}, 1000 ) ;
-
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("elevation").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/elevation", true);
-  xhttp.send();
-}, 1000);
-
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("hour").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/hour", true);
-  xhttp.send();
-}, 1000);
-
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("minute").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/minute", true);
-  xhttp.send();
-}, 1000);
-
-setInterval(function () {
-  var xhttp = new XMLHttpRequest();
-  xhttp.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      document.getElementById("second").innerHTML = this.responseText;
-    }
-  };
-  xhttp.open("GET", "/second", true);
-  xhttp.send();
-}, 1000);
-
-</script>
-</html>)rawliteral";
-
-
-void InitAsync_Webserver()
+void initAsyncWebserver()
 {
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/html", index_html, processor);
-  });
-
-  server.on("/speed", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_speed().c_str());
-  });
-
-  server.on("/distance", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_dist().c_str());
-  });
-
-  server.on("/incline", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_incline().c_str());
-  });
-
-  server.on("/elevation", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send_P(200, "text/plain", read_elevation().c_str());
-  });
-
-  // PUT requests to set speed and incline (not on the machine)
-  server.on("/speed/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    speed_up();
-    request->send_P(200, "text/html", index_html);
-  });
-  server.on("/speed/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    speed_down();
-    request->send_P(200, "text/html", index_html);
-  });
-  server.on("/incline/up", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    incline_up();
-    request->send_P(200, "text/html", index_html);
-  });
-  server.on("/incline/down", HTTP_PUT, [](AsyncWebServerRequest *request) {
-    incline_down();
-    request->send_P(200, "text/html", index_html);
-  });
-  server.on("^\\/speed\\/intervall\\/([0-9]+)$",
-		     HTTP_PUT, [](AsyncWebServerRequest *request) {
-    String interval = request->pathArg(0);
-    set_speed_interval(interval.toInt());
-    request->send_P(200, "text/html", index_html);
-  });
-
-  server.on("/hour", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readHour().c_str());
-  });
-  server.on("/minute", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readMinute().c_str());
-  });
-  server.on("/second", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/plain", readSecond().c_str());
-  });
-
-  // timer: start, stop, reset
-  server.on("/reset", HTTP_GET, [] (AsyncWebServerRequest *request) {
-    do_reset();
-    request->redirect("/");
-  });
+  server.on("/", HTTP_GET, onRootRequest);
+  server.serveStatic("/", SPIFFS, "/");
 
   // Start server
   server.begin();
+}
+
+
+
+
+// ----------------------------------------------------------------------------
+// WebSocket initialization
+// ----------------------------------------------------------------------------
+
+
+
+// https://arduinojson.org/v6/assistant/
+
+void notifyClients() {
+  StaticJsonDocument<256> doc;
+
+  doc["speed"]          = kmph;
+  doc["incline"]        = incline;
+  doc["speed_interval"] = speed_interval;
+  doc["sensor_mode"]    = speedInclineMode;
+  doc["distance"]       = total_distance / 1000;
+  doc["elevation"]      = elevation_gain;
+  doc["hour"]   = readHour();
+  doc["minute"] = readMinute();
+  doc["second"] = readSecond();
+
+  char buffer[192];
+  size_t len = serializeJson(doc, buffer);
+  //DEBUG_PRINT("serialize json len: ");
+  //DEBUG_PRINTLN(len);
+  ws.textAll(buffer, len);
+}
+
+
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+  AwsFrameInfo *info = (AwsFrameInfo*)arg;
+
+  if (info->final && info->index == 0 &&
+      info->len == len && info->opcode == WS_TEXT) {
+
+    StaticJsonDocument<32> doc;
+    DeserializationError err = deserializeJson(doc, data, len);
+
+    if (err) {
+      DEBUG_PRINT(F("deserializeJson() failed with code "));
+      DEBUG_PRINTLN(err.f_str());
+      return;
+    }
+
+    const char* command = doc["command"]; // e.g. "speed_interval"
+    const char* value   = doc["value"];   // e.g. "0.5", "down"
+
+    if (strcmp(command, "sensor_mode") == 0) {
+      if (strcmp(value, "speed") == 0)
+	speedInclineMode ^= 1; // b'01 toggle bit
+
+      if (strcmp(value, "incline") == 0)
+	speedInclineMode ^= 2; // b'10
+
+      showSpeedInclineMode(speedInclineMode);
+    }
+    if (strcmp(command, "speed") == 0) {
+      if (strcmp(value, "up") == 0)
+	speedUp();
+      if (strcmp(value, "down") == 0)
+	speedDown();
+    }
+    if (strcmp(command, "incline") == 0) {
+      if (strcmp(value, "up") == 0)
+	inclineUp();
+      if (strcmp(value, "down") == 0)
+	inclineDown();
+    }
+    if (strcmp(command, "speed_interval") == 0) {
+      if (strcmp(value, "0.1") == 0)
+	setSpeedInterval(0.1);
+      if (strcmp(value, "0.5") == 0)
+	setSpeedInterval(0.5);
+      if (strcmp(value, "1.0") == 0)
+	setSpeedInterval(1.0);
+    }
+    notifyClients();
+  }
+}
+
+void onEvent(AsyncWebSocket       *server,
+             AsyncWebSocketClient *client,
+             AwsEventType          type, // connect/disconnect/data/pong
+             void                 *arg,
+             uint8_t              *data,
+             size_t                len) {
+  switch (type) {
+  case WS_EVT_CONNECT:
+    DEBUG_PRINTF("WebSocket client #%u connected from %s\n", client->id(),
+		 client->remoteIP().toString().c_str());
+    break;
+  case WS_EVT_DISCONNECT:
+    DEBUG_PRINTF("WebSocket client #%u disconnected\n", client->id());
+    break;
+  case WS_EVT_DATA:
+    handleWebSocketMessage(arg, data, len);
+    break;
+  case WS_EVT_PONG:
+  case WS_EVT_ERROR:
+    break;
+  }
+}
+
+void initWebSocket() {
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
 }
 
