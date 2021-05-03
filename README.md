@@ -17,6 +17,32 @@ https://hackaday.io/project/175237-add-bluetooth-to-treadmill
   https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
 
+## WIFI config
+Create a file named
+
+wifi_mqtt_creds.h
+
+With your version of this content: (e.g your wlan settings)
+```
+#ifndef _wifi_mqtt_creds_h_
+#define _wifi_mqtt_creds_h_
+
+const char* wifi_ssid = "****";
+const char* wifi_pass = "****";
+
+const char* mqtt_host_int = "host.org";
+const char* mqtt_user_int = "user";
+const char* mqtt_pass_int = "passw0rd";
+const unsigned mqtt_port_int = 8883;
+
+#endif
+```
+
+## Filesystem
+
+Follow the instructions to instal SPIFFS filesystem upload tools here:
+https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
+
 
 # JSON serialize / deserialize
 ## calculate memory requirement
