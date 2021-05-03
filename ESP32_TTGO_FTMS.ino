@@ -48,7 +48,7 @@
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
-#define VERSION "0.0.9"
+#define VERSION "0.0.10"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -143,7 +143,8 @@ const float speed_interval_05 = 0.5;
 const float speed_interval_01 = 0.1;
 const float incline_interval  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
-
+boolean treadmillInclineReturnLevel = true; // true means 'translate' the measured incline into a level
+                                            // false would return the 'real' incline as percentage value
 volatile float speed_interval = speed_interval_01;
 volatile unsigned long usAvg[8];
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
@@ -315,7 +316,7 @@ void buttonInit()
     else if (time > 600) {
       DEBUG_PRINTLN("Button 1 long click...");
       // reset to manual mode
-      speedInclineMode = 0;
+      speedInclineMode = MANUAL;
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
       showSpeedInclineMode(speedInclineMode);
@@ -491,22 +492,24 @@ float getIncline() {
 
   DEBUG_PRINT("sensor angle (Y): ");
   DEBUG_PRINTLN(angle);
-  if (angle > 0.1 && angle <= 0.5) return 1;
-  if (angle > 0.5 && angle <= 1.0) return 2;
-  if (angle > 1.0 && angle <= 1.5) return 3;
-  if (angle > 1.5 && angle <= 2.0) return 4;
-  if (angle > 2.0 && angle <= 2.5) return 5;
-  if (angle > 2.5 && angle <= 3.0) return 6;
-  if (angle > 3.0 && angle <= 3.5) return 7;
-  if (angle > 3.5 && angle <= 4.0) return 8;
-  if (angle > 4.0 && angle <= 4.4) return 9;
-  if (angle > 4.4 && angle <= 4.9) return 10;
-  if (angle > 4.9 && angle <= 5.0) return 11;
-  if (angle > 5.0 && angle <= 5.2) return 12;
-  if (angle > 5.2 && angle <= 5.4) return 13;
-  if (angle > 5.4 && angle <= 5.7) return 14;
-  if (angle > 5.7                ) return 15; // measured max = 6.23
-  return 0;
+  if (treadmillInclineReturnLevel) {
+    if (angle > 0.1 && angle <= 0.5) return 1;
+    if (angle > 0.5 && angle <= 1.0) return 2;
+    if (angle > 1.0 && angle <= 1.5) return 3;
+    if (angle > 1.5 && angle <= 2.0) return 4;
+    if (angle > 2.0 && angle <= 2.5) return 5;
+    if (angle > 2.5 && angle <= 3.0) return 6;
+    if (angle > 3.0 && angle <= 3.5) return 7;
+    if (angle > 3.5 && angle <= 4.0) return 8;
+    if (angle > 4.0 && angle <= 4.4) return 9;
+    if (angle > 4.4 && angle <= 4.9) return 10;
+    if (angle > 4.9 && angle <= 5.0) return 11;
+    if (angle > 5.0 && angle <= 5.2) return 12;
+    if (angle > 5.2 && angle <= 5.5) return 13;
+    if (angle > 5.5 && angle <= 5.8) return 14;
+    if (angle > 5.8                ) return 15; // measured max = 6.23
+    return 0;
+  }
 
   incline = tan(angle / RAD_2_DEG) * 100;
   if (incline <= min_incline) incline = min_incline;
@@ -515,7 +518,6 @@ float getIncline() {
   DEBUG_PRINTLN(incline);
   // probably need some more smoothing here ...
   // ...
-
   return incline;
 }
 
@@ -688,7 +690,7 @@ void setup() {
     tft.println("Calculating offsets, do not move MPU6050 (3sec)");
     mpu.calcOffsets(); // gyro and accel.
     delay(3000);
-    speedInclineMode = 3;
+    speedInclineMode |= (SPEED | INCLINE);
     hasMPU6050 = true;
   }
 

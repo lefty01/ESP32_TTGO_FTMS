@@ -158,10 +158,10 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
     if (strcmp(command, "sensor_mode") == 0) {
       if (strcmp(value, "speed") == 0)
-	speedInclineMode ^= 1; // b'01 toggle bit
+	speedInclineMode ^= SPEED; // b'01 toggle bit
 
       if (strcmp(value, "incline") == 0)
-	speedInclineMode ^= 2; // b'10
+	speedInclineMode ^= INCLINE; // b'10
 
       showSpeedInclineMode(speedInclineMode);
     }
