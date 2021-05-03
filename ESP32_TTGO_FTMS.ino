@@ -149,7 +149,7 @@ unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
 // my treadmill stats:
-#ifdef TREADMILL_TAURUS_9_5
+#if defined TREADMILL_TAURUS_9_5
 // Taurus 9.5:
 // Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
 // Steigung:        0   - 15 %    (increments 1 %)
@@ -160,7 +160,7 @@ const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
-#elseif TREADMILL_NORTHTRACK_12_2_SI
+#elif defined TREADMILL_NORTHTRACK_12_2_SI
 // Northtrack 12.2 Si:
 // Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
 // Steigung:        0   - 12 %    (increments .5 %)
