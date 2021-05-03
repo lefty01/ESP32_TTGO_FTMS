@@ -48,6 +48,11 @@
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
+// Select and uncomment one of the Treadmills below
+#define TREADMILL_TAURUS_9_5
+//#define TREADMILL_NORTHTRACK_12_2_SI
+
+
 #define VERSION "0.0.9"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
@@ -98,12 +103,25 @@
 //  -> does this interfere with input/pullup???
 #define ADC_PIN         34
 
+#ifdef TTGO_T_DISPLAY
+// TTGO T-Display buttons
 #define BUTTON_1        35
 #define BUTTON_2        0
+#else
+#error Unknow button setup
+#endif
 
 #define SPEED_IR_SENSOR1   15
 #define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
+
+// DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyser
+// Uncomment this line to use it
+//#define DEBUG0_PIN       32
+
+#ifdef DEBUG0_PIN
+volatile bool debug0State = LOW;
+#endif
 
 void updateDisplay(bool clear);
 void initAsyncWebserver();
@@ -131,18 +149,61 @@ unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
 // my treadmill stats:
+#ifdef TREADMILL_TAURUS_9_5
 // Taurus 9.5:
 // Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
 // Steigung:        0   - 15 %    (increments 1 %)
 const float max_speed   = 22.0;
 const float min_speed   =  0.5;
 const float max_incline = 15.0;
-const float min_incline =  0;
+const float min_incline =  0.0;
+const float speed_interval_min = 0.1;
+const float incline_interval_min  = 1.0;
+const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
+#endif
+
+#ifdef TREADMILL_NORTHTRACK_12_2_SI
+// Northtrack 12.2 Si:
+// Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
+// Steigung:        0   - 12 %    (increments .5 %)
+// On Northtrack 12.2 Si there is a connector between "computer" and lower buttons (Speed+/-, Start/Stop, Incline +/-) with all cables from
+// motor controll board MC2100ELS-18w together with all 6 buttons (Speed+/-, Start/Stop, Incline +/-)
+// This seem like a nice place to interface the unit. This might be true from many more treadmills from differnt brands from Icon Healt & Fitness Inc
+//
+// Speed:
+// Connect Tach. e.g. the Green cable 5v from MC2100ELS-18w to pin SPEED_REED_SWITCH_PIN in TTGO T-Display with a levelshifter 5v->3v in between seem to work quite ok
+// This should probably work on most many (all?) treadmills using the motor controll board MC2100ELS-18w from Icon Healt & Fitness Inc
+//
+// Incline:
+// If no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
+// Incline steps from the compuer can be read like this. 
+// Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
+// Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
+// Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
+//
+// Control
+// As for controling the treadmill connecting the cables to GROUND for abour 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
+// in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
+// Currently the scematighs is not worked out maybe they can just be connected via a levelshifter, or some sort of relay need to be used?
+// If you during some start phase send a set of Incline- until you are sure the treadmill is at it's lowers position 
+// it's problabe possible to keek track if current incline after this.
+
+const float max_speed   = 20.0;
+const float min_speed   =  0.5;
+const float max_incline = 12.0;
+const float min_incline =  0.0;
+const float speed_interval_min = 0.1;
+const float incline_interval_min  = 0.5;
+const long  belt_distance = 151.9; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
+                                   // e.g. circumfence of front roler (calibrated with a distant wheel)
+                                   // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
+#endif
+
+
 const float speed_interval_10 = 1.0;
 const float speed_interval_05 = 0.5;
-const float speed_interval_01 = 0.1;
-const float incline_interval  = 1.0;
-const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
+const float speed_interval_01 = speed_interval_min;
+const float incline_interval  = incline_interval_min;
 
 volatile float speed_interval = speed_interval_01;
 volatile unsigned long usAvg[8];
@@ -380,6 +441,20 @@ void buttonLoop()
     // encBtnP.loop();
 }
 
+#ifdef DEBUG0_PIN
+// Safe to use from Interrupt code
+void IRAM_ATTR showAndToggleDebug0_I() {
+  digitalWrite(DEBUG0_PIN, debug0State);
+  debug0State = !debug0State;
+}
+
+// Safe to use from Interrupt code
+void IRAM_ATTR showDebug0_I(bool state) {
+  digitalWrite(DEBUG0_PIN, state);
+  debug0State = !state;
+}
+#endif
+
 void IRAM_ATTR reedSwitch_ISR()
 {
   // calculate the microseconds since the last interrupt.
@@ -401,13 +476,19 @@ void IRAM_ATTR reedSwitch_ISR()
   if (test_elapsed > longpauseTime / 2) {
     // acts as a debounce, don't looking for interupts soon after the first hit.
     //Serial.println(test_elapsed); //Serial.println(" Counted");
+
+#ifdef DEBUG0_PIN
+  showAndToggleDebug0_I();
+#endif
+
+    
     startTime = usNow;  // reset the clock
     long elapsed = test_elapsed;
     longpauseTime = test_elapsed;
 
     revCount++;
     workoutDistance += belt_distance;
-    Totalrevcount += 1;
+    Totalrevcount++;
     accumulatorInterval += elapsed;
   }
 }
@@ -634,6 +715,11 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
+#ifdef TREADMILL_NORTHTRACK_12_2_SI
+  speedInclineMode = SPEED;
+  hasReed          = true;
+#endif
+
   buttonInit();
 
   tft.begin();
@@ -644,11 +730,16 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
+#ifdef DEBUG0_PIN
+  pinMode(DEBUG0_PIN, OUTPUT);
+#endif
+
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
   attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING);
   //pinMode(SPEED_REED_SWITCH_PIN, INPUT_PULLUP);
+  pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
   Wire.begin();
@@ -779,14 +870,13 @@ void loop() {
     DEBUG_PRINTLN(kmph_sense);
   }
 
-  // from reed sensor
-  //interrupts();
-  calculateRPM();
-
-
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
+
+    // from reed sensor
+    //interrupts();
+    calculateRPM();
 
     // show reconnect counter in tft
     // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
@@ -803,14 +893,14 @@ void loop() {
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
     if (speedInclineMode & SPEED) {
       if (hasIrSense) {
-	kmph = kmph_sense;
-	mps = kmph / 3.6;
-	total_distance += mps;
+        kmph = kmph_sense;
+        mps = kmph / 3.6;
+        total_distance += mps;
       }
       if (hasReed) {
-	mps = belt_distance * (rpm) / (60 * 1000);
-	kmph = mps * 3.6;
-	total_distance = workoutDistance / 1000; // meter
+        mps = belt_distance * (rpm) / (60 * 1000);
+        kmph = mps * 3.6;
+        total_distance = workoutDistance / 1000; // meter
       }
     }
     else {
