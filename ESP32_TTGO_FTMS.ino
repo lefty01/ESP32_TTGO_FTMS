@@ -53,7 +53,7 @@
 //#define TREADMILL_NORTHTRACK_12_2_SI
 
 
-#define VERSION "0.0.10"
+#define VERSION "0.0.11"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -205,7 +205,7 @@ const float speed_interval_05 = 0.5;
 const float speed_interval_01 = speed_interval_min;
 const float incline_interval  = incline_interval_min;
 
-boolean treadmillInclineReturnLevel = true; // true means 'translate' the measured incline into a level
+boolean treadmillInclineReturnLevel = false; // true means 'translate' the measured incline into a level
                                             // false would return the 'real' incline as percentage value
 volatile float speed_interval = speed_interval_01;
 volatile unsigned long usAvg[8];
@@ -569,6 +569,7 @@ float getIncline() {
   //float y = mpu.getAngleY();
   angle = mpu.getAngleY();
   char yStr[5];
+
   snprintf(yStr, 5, "%.2f", angle);
   client.publish("home/treadmill/y_angle", yStr);
 
@@ -598,6 +599,7 @@ float getIncline() {
   if (incline > max_incline)  incline = max_incline;
 
   DEBUG_PRINTLN(incline);
+
   // probably need some more smoothing here ...
   // ...
   return incline;
@@ -879,7 +881,7 @@ void loop() {
 
     // from reed sensor
     //interrupts();
-    calculateRPM();
+    //calculateRPM();
 
     // show reconnect counter in tft
     // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
@@ -923,6 +925,13 @@ void loop() {
     DEBUG_PRINT("angle:   "); DEBUG_PRINTLN(grade_deg);
     DEBUG_PRINT("dist km: "); DEBUG_PRINTLN(total_distance/1000);
     DEBUG_PRINT("ele  m:  "); DEBUG_PRINTLN(elevation_gain);
+
+    char inclineStr[6];
+    char kmphStr[6];
+    snprintf(inclineStr, 6, "%.1f", incline);
+    snprintf(kmphStr,    6, "%.1f", kmph);
+    client.publish("home/treadmill/incline", inclineStr);
+    client.publish("home/treadmill/speed", kmphStr);
 
     updateDisplay(false);
     notifyClients();

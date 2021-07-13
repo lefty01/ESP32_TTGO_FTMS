@@ -43,6 +43,9 @@ const unsigned mqtt_port_int = 8883;
 Follow the instructions to instal SPIFFS filesystem upload tools here:
 https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
 
+## arduino IDE settings
+* Board: ESP32 Dev Module
+* Partition: Huge App (no OTA 3MB/1MB SPIFFS)
 
 # JSON serialize / deserialize
 ## calculate memory requirement
