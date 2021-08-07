@@ -25,6 +25,7 @@
 
 // FIXME: incline manual/auto toggle -> not same for incline and speed!!
 // FIXME: if manual incline round up/down to integer
+// FIXME: elevation gain
 
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
@@ -53,7 +54,7 @@
 //#define TREADMILL_NORTHTRACK_12_2_SI
 
 
-#define VERSION "0.0.11"
+#define VERSION "0.0.14"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -136,7 +137,7 @@ volatile boolean t2_valid = false;
 // fixme: once and for good ... camle vs. underscore
 // fixme: stick with one integer type ... i.e. use uint32_t instead od unsigned long
 enum SensorModeFlags { MANUAL = 0, SPEED = 1, INCLINE = 2, _NUM_MODES_ = 4};
-uint8_t speedInclineMode = MANUAL;
+uint8_t speedInclineMode = SPEED;
 boolean hasMPU6050 = false;
 boolean hasVL53L0X = false;
 boolean hasIrSense = false;
@@ -264,7 +265,6 @@ AsyncWebSocket ws("/ws");
 
 MPU6050 mpu(Wire);
 
-// XXX
 WiFiClient espClient;
 PubSubClient client(espClient); // mqtt client
 
@@ -480,10 +480,9 @@ void IRAM_ATTR reedSwitch_ISR()
     //Serial.println(test_elapsed); //Serial.println(" Counted");
 
 #ifdef DEBUG0_PIN
-  showAndToggleDebug0_I();
+    showAndToggleDebug0_I();
 #endif
 
-    
     startTime = usNow;  // reset the clock
     long elapsed = test_elapsed;
     longpauseTime = test_elapsed;
@@ -734,10 +733,10 @@ void setup() {
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("Setup Started");
-
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
+  delay(3000);
 
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
@@ -770,7 +769,7 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_RED);
   tft.setCursor(20, 40);
-  
+  delay(1000);
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
@@ -784,7 +783,7 @@ void setup() {
     tft.println("Calculating offsets, do not move MPU6050 (3sec)");
     mpu.calcOffsets(); // gyro and accel.
     delay(3000);
-    speedInclineMode |= (SPEED | INCLINE);
+    speedInclineMode |= INCLINE;
     hasMPU6050 = true;
   }
 
@@ -892,7 +891,7 @@ void loop() {
     tft.print(wifi_reconnect_counter);
 
     if (speedInclineMode & INCLINE) {
-      incline = getIncline();
+      incline = getIncline(); // also sets 'angle' variable
     }
 
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
@@ -912,7 +911,7 @@ void loop() {
       mps = kmph / 3.6;
       total_distance += mps;
     }
-    elevation_gain += (sin(angle) * mps);
+    elevation_gain += (double)(sin(angle) * mps);
 
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
@@ -920,18 +919,18 @@ void loop() {
     
     DEBUG_PRINT("h gain (m): ");DEBUG_PRINTLN(elevation_gain);
     
-    DEBUG_PRINT("kmph:    "); DEBUG_PRINTLN(kmph);
-    DEBUG_PRINT("incline: "); DEBUG_PRINTLN(incline);
-    DEBUG_PRINT("angle:   "); DEBUG_PRINTLN(grade_deg);
-    DEBUG_PRINT("dist km: "); DEBUG_PRINTLN(total_distance/1000);
-    DEBUG_PRINT("ele  m:  "); DEBUG_PRINTLN(elevation_gain);
+    DEBUG_PRINT("kmph:      "); DEBUG_PRINTLN(kmph);
+    DEBUG_PRINT("incline:   "); DEBUG_PRINTLN(incline);
+    DEBUG_PRINT("angle:     "); DEBUG_PRINTLN(grade_deg);
+    DEBUG_PRINT("dist km:   "); DEBUG_PRINTLN(total_distance/1000);
+    DEBUG_PRINT("elegain m: "); DEBUG_PRINTLN(elevation_gain);
 
     char inclineStr[6];
     char kmphStr[6];
     snprintf(inclineStr, 6, "%.1f", incline);
     snprintf(kmphStr,    6, "%.1f", kmph);
     client.publish("home/treadmill/incline", inclineStr);
-    client.publish("home/treadmill/speed", kmphStr);
+    client.publish("home/treadmill/speed",   kmphStr);
 
     updateDisplay(false);
     notifyClients();
