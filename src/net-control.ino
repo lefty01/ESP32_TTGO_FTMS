@@ -101,7 +101,8 @@ void initAsyncWebserver()
 {
   server.on("/", HTTP_GET, onRootRequest);
   server.serveStatic("/", SPIFFS, "/");
-
+  
+  //AsyncElegantOTA.begin(&server);
   // Start server
   server.begin();
 }

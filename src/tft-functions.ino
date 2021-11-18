@@ -2,8 +2,8 @@ const int BORDER = 2;
 const int HEADER = 16; // percent
 const int HEADER_PX = HEADER * tft.height();
 
-const int X_05 = tft.width()  / 2;
-const int Y_05 = tft.height() / 2;
+//const int X_05 = tft.width()  / 2;
+//const int Y_05 = tft.height() / 2;
 
 
 void initSPIFFSDone()
@@ -25,6 +25,8 @@ void initSPIFFSDone()
 
 }
 
+#define DRAW_WIDTH TFT_HEIGHT
+#define DRAW_HEIGHT 128 //TFT_WIDTH
 
 void updateDisplay(bool clear)
 {
@@ -41,46 +43,46 @@ void updateDisplay(bool clear)
   // else           tft.print("INCLINE");
 
   if (clear) {
-    tft.drawRect(1, 1, 238, 20, TFT_GREENYELLOW);
-    tft.drawFastVLine(TFT_WIDTH / 2, 22, TFT_HEIGHT - 22, TFT_WHITE);
-    tft.drawFastHLine(1, TFT_HEIGHT / 2 + 20, 238, TFT_WHITE);
+    tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
+    tft.drawFastVLine(DRAW_WIDTH / 2, 22, DRAW_HEIGHT - 22, TFT_WHITE);
+    tft.drawFastHLine(1, DRAW_HEIGHT / 2 + 20, DRAW_WIDTH - 2, TFT_WHITE);
   }
 
   tft.setTextFont(4);
 
   // speed top left
   tft.fillRect(0,                 30, 118, 40, TFT_BLACK);
-  tft.setCursor(4, TFT_HEIGHT / 2 - 36);
+  tft.setCursor(4, DRAW_HEIGHT / 2 - 36);
   tft.setTextFont(2);
   tft.print("Speed:");  //TODO move labels printing to outside "draw everytime" code
-  tft.setCursor(4, TFT_HEIGHT / 2 - 18);
+  tft.setCursor(4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(kmph);
 
   // incline top right
-  tft.fillRect(TFT_WIDTH / 2 + 2, 30, 118, 40, TFT_BLACK);
-  tft.setCursor(TFT_WIDTH / 2 + 4, TFT_HEIGHT / 2 - 36);
+  tft.fillRect(DRAW_WIDTH / 2 + 2, 30, 118, 40, TFT_BLACK);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 36);
   tft.setTextFont(2);
   tft.print("Incline:");
-  tft.setCursor(TFT_WIDTH / 2 + 4, TFT_HEIGHT / 2 - 18);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(incline);
 
   // dist bot left
-  tft.fillRect(0, TFT_HEIGHT - 40, 118, 40, TFT_BLACK);
-  tft.setCursor(4, TFT_HEIGHT - 38);
+  tft.fillRect(0, DRAW_HEIGHT - 40, 118, 40, TFT_BLACK);
+  tft.setCursor(4, DRAW_HEIGHT - 38);
   tft.setTextFont(2);
   tft.print("Dist:");
-  tft.setCursor(4, TFT_HEIGHT - 20);
+  tft.setCursor(4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println(total_distance/1000);
 
   // elevation bot right
-  tft.fillRect(TFT_WIDTH / 2 + 2, TFT_HEIGHT - 40, 118, 40, TFT_BLACK);
-  tft.setCursor(TFT_WIDTH / 2 + 4, TFT_HEIGHT - 38);
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 40, 118, 40, TFT_BLACK);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 38);
   tft.setTextFont(2);
   tft.print("Elev.gain:");
-  tft.setCursor(TFT_WIDTH / 2 + 4, TFT_HEIGHT - 20);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
 }
