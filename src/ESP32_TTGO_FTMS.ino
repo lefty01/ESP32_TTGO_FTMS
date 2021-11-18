@@ -20,6 +20,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define NIMBLE
+
 // initially started with the sketch from:
 // https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
@@ -29,15 +31,22 @@
 
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
+//#include <AsyncElegantOTA.h>;
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#ifndef NIMBLE
+// original 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h> // notify
+#else
+#include <NimBLEDevice.h>
+#endif
+
 #include <math.h>
 #include <SPI.h>
 
@@ -50,11 +59,11 @@
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 
 // Select and uncomment one of the Treadmills below
-#define TREADMILL_TAURUS_9_5
-//#define TREADMILL_NORTHTRACK_12_2_SI
+//#define TREADMILL_TAURUS_9_5
+#define TREADMILL_NORDICTRACK_12SI
 
 
-#define VERSION "0.0.14"
+#define VERSION "0.0.14.NORDICTRACK_12SI"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -94,8 +103,8 @@
 #include "wifi_mqtt_creds.h"
 
 // todo: do we get this from tft.width() and tft.height()?
-#define TFT_WIDTH  240
-#define TFT_HEIGHT 128
+#define TFT_WIDTH  135
+#define TFT_HEIGHT 240
 // -> defined in Setup25_TTGO_T_Display.h (via User_Setup.h)
 
 
@@ -112,13 +121,25 @@
 #error Unknow button setup
 #endif
 
+// PINS 
+// NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
+
 #define SPEED_IR_SENSOR1   15
 #define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
+// This are used to control/override the Treadmil, e.g. pins are connected to 
+// the different button so that software can "press" them
+// TODO: They could also be used to read pins 
+#define TREADMILL_BUTTON_INC_DOWN_PIN 32
+#define TREADMILL_BUTTON_INC_UP_PIN   33
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN 25
+#define TREADMILL_BUTTON_SPEED_UP_PIN   27
+#define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
+
 // DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyser
 // Uncomment this line to use it
-//#define DEBUG0_PIN       32
+//#define DEBUG0_PIN       17
 
 #ifdef DEBUG0_PIN
 volatile bool debug0State = LOW;
@@ -150,7 +171,7 @@ unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
 // my treadmill stats:
-#if defined TREADMILL_TAURUS_9_5
+#if defined(TREADMILL_TAURUS_9_5)
 // Taurus 9.5:
 // Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
 // Steigung:        0   - 15 %    (increments 1 %)
@@ -161,7 +182,7 @@ const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
-#elif defined TREADMILL_NORTHTRACK_12_2_SI
+#elif defined(TREADMILL_NORDICTRACK_12SI)
 // Northtrack 12.2 Si:
 // Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
 // Steigung:        0   - 12 %    (increments .5 %)
@@ -193,7 +214,7 @@ const float max_incline = 12.0;
 const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 0.5;
-const long  belt_distance = 151.9; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
+const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
                                    // e.g. circumfence of front roler (calibrated with a distant wheel)
                                    // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
 #else
@@ -213,7 +234,7 @@ volatile unsigned long usAvg[8];
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
 volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
 volatile long accumulatorInterval = 0;    // time sum between display during intervals
-volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
+//volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
@@ -282,12 +303,26 @@ BLEAdvertising *pAdvertising;
 
 // {0x2ACD,"Treadmill Data"},
 BLECharacteristic TreadmillDataCharacteristics(BLEUUID((uint16_t)0x2ACD),
-					       BLECharacteristic::PROPERTY_NOTIFY);
+#ifndef NIMBLE
+					       BLECharacteristic::PROPERTY_NOTIFY
+#else
+                 NIMBLE_PROPERTY::NOTIFY
+#endif
+                 );
 
 BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
-						      BLECharacteristic::PROPERTY_READ);
+#ifndef NIMBLE
+						      BLECharacteristic::PROPERTY_READ
+#else
+                 NIMBLE_PROPERTY::READ
+#endif
+                  );
 
-BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901));
+BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901)
+#ifdef NIMBLE
+                 , NIMBLE_PROPERTY::READ,1000
+#endif
+);
 
 // seems kind of a standard callback function
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -313,11 +348,24 @@ void initBLE() {
   pService->addCharacteristic(&TreadmillDataCharacteristics);
   TreadmillDescriptor.setValue("Treadmill Descriptor Value ABC");
   TreadmillDataCharacteristics.addDescriptor(&TreadmillDescriptor);
-  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
-
   pService->addCharacteristic(&FitnessMachineFeatureCharacteristic);
+
+  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+  // Create a BLE Descriptor
+#ifndef NIMBLE
+  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
   FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
   //pFeature->addDescriptor(new BLE2902());
+#else
+  /***************************************************   
+   NOTE: DO NOT create a 2902 descriptor. 
+   it will be created automatically if notifications 
+   or indications are enabled on a characteristic.
+   
+  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
+  FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
+  ****************************************************/
+#endif
 
   // start service
   pService->start();
@@ -364,6 +412,17 @@ void doReset()
 
 }
 
+void press_external_button_low(uint32_t pin, uint32_t time_ms) {
+  digitalWrite(pin, LOW);
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+  delay(time_ms);
+  //digitalWrite(pin, HIGH);
+  //delay(time_ms/2);
+  //digitalWrite(pin, LOW);
+  pinMode(pin, INPUT);
+}
+
 
 void buttonInit()
 {
@@ -371,6 +430,7 @@ void buttonInit()
   btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 1 TapHandler");
+    //press_external_button_low(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       DEBUG_PRINTLN("RESET timer/counter!");
       doReset();
@@ -400,23 +460,23 @@ void buttonInit()
   btn2.setTapHandler([](Button2& b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 2 TapHandler");
+    //press_external_button_low(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
     }
     else if (time > 500) {
       DEBUG_PRINTLN("long (>500ms) click...");
       if ((speedInclineMode & SPEED) == 0)
-	speedDown();
+	      speedDown();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineDown();
+      	inclineDown();
     }
     else {
       DEBUG_PRINTLN("short click...");
       if ((speedInclineMode & SPEED) == 0)
-	speedUp();
-
+      	speedUp();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineUp();
+      	inclineUp();
     }
   });
 
@@ -489,7 +549,7 @@ void IRAM_ATTR reedSwitch_ISR()
 
     revCount++;
     workoutDistance += belt_distance;
-    Totalrevcount++;
+    //Totalrevcount++;
     accumulatorInterval += elapsed;
   }
 }
@@ -596,7 +656,9 @@ float getIncline() {
   incline = tan(angle / RAD_2_DEG) * 100;
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
-
+  DEBUG_PRINT("sensor angle (Y): ");
+  DEBUG_PRINT(angle);
+  DEBUG_PRINT(" -> ");
   DEBUG_PRINTLN(incline);
 
   // probably need some more smoothing here ...
@@ -719,13 +781,14 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-#ifdef TREADMILL_NORTHTRACK_12_2_SI
-  speedInclineMode = SPEED;
+#ifdef TREADMILL_NORDICTRACK_12SI
+  speedInclineMode = SPEED | INCLINE;
   hasReed          = true;
+  treadmillInclineReturnLevel = false;
 #endif
 
   buttonInit();
-
+  tft.init();
   tft.begin();
   tft.setRotation(1); // 3
   tft.fillScreen(TFT_BLACK);
@@ -736,8 +799,10 @@ void setup() {
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
-  delay(3000);
+  pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
+  pinMode(TREADMILL_BUTTON_INC_UP_PIN, INPUT);
 
+  delay(3000);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
