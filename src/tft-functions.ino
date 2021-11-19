@@ -1,10 +1,11 @@
-const int BORDER = 2;
-const int HEADER = 16; // percent
-const int HEADER_PX = HEADER * tft.height();
-
+//const int BORDER = 2;
+//const int HEADER = 16; // percent
+//const int HEADER_PX = HEADER * tft.height();
 //const int X_05 = tft.width()  / 2;
 //const int Y_05 = tft.height() / 2;
 
+const int DRAW_WIDTH = TFT_HEIGHT;
+const int DRAW_HEIGHT = 128; //TFT_WIDTH
 
 void initSPIFFSDone()
 {
@@ -24,9 +25,6 @@ void initSPIFFSDone()
     // tft.drawString("Button 0 Long Click Handler", x - 20, y + 30);
 
 }
-
-#define DRAW_WIDTH TFT_HEIGHT
-#define DRAW_HEIGHT 128 //TFT_WIDTH
 
 void updateDisplay(bool clear)
 {

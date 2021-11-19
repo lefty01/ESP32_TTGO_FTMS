@@ -4,6 +4,9 @@
 .vscode/launch.json
 .vscode/ipch
 
+# Don't check in your changed version with your wifi password
+wifi_mqtt_creds.h
+
 # Prerequisites
 *.d
 

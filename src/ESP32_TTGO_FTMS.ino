@@ -386,10 +386,13 @@ void initSPIFFS() {
       bool on = millis() % 200 < 50;//onboard_led.on = millis() % 200 < 50;
       // onboard_led.update();
       if (on)
-	tft.fillScreen(TFT_RED);
+        tft.fillScreen(TFT_RED);
       else
-	tft.fillScreen(TFT_BLACK);
+	       tft.fillScreen(TFT_BLACK);
     }
+  }
+  else {
+    DEBUG_PRINTLN("SPIFFS Setup Done");
   }
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
@@ -789,7 +792,6 @@ void setup() {
 
   buttonInit();
   tft.init();
-  tft.begin();
   tft.setRotation(1); // 3
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
@@ -967,8 +969,12 @@ void loop() {
         total_distance += mps;
       }
       if (hasReed) {
+//#if 0
         mps = belt_distance * (rpm) / (60 * 1000);
         kmph = mps * 3.6;
+//#else
+//        mps = kmph / 3.6;
+//#endif
         total_distance = workoutDistance / 1000; // meter
       }
     }
