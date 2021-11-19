@@ -31,7 +31,7 @@
 
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
-//#include <AsyncElegantOTA.h>;
+#include <AsyncElegantOTA.h>;
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
