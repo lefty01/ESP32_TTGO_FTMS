@@ -31,7 +31,7 @@
 
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
-#include <AsyncElegantOTA.h>;
+#include <AsyncElegantOTA.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
@@ -51,12 +51,26 @@
 #include <SPI.h>
 
 #define TTGO_T_DISPLAY
-#include <TFT_eSPI.h>
+
+#ifdef USE_TFT_ESPI
+  #include <TFT_eSPI.h>
+#else
+  #include <LovyanGFX.hpp>
+  #include <LGFX_AUTODETECT.hpp> 
+#endif
+
 #include <Button2.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
+#ifndef NO_MPU6050
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
+#endif
+#ifndef NO_VL53L0X
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
+#endif
+
+void show_FPS(int fps);
+
 
 // Select and uncomment one of the Treadmills below
 //#define TREADMILL_TAURUS_9_5
@@ -103,8 +117,12 @@
 #include "wifi_mqtt_creds.h"
 
 // todo: do we get this from tft.width() and tft.height()?
+#ifndef TFT_WIDTH
 #define TFT_WIDTH  135
+#endif
+#ifndef TFT_HEIGHT
 #define TFT_HEIGHT 240
+#endif
 // -> defined in Setup25_TTGO_T_Display.h (via User_Setup.h)
 
 
@@ -147,6 +165,7 @@ volatile bool debug0State = LOW;
 
 void updateDisplay(bool clear);
 void initAsyncWebserver();
+String getWifiIpAddr();
 
 volatile unsigned long t1;
 volatile unsigned long t2;
@@ -275,16 +294,24 @@ float incline;
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
 
+#ifdef USE_TFT_ESPI
 TFT_eSPI tft = TFT_eSPI();
+#else
+static LGFX tft;
+#endif
+
+#ifndef NO_VL53L0X
 VL53L0X sensor;
 const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
-
+#endif
 
 bool isWifiAvailable = false;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
+#ifndef NO_MPU6050
 MPU6050 mpu(Wire);
+#endif
 
 WiFiClient espClient;
 PubSubClient client(espClient); // mqtt client
@@ -399,7 +426,7 @@ void initSPIFFS() {
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS Done!");
-  delay(1000);
+  delay(500);
 }
 
 
@@ -488,10 +515,10 @@ void buttonInit()
   //   DEBUG_PRINT("Toggle Speed Sensor Auto/Manual: ");
   //   manual_speed = !manual_speed;
   //   if (manual_speed) {
-  //     tft.fillCircle(210, 11, 9, TFT_RED);
+  //     tft.fillCircle(210, 11, 8, TFT_RED);
   //   }
   //   else {
-  //     tft.fillCircle(210, 11, 9, TFT_GREEN);
+  //     tft.fillCircle(210, 11, 8, TFT_GREEN);
   //   }
   //   DEBUG_PRINTLN(manual_speed);
   // });
@@ -622,43 +649,50 @@ void inclineDown()
 }
 
 float getIncline() {
-  // if (hasVL53L0X) {}
-  // if (hasMPU6050) {}
+  if (hasVL53L0X) {}
+  if (hasMPU6050) {
+#ifndef NO_MPU6050
+    // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
 
-  // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
+    // mpu.getAngle[XYZ]
+    //float y = mpu.getAngleY();   
+    
+    angle = mpu.getAngleY();
+    char yStr[5];
 
-  // mpu.getAngle[XYZ]
-  //float y = mpu.getAngleY();
-  angle = mpu.getAngleY();
-  char yStr[5];
+    snprintf(yStr, 5, "%.2f", angle);
+    client.publish("home/treadmill/y_angle", yStr);
 
-  snprintf(yStr, 5, "%.2f", angle);
-  client.publish("home/treadmill/y_angle", yStr);
+    DEBUG_PRINT("sensor angle (Y): ");
+    DEBUG_PRINTLN(angle);
+    if (treadmillInclineReturnLevel) {
+      if (angle > 0.1 && angle <= 0.5) return 1;
+      if (angle > 0.5 && angle <= 1.0) return 2;
+      if (angle > 1.0 && angle <= 1.5) return 3;
+      if (angle > 1.5 && angle <= 2.0) return 4;
+      if (angle > 2.0 && angle <= 2.5) return 5;
+      if (angle > 2.5 && angle <= 3.0) return 6;
+      if (angle > 3.0 && angle <= 3.5) return 7;
+      if (angle > 3.5 && angle <= 4.0) return 8;
+      if (angle > 4.0 && angle <= 4.4) return 9;
+      if (angle > 4.4 && angle <= 4.9) return 10;
+      if (angle > 4.9 && angle <= 5.0) return 11;
+      if (angle > 5.0 && angle <= 5.2) return 12;
+      if (angle > 5.2 && angle <= 5.5) return 13;
+      if (angle > 5.5 && angle <= 5.8) return 14;
+      if (angle > 5.8                ) return 15; // measured max = 6.23
+      return 0;
+    }
 
-  DEBUG_PRINT("sensor angle (Y): ");
-  DEBUG_PRINTLN(angle);
-  if (treadmillInclineReturnLevel) {
-    if (angle > 0.1 && angle <= 0.5) return 1;
-    if (angle > 0.5 && angle <= 1.0) return 2;
-    if (angle > 1.0 && angle <= 1.5) return 3;
-    if (angle > 1.5 && angle <= 2.0) return 4;
-    if (angle > 2.0 && angle <= 2.5) return 5;
-    if (angle > 2.5 && angle <= 3.0) return 6;
-    if (angle > 3.0 && angle <= 3.5) return 7;
-    if (angle > 3.5 && angle <= 4.0) return 8;
-    if (angle > 4.0 && angle <= 4.4) return 9;
-    if (angle > 4.4 && angle <= 4.9) return 10;
-    if (angle > 4.9 && angle <= 5.0) return 11;
-    if (angle > 5.0 && angle <= 5.2) return 12;
-    if (angle > 5.2 && angle <= 5.5) return 13;
-    if (angle > 5.5 && angle <= 5.8) return 14;
-    if (angle > 5.8                ) return 15; // measured max = 6.23
-    return 0;
+    incline = tan(angle / RAD_2_DEG) * 100;
+#else
+    //incline = 0;
+    //angle = 0;
+#endif
   }
-
-  incline = tan(angle / RAD_2_DEG) * 100;
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
+
   DEBUG_PRINT("sensor angle (Y): ");
   DEBUG_PRINT(angle);
   DEBUG_PRINT(" -> ");
@@ -813,7 +847,9 @@ void setup() {
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
+  #ifndef NO_MPU6050
   Wire.begin();
+  #endif
 
   initBLE();
   
@@ -834,13 +870,19 @@ void setup() {
   }
 
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_RED);
+  tft.setTextColor(TFT_GREEN);
   tft.setCursor(20, 40);
-  delay(1000);
+  tft.println("mqtt setup Done!");
+  delay(500);
+  
+#ifndef NO_MPU6050
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
   if (status != 0) {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_RED);
+    tft.setCursor(20, 40);
     tft.println("MPU6050 setup failed!");
     tft.println(status);
     delay(3000);
@@ -853,7 +895,10 @@ void setup() {
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
   }
-
+#else
+    hasMPU6050 = false;
+#endif
+#ifndef NO_VL53L0X
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
@@ -866,7 +911,9 @@ void setup() {
     hasVL53L0X = true;
     delay(3000);
   }
-
+#else
+    hasVL53L0X = false;
+#endif
   // tft.fillScreen(TFT_BLACK);
   // tft.print("speedInclineMode: ");
   // tft.println(speedInclineMode);
@@ -884,21 +931,17 @@ void setup() {
   delay(3000);
   updateDisplay(true);
   // indicate bt connection status ... offline
-  tft.fillCircle(229, 11, 9, TFT_BLACK);
-  tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+  tft.fillCircle(229, 11, 8, TFT_BLACK);
+  tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
 
   // indicate manual/auto mode (green=auto/sensor, red=manual)
-  //tft.fillCircle(210, 11, 9, TFT_RED);
+  //tft.fillCircle(210, 11, 8, TFT_RED);
   showSpeedInclineMode(speedInclineMode);
 
   setTime(0,0,0,0,0,0);
 }
 
-void loop() {
-  buttonLoop();
-  mpu.update();
-  //uint8_t result = rotary.process();
-
+void loop_handle_WIFI() {
   // re-connect to wifi
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
     wifi_reconnect_timer = millis();
@@ -912,21 +955,56 @@ void loop() {
     isWifiAvailable = true;
     wifi_reconnect_counter++;
   }
+}
+void show_WIFI() {
+  // show reconnect counter in tft
+  // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
+  tft.fillRect(2, 2, 60, 18, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextFont(2);
+  tft.setCursor(3, 4);
+  tft.print("Wifi["); tft.print(wifi_reconnect_counter);
+  if (isWifiAvailable) {
+    tft.print("]:"); tft.print(getWifiIpAddr());
+  }
+  else {
+    tft.print("]");
+  }
+}
 
-
+void loop_handle_BLE() {
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
     DEBUG_PRINTLN("BT Client connected!");
-    tft.fillCircle(229, 11, 9, TFT_SKYBLUE);
+    tft.fillCircle(229, 11, 8, TFT_SKYBLUE);
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     DEBUG_PRINTLN("BT Client disconnected!");
-    tft.fillCircle(229, 11, 9, TFT_BLACK);
-    tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+    tft.fillCircle(229, 11, 8, TFT_BLACK);
+    tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
   }
+}
 
+//#define SHOW_FPS
+
+void loop() {
+#ifdef SHOW_FPS
+  static int fps;
+  ++fps;
+  updateDisplay(false);
+#endif
+
+  buttonLoop();
+
+#ifndef NO_MPU6050
+  mpu.update();
+#endif
+  //uint8_t result = rotary.process();
+
+  loop_handle_WIFI();
+  loop_handle_BLE();
 
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
@@ -943,19 +1021,17 @@ void loop() {
 
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
+#ifdef SHOW_FPS
     sw_timer_clock = millis();
-
+    show_FPS(fps);
+    fps = 0;
+#endif 
     // from reed sensor
     //interrupts();
     //calculateRPM();
 
-    // show reconnect counter in tft
-    // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
-    tft.fillRect(2, 2, 60, 18, TFT_BLACK);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextFont(2);
-    tft.setCursor(3, 4);
-    tft.print(wifi_reconnect_counter);
+    show_WIFI();
+
 
     if (speedInclineMode & INCLINE) {
       incline = getIncline(); // also sets 'angle' variable
@@ -983,7 +1059,7 @@ void loop() {
       total_distance += mps;
     }
     elevation_gain += (double)(sin(angle) * mps);
-
+#if 0
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
     DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);
@@ -995,7 +1071,7 @@ void loop() {
     DEBUG_PRINT("angle:     "); DEBUG_PRINTLN(grade_deg);
     DEBUG_PRINT("dist km:   "); DEBUG_PRINTLN(total_distance/1000);
     DEBUG_PRINT("elegain m: "); DEBUG_PRINTLN(elevation_gain);
-
+#endif
     char inclineStr[6];
     char kmphStr[6];
     snprintf(inclineStr, 6, "%.1f", incline);
@@ -1003,7 +1079,9 @@ void loop() {
     client.publish("home/treadmill/incline", inclineStr);
     client.publish("home/treadmill/speed",   kmphStr);
 
+#ifndef SHOW_FPS
     updateDisplay(false);
+#endif
     notifyClients();
 
     uint8_t treadmillData[34] = {};

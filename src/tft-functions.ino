@@ -32,9 +32,9 @@ void updateDisplay(bool clear)
     tft.fillScreen(TFT_BLACK);
   }
 
-  tft.setTextColor(TFT_WHITE);
+  tft.setTextColor(TFT_ORANGE);
   tft.setTextFont(2);
-  tft.setCursor(100, 4);
+  tft.setCursor(229+15, 4);
 
   tft.print(speedInclineMode);
   // if (set_speed) tft.print("SPEED");
@@ -93,10 +93,10 @@ void updateBTConnectionStatus()
 void showSpeedInclineMode(uint8_t mode)
 {
   // clear upper status line
-  tft.fillRect(2, 2, 200, 18, TFT_BLACK);
+  tft.fillRect(2, 2, DRAW_WIDTH-2, 18, TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
-  tft.setCursor(100, 4);
+  tft.setCursor(229+15, 4);
 
   tft.print(mode);
 
@@ -105,15 +105,23 @@ void showSpeedInclineMode(uint8_t mode)
   // green: sensor/auto mode
   // red  : manual mode (via website, or buttons)
   if (mode & SPEED) {
-      tft.fillCircle(190, 11, 9, TFT_GREEN);
+      tft.fillCircle(190, 11, 8, TFT_GREEN);
   }
   else if((mode & SPEED) == 0) {
-    tft.fillCircle(190, 11, 9, TFT_RED);
+    tft.fillCircle(190, 11, 8, TFT_RED);
   }
   if (mode & INCLINE) {
-      tft.fillCircle(210, 11, 9, TFT_GREEN);
+      tft.fillCircle(210, 11, 8, TFT_GREEN);
   }
   else if ((mode & INCLINE) == 0) {
-    tft.fillCircle(210, 11, 9, TFT_RED);
+    tft.fillCircle(210, 11, 8, TFT_RED);
   }
+}
+
+void show_FPS(int fps){
+  tft.setTextColor(TFT_ORANGE);
+  tft.setTextFont(2);
+  tft.fillRect(DRAW_WIDTH-10*8, DRAW_HEIGHT-18, 10*8, DRAW_HEIGHT, TFT_BLACK);
+  tft.setCursor(DRAW_WIDTH-10*8,DRAW_HEIGHT-18);
+  tft.printf("fps:%03d", fps);
 }
