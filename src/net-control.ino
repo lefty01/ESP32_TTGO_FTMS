@@ -3,6 +3,9 @@ String ipAddr;
 String dnsAddr;
 const unsigned maxWifiWaitSeconds = 60;
 
+String getWifiIpAddr() {
+  return ipAddr;
+}
 
 // note: delays mainly to keep tft text shortly readable
 int setupWifi() {
@@ -27,6 +30,7 @@ int setupWifi() {
     if (retry_counter > maxWifiWaitSeconds) {
       DEBUG_PRINTLN(" TIMEOUT!");
       tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_RED);
       tft.setCursor(20, 60);
       tft.println("Wifi TIMEOUT");
       return 1;
@@ -43,11 +47,11 @@ int setupWifi() {
   DEBUG_PRINTLN(dnsAddr);
 
   tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_GREEN);
   tft.setCursor(20, 60);
   tft.println("Wifi CONNECTED");
   tft.print("IP Addr: "); tft.println(ipAddr);
-  delay(3000);
-  tft.fillScreen(TFT_BLACK);
+  delay(1000);
   return 0;
 }
 
@@ -101,19 +105,15 @@ void initAsyncWebserver()
 {
   server.on("/", HTTP_GET, onRootRequest);
   server.serveStatic("/", SPIFFS, "/");
-
+  
+  AsyncElegantOTA.begin(&server);
   // Start server
   server.begin();
 }
 
-
-
-
 // ----------------------------------------------------------------------------
 // WebSocket initialization
 // ----------------------------------------------------------------------------
-
-
 
 // https://arduinojson.org/v6/assistant/
 
@@ -216,4 +216,3 @@ void initWebSocket() {
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 }
-

@@ -20,6 +20,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define NIMBLE
+
 // initially started with the sketch from:
 // https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
@@ -29,32 +31,53 @@
 
 #include <Arduino.h>
 //#include <ArduinoOTA.h>
+#include <AsyncElegantOTA.h>
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
+#ifndef NIMBLE
+// original 
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h> // notify
+#else
+#include <NimBLEDevice.h>
+#endif
+
 #include <math.h>
 #include <SPI.h>
 
 #define TTGO_T_DISPLAY
-#include <TFT_eSPI.h>
+
+#ifdef USE_TFT_ESPI
+  #include <TFT_eSPI.h>
+#else
+  #include <LovyanGFX.hpp>
+  #include <LGFX_AUTODETECT.hpp> 
+#endif
+
 #include <Button2.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
+#ifndef NO_MPU6050
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
+#endif
+#ifndef NO_VL53L0X
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
+#endif
+
+void show_FPS(int fps);
+
 
 // Select and uncomment one of the Treadmills below
-#define TREADMILL_TAURUS_9_5
-//#define TREADMILL_NORTHTRACK_12_2_SI
+//#define TREADMILL_TAURUS_9_5
+#define TREADMILL_NORDICTRACK_12SI
 
 
-#define VERSION "0.0.14"
+#define VERSION "0.0.14.NORDICTRACK_12SI"
 #define MQTTDEVICEID "ESP32_FTMS1"
 
 // GAP  stands for Generic Access Profile
@@ -94,8 +117,12 @@
 #include "wifi_mqtt_creds.h"
 
 // todo: do we get this from tft.width() and tft.height()?
-#define TFT_WIDTH  240
-#define TFT_HEIGHT 128
+#ifndef TFT_WIDTH
+#define TFT_WIDTH  135
+#endif
+#ifndef TFT_HEIGHT
+#define TFT_HEIGHT 240
+#endif
 // -> defined in Setup25_TTGO_T_Display.h (via User_Setup.h)
 
 
@@ -112,13 +139,25 @@
 #error Unknow button setup
 #endif
 
+// PINS 
+// NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
+
 #define SPEED_IR_SENSOR1   15
 #define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
+// This are used to control/override the Treadmil, e.g. pins are connected to 
+// the different button so that software can "press" them
+// TODO: They could also be used to read pins 
+#define TREADMILL_BUTTON_INC_DOWN_PIN 32
+#define TREADMILL_BUTTON_INC_UP_PIN   33
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN 25
+#define TREADMILL_BUTTON_SPEED_UP_PIN   27
+#define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
+
 // DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyser
 // Uncomment this line to use it
-//#define DEBUG0_PIN       32
+//#define DEBUG0_PIN       17
 
 #ifdef DEBUG0_PIN
 volatile bool debug0State = LOW;
@@ -126,6 +165,7 @@ volatile bool debug0State = LOW;
 
 void updateDisplay(bool clear);
 void initAsyncWebserver();
+String getWifiIpAddr();
 
 volatile unsigned long t1;
 volatile unsigned long t2;
@@ -150,7 +190,7 @@ unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
 // my treadmill stats:
-#if defined TREADMILL_TAURUS_9_5
+#if defined(TREADMILL_TAURUS_9_5)
 // Taurus 9.5:
 // Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
 // Steigung:        0   - 15 %    (increments 1 %)
@@ -161,7 +201,7 @@ const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
-#elif defined TREADMILL_NORTHTRACK_12_2_SI
+#elif defined(TREADMILL_NORDICTRACK_12SI)
 // Northtrack 12.2 Si:
 // Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
 // Steigung:        0   - 12 %    (increments .5 %)
@@ -193,7 +233,7 @@ const float max_incline = 12.0;
 const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 0.5;
-const long  belt_distance = 151.9; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
+const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
                                    // e.g. circumfence of front roler (calibrated with a distant wheel)
                                    // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
 #else
@@ -213,7 +253,7 @@ volatile unsigned long usAvg[8];
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
 volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
 volatile long accumulatorInterval = 0;    // time sum between display during intervals
-volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
+//volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
@@ -254,16 +294,24 @@ float incline;
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
 
+#ifdef USE_TFT_ESPI
 TFT_eSPI tft = TFT_eSPI();
+#else
+static LGFX tft;
+#endif
+
+#ifndef NO_VL53L0X
 VL53L0X sensor;
 const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
-
+#endif
 
 bool isWifiAvailable = false;
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
+#ifndef NO_MPU6050
 MPU6050 mpu(Wire);
+#endif
 
 WiFiClient espClient;
 PubSubClient client(espClient); // mqtt client
@@ -282,12 +330,26 @@ BLEAdvertising *pAdvertising;
 
 // {0x2ACD,"Treadmill Data"},
 BLECharacteristic TreadmillDataCharacteristics(BLEUUID((uint16_t)0x2ACD),
-					       BLECharacteristic::PROPERTY_NOTIFY);
+#ifndef NIMBLE
+					       BLECharacteristic::PROPERTY_NOTIFY
+#else
+                 NIMBLE_PROPERTY::NOTIFY
+#endif
+                 );
 
 BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
-						      BLECharacteristic::PROPERTY_READ);
+#ifndef NIMBLE
+						      BLECharacteristic::PROPERTY_READ
+#else
+                 NIMBLE_PROPERTY::READ
+#endif
+                  );
 
-BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901));
+BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901)
+#ifdef NIMBLE
+                 , NIMBLE_PROPERTY::READ,1000
+#endif
+);
 
 // seems kind of a standard callback function
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -313,11 +375,24 @@ void initBLE() {
   pService->addCharacteristic(&TreadmillDataCharacteristics);
   TreadmillDescriptor.setValue("Treadmill Descriptor Value ABC");
   TreadmillDataCharacteristics.addDescriptor(&TreadmillDescriptor);
-  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
-
   pService->addCharacteristic(&FitnessMachineFeatureCharacteristic);
+
+  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+  // Create a BLE Descriptor
+#ifndef NIMBLE
+  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
   FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
   //pFeature->addDescriptor(new BLE2902());
+#else
+  /***************************************************   
+   NOTE: DO NOT create a 2902 descriptor. 
+   it will be created automatically if notifications 
+   or indications are enabled on a characteristic.
+   
+  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
+  FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
+  ****************************************************/
+#endif
 
   // start service
   pService->start();
@@ -338,17 +413,20 @@ void initSPIFFS() {
       bool on = millis() % 200 < 50;//onboard_led.on = millis() % 200 < 50;
       // onboard_led.update();
       if (on)
-	tft.fillScreen(TFT_RED);
+        tft.fillScreen(TFT_RED);
       else
-	tft.fillScreen(TFT_BLACK);
+	       tft.fillScreen(TFT_BLACK);
     }
+  }
+  else {
+    DEBUG_PRINTLN("SPIFFS Setup Done");
   }
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS Done!");
-  delay(1000);
+  delay(500);
 }
 
 
@@ -364,6 +442,17 @@ void doReset()
 
 }
 
+void press_external_button_low(uint32_t pin, uint32_t time_ms) {
+  digitalWrite(pin, LOW);
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+  delay(time_ms);
+  //digitalWrite(pin, HIGH);
+  //delay(time_ms/2);
+  //digitalWrite(pin, LOW);
+  pinMode(pin, INPUT);
+}
+
 
 void buttonInit()
 {
@@ -371,6 +460,7 @@ void buttonInit()
   btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 1 TapHandler");
+    //press_external_button_low(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       DEBUG_PRINTLN("RESET timer/counter!");
       doReset();
@@ -400,23 +490,23 @@ void buttonInit()
   btn2.setTapHandler([](Button2& b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 2 TapHandler");
+    //press_external_button_low(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
     }
     else if (time > 500) {
       DEBUG_PRINTLN("long (>500ms) click...");
       if ((speedInclineMode & SPEED) == 0)
-	speedDown();
+	      speedDown();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineDown();
+      	inclineDown();
     }
     else {
       DEBUG_PRINTLN("short click...");
       if ((speedInclineMode & SPEED) == 0)
-	speedUp();
-
+      	speedUp();
       if ((speedInclineMode & INCLINE) == 0)
-	inclineUp();
+      	inclineUp();
     }
   });
 
@@ -425,10 +515,10 @@ void buttonInit()
   //   DEBUG_PRINT("Toggle Speed Sensor Auto/Manual: ");
   //   manual_speed = !manual_speed;
   //   if (manual_speed) {
-  //     tft.fillCircle(210, 11, 9, TFT_RED);
+  //     tft.fillCircle(210, 11, 8, TFT_RED);
   //   }
   //   else {
-  //     tft.fillCircle(210, 11, 9, TFT_GREEN);
+  //     tft.fillCircle(210, 11, 8, TFT_GREEN);
   //   }
   //   DEBUG_PRINTLN(manual_speed);
   // });
@@ -489,7 +579,7 @@ void IRAM_ATTR reedSwitch_ISR()
 
     revCount++;
     workoutDistance += belt_distance;
-    Totalrevcount++;
+    //Totalrevcount++;
     accumulatorInterval += elapsed;
   }
 }
@@ -559,44 +649,53 @@ void inclineDown()
 }
 
 float getIncline() {
-  // if (hasVL53L0X) {}
-  // if (hasMPU6050) {}
+  if (hasVL53L0X) {}
+  if (hasMPU6050) {
+#ifndef NO_MPU6050
+    // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
 
-  // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
+    // mpu.getAngle[XYZ]
+    //float y = mpu.getAngleY();   
+    
+    angle = mpu.getAngleY();
+    char yStr[5];
 
-  // mpu.getAngle[XYZ]
-  //float y = mpu.getAngleY();
-  angle = mpu.getAngleY();
-  char yStr[5];
+    snprintf(yStr, 5, "%.2f", angle);
+    client.publish("home/treadmill/y_angle", yStr);
 
-  snprintf(yStr, 5, "%.2f", angle);
-  client.publish("home/treadmill/y_angle", yStr);
+    DEBUG_PRINT("sensor angle (Y): ");
+    DEBUG_PRINTLN(angle);
+    if (treadmillInclineReturnLevel) {
+      if (angle > 0.1 && angle <= 0.5) return 1;
+      if (angle > 0.5 && angle <= 1.0) return 2;
+      if (angle > 1.0 && angle <= 1.5) return 3;
+      if (angle > 1.5 && angle <= 2.0) return 4;
+      if (angle > 2.0 && angle <= 2.5) return 5;
+      if (angle > 2.5 && angle <= 3.0) return 6;
+      if (angle > 3.0 && angle <= 3.5) return 7;
+      if (angle > 3.5 && angle <= 4.0) return 8;
+      if (angle > 4.0 && angle <= 4.4) return 9;
+      if (angle > 4.4 && angle <= 4.9) return 10;
+      if (angle > 4.9 && angle <= 5.0) return 11;
+      if (angle > 5.0 && angle <= 5.2) return 12;
+      if (angle > 5.2 && angle <= 5.5) return 13;
+      if (angle > 5.5 && angle <= 5.8) return 14;
+      if (angle > 5.8                ) return 15; // measured max = 6.23
+      return 0;
+    }
 
-  DEBUG_PRINT("sensor angle (Y): ");
-  DEBUG_PRINTLN(angle);
-  if (treadmillInclineReturnLevel) {
-    if (angle > 0.1 && angle <= 0.5) return 1;
-    if (angle > 0.5 && angle <= 1.0) return 2;
-    if (angle > 1.0 && angle <= 1.5) return 3;
-    if (angle > 1.5 && angle <= 2.0) return 4;
-    if (angle > 2.0 && angle <= 2.5) return 5;
-    if (angle > 2.5 && angle <= 3.0) return 6;
-    if (angle > 3.0 && angle <= 3.5) return 7;
-    if (angle > 3.5 && angle <= 4.0) return 8;
-    if (angle > 4.0 && angle <= 4.4) return 9;
-    if (angle > 4.4 && angle <= 4.9) return 10;
-    if (angle > 4.9 && angle <= 5.0) return 11;
-    if (angle > 5.0 && angle <= 5.2) return 12;
-    if (angle > 5.2 && angle <= 5.5) return 13;
-    if (angle > 5.5 && angle <= 5.8) return 14;
-    if (angle > 5.8                ) return 15; // measured max = 6.23
-    return 0;
+    incline = tan(angle / RAD_2_DEG) * 100;
+#else
+    //incline = 0;
+    //angle = 0;
+#endif
   }
-
-  incline = tan(angle / RAD_2_DEG) * 100;
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
+  DEBUG_PRINT("sensor angle (Y): ");
+  DEBUG_PRINT(angle);
+  DEBUG_PRINT(" -> ");
   DEBUG_PRINTLN(incline);
 
   // probably need some more smoothing here ...
@@ -719,14 +818,14 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-#ifdef TREADMILL_NORTHTRACK_12_2_SI
-  speedInclineMode = SPEED;
+#ifdef TREADMILL_NORDICTRACK_12SI
+  speedInclineMode = SPEED | INCLINE;
   hasReed          = true;
+  treadmillInclineReturnLevel = false;
 #endif
 
   buttonInit();
-
-  tft.begin();
+  tft.init();
   tft.setRotation(1); // 3
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
@@ -736,8 +835,10 @@ void setup() {
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
-  delay(3000);
+  pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
+  pinMode(TREADMILL_BUTTON_INC_UP_PIN, INPUT);
 
+  delay(3000);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
@@ -746,7 +847,9 @@ void setup() {
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
+  #ifndef NO_MPU6050
   Wire.begin();
+  #endif
 
   initBLE();
   
@@ -767,13 +870,19 @@ void setup() {
   }
 
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_RED);
+  tft.setTextColor(TFT_GREEN);
   tft.setCursor(20, 40);
-  delay(1000);
+  tft.println("mqtt setup Done!");
+  delay(500);
+  
+#ifndef NO_MPU6050
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
   if (status != 0) {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_RED);
+    tft.setCursor(20, 40);
     tft.println("MPU6050 setup failed!");
     tft.println(status);
     delay(3000);
@@ -786,7 +895,10 @@ void setup() {
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
   }
-
+#else
+    hasMPU6050 = false;
+#endif
+#ifndef NO_VL53L0X
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
@@ -799,7 +911,9 @@ void setup() {
     hasVL53L0X = true;
     delay(3000);
   }
-
+#else
+    hasVL53L0X = false;
+#endif
   // tft.fillScreen(TFT_BLACK);
   // tft.print("speedInclineMode: ");
   // tft.println(speedInclineMode);
@@ -817,21 +931,17 @@ void setup() {
   delay(3000);
   updateDisplay(true);
   // indicate bt connection status ... offline
-  tft.fillCircle(229, 11, 9, TFT_BLACK);
-  tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+  tft.fillCircle(229, 11, 8, TFT_BLACK);
+  tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
 
   // indicate manual/auto mode (green=auto/sensor, red=manual)
-  //tft.fillCircle(210, 11, 9, TFT_RED);
+  //tft.fillCircle(210, 11, 8, TFT_RED);
   showSpeedInclineMode(speedInclineMode);
 
   setTime(0,0,0,0,0,0);
 }
 
-void loop() {
-  buttonLoop();
-  mpu.update();
-  //uint8_t result = rotary.process();
-
+void loop_handle_WIFI() {
   // re-connect to wifi
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
     wifi_reconnect_timer = millis();
@@ -845,21 +955,56 @@ void loop() {
     isWifiAvailable = true;
     wifi_reconnect_counter++;
   }
+}
+void show_WIFI() {
+  // show reconnect counter in tft
+  // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
+  tft.fillRect(2, 2, 60, 18, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextFont(2);
+  tft.setCursor(3, 4);
+  tft.print("Wifi["); tft.print(wifi_reconnect_counter);
+  if (isWifiAvailable) {
+    tft.print("]:"); tft.print(getWifiIpAddr());
+  }
+  else {
+    tft.print("]");
+  }
+}
 
-
+void loop_handle_BLE() {
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
     DEBUG_PRINTLN("BT Client connected!");
-    tft.fillCircle(229, 11, 9, TFT_SKYBLUE);
+    tft.fillCircle(229, 11, 8, TFT_SKYBLUE);
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     DEBUG_PRINTLN("BT Client disconnected!");
-    tft.fillCircle(229, 11, 9, TFT_BLACK);
-    tft.drawCircle(229, 11, 9, TFT_SKYBLUE);
+    tft.fillCircle(229, 11, 8, TFT_BLACK);
+    tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
   }
+}
 
+//#define SHOW_FPS
+
+void loop() {
+#ifdef SHOW_FPS
+  static int fps;
+  ++fps;
+  updateDisplay(false);
+#endif
+
+  buttonLoop();
+
+#ifndef NO_MPU6050
+  mpu.update();
+#endif
+  //uint8_t result = rotary.process();
+
+  loop_handle_WIFI();
+  loop_handle_BLE();
 
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
@@ -876,19 +1021,17 @@ void loop() {
 
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
+#ifdef SHOW_FPS
     sw_timer_clock = millis();
-
+    show_FPS(fps);
+    fps = 0;
+#endif 
     // from reed sensor
     //interrupts();
     //calculateRPM();
 
-    // show reconnect counter in tft
-    // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
-    tft.fillRect(2, 2, 60, 18, TFT_BLACK);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextFont(2);
-    tft.setCursor(3, 4);
-    tft.print(wifi_reconnect_counter);
+    show_WIFI();
+
 
     if (speedInclineMode & INCLINE) {
       incline = getIncline(); // also sets 'angle' variable
@@ -902,8 +1045,12 @@ void loop() {
         total_distance += mps;
       }
       if (hasReed) {
+//#if 0
         mps = belt_distance * (rpm) / (60 * 1000);
         kmph = mps * 3.6;
+//#else
+//        mps = kmph / 3.6;
+//#endif
         total_distance = workoutDistance / 1000; // meter
       }
     }
@@ -912,7 +1059,7 @@ void loop() {
       total_distance += mps;
     }
     elevation_gain += (double)(sin(angle) * mps);
-
+#if 0
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
     DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);
@@ -924,7 +1071,7 @@ void loop() {
     DEBUG_PRINT("angle:     "); DEBUG_PRINTLN(grade_deg);
     DEBUG_PRINT("dist km:   "); DEBUG_PRINTLN(total_distance/1000);
     DEBUG_PRINT("elegain m: "); DEBUG_PRINTLN(elevation_gain);
-
+#endif
     char inclineStr[6];
     char kmphStr[6];
     snprintf(inclineStr, 6, "%.1f", incline);
@@ -932,7 +1079,9 @@ void loop() {
     client.publish("home/treadmill/incline", inclineStr);
     client.publish("home/treadmill/speed",   kmphStr);
 
+#ifndef SHOW_FPS
     updateDisplay(false);
+#endif
     notifyClients();
 
     uint8_t treadmillData[34] = {};
