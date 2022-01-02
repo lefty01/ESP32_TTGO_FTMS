@@ -28,15 +28,15 @@
 // FIXME: incline manual/auto toggle -> not same for incline and speed!!
 // FIXME: if manual incline round up/down to integer
 // FIXME: elevation gain
+// FIXME: once and for good ... camle vs. underscore case
+// TODO:  web config menu (+https, +setup initial user password)
 
-#include <Arduino.h>
-//#include <ArduinoOTA.h>
-#include <AsyncElegantOTA.h>
-#include <WiFi.h>
-#include <ESPAsyncWebServer.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include "common.h"
+
 #include <SPIFFS.h>
+#include <Preferences.h>
+#include <unity.h>
+
 #ifndef NIMBLE
 // original 
 #include <BLEDevice.h>
@@ -50,14 +50,6 @@
 #include <math.h>
 #include <SPI.h>
 
-#define TTGO_T_DISPLAY
-
-#ifdef USE_TFT_ESPI
-  #include <TFT_eSPI.h>
-#else
-  #include <LovyanGFX.hpp>
-  #include <LGFX_AUTODETECT.hpp> 
-#endif
 
 #include <Button2.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
@@ -69,16 +61,19 @@
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 #endif
 
-void show_FPS(int fps);
 
 
 // Select and uncomment one of the Treadmills below
-//#define TREADMILL_TAURUS_9_5
-#define TREADMILL_NORDICTRACK_12SI
+//#define TREADMILL_MODEL "TAURUS_9_5"
+//#define TREADMILL_MODEL "NORDICTRACK_12SI"
+// or via platformio.ini:
+// -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-#define VERSION "0.0.14.NORDICTRACK_12SI"
-#define MQTTDEVICEID "ESP32_FTMS1"
+const char* VERSION = "0.0.17";
+
+
+
 
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
@@ -111,22 +106,6 @@ void show_FPS(int fps);
 // https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
 
-#define DEBUG 1
-//#define DEBUG_MQTT 1
-#include "debug_print.h"
-#include "wifi_mqtt_creds.h"
-
-// todo: do we get this from tft.width() and tft.height()?
-#ifndef TFT_WIDTH
-#define TFT_WIDTH  135
-#endif
-#ifndef TFT_HEIGHT
-#define TFT_HEIGHT 240
-#endif
-// -> defined in Setup25_TTGO_T_Display.h (via User_Setup.h)
-
-
-
 #define ADC_EN          14  //ADC_EN is the ADC detection enable port
 //  -> does this interfere with input/pullup???
 #define ADC_PIN         34
@@ -146,7 +125,7 @@ void show_FPS(int fps);
 #define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
-// This are used to control/override the Treadmil, e.g. pins are connected to 
+// These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
 // TODO: They could also be used to read pins 
 #define TREADMILL_BUTTON_INC_DOWN_PIN 32
@@ -155,7 +134,9 @@ void show_FPS(int fps);
 #define TREADMILL_BUTTON_SPEED_UP_PIN   27
 #define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
-// DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyser
+
+
+// DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
 // Uncomment this line to use it
 //#define DEBUG0_PIN       17
 
@@ -163,20 +144,14 @@ void show_FPS(int fps);
 volatile bool debug0State = LOW;
 #endif
 
-void updateDisplay(bool clear);
-void initAsyncWebserver();
-String getWifiIpAddr();
+
 
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
 volatile boolean t2_valid = false;
-//volatile boolean set_speed = true; // speed or incline via rotary encoder
 
 
-// fixme: once and for good ... camle vs. underscore
-// fixme: stick with one integer type ... i.e. use uint32_t instead od unsigned long
-enum SensorModeFlags { MANUAL = 0, SPEED = 1, INCLINE = 2, _NUM_MODES_ = 4};
 uint8_t speedInclineMode = SPEED;
 boolean hasMPU6050 = false;
 boolean hasVL53L0X = false;
@@ -189,19 +164,29 @@ unsigned long sw_timer_clock = 0;
 unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
-// my treadmill stats:
-#if defined(TREADMILL_TAURUS_9_5)
+
+String MQTTDEVICEID = "ESP32_FTMS_";
+
+uint8_t mac_addr[6];
+Preferences prefs;
+esp_reset_reason_t rr;
+
+// treadmill stats
+#ifndef TREADMILL_MODEL
+  #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
+#elif TREADMILL_MODEL == TAURUS_9_5
 // Taurus 9.5:
-// Geschwindigkeit: 0.5 - 22 km/h (increments 0.1 km/h)
-// Steigung:        0   - 15 %    (increments 1 %)
+// Speed:    0.5 - 22 km/h (increments 0.1 km/h)
+// Incline:  0..15 Levels  (increments 1 Level) -> 0-11 %
 const float max_speed   = 22.0;
 const float min_speed   =  0.5;
-const float max_incline = 15.0;
+const float max_incline = 11.0;
 const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
 const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
-#elif defined(TREADMILL_NORDICTRACK_12SI)
+
+#elif TREADMILL_MODEL == NORDICTRACK_12SI
 // Northtrack 12.2 Si:
 // Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
 // Steigung:        0   - 12 %    (increments .5 %)
@@ -236,9 +221,11 @@ const float incline_interval_min  = 0.5;
 const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
                                    // e.g. circumfence of front roler (calibrated with a distant wheel)
                                    // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
+
 #else
-#error ***** ATTENTION NO TREADMILL DEFINED ******
+  #error "Unexpected value for TREADMILL_MODEL defined!"
 #endif
+
 
 
 const float speed_interval_10 = 1.0;
@@ -246,8 +233,6 @@ const float speed_interval_05 = 0.5;
 const float speed_interval_01 = speed_interval_min;
 const float incline_interval  = incline_interval_min;
 
-boolean treadmillInclineReturnLevel = false; // true means 'translate' the measured incline into a level
-                                            // false would return the 'real' incline as percentage value
 volatile float speed_interval = speed_interval_01;
 volatile unsigned long usAvg[8];
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
@@ -257,18 +242,13 @@ volatile long accumulatorInterval = 0;    // time sum between display during int
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
-float rpmaccumulatorInterval = 0;
+
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
-//const int buttonPin[] = {BUTTON_1, BUTTON_2, BUTTON_3, BUTTON_4};
 //const int ledPin =  13;      // the number of the LED pin
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
-// Button2 btn3(BUTTON_3);
-// Button2 btn4(BUTTON_4);
-// Button2 encBtnP(ENC_BUTTON_PUSH);
-// Rotary rotary = Rotary(ENC_BUTTON_A, ENC_BUTTON_B);
 
 
 uint16_t    inst_speed;
@@ -306,6 +286,8 @@ const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
 #endif
 
 bool isWifiAvailable = false;
+bool isMqttAvailable = false;
+// todo: https and require initial user pass
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
@@ -314,7 +296,7 @@ MPU6050 mpu(Wire);
 #endif
 
 WiFiClient espClient;
-PubSubClient client(espClient); // mqtt client
+PubSubClient client(espClient);  // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
 #define FTMSService BLEUUID((uint16_t)0x1826)
@@ -333,23 +315,23 @@ BLECharacteristic TreadmillDataCharacteristics(BLEUUID((uint16_t)0x2ACD),
 #ifndef NIMBLE
 					       BLECharacteristic::PROPERTY_NOTIFY
 #else
-                 NIMBLE_PROPERTY::NOTIFY
+					       NIMBLE_PROPERTY::NOTIFY
 #endif
-                 );
+					       );
 
 BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
 #ifndef NIMBLE
 						      BLECharacteristic::PROPERTY_READ
 #else
-                 NIMBLE_PROPERTY::READ
+						      NIMBLE_PROPERTY::READ
 #endif
-                  );
+						      );
 
 BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901)
 #ifdef NIMBLE
-                 , NIMBLE_PROPERTY::READ,1000
+				  , NIMBLE_PROPERTY::READ,1000
 #endif
-);
+				  );
 
 // seems kind of a standard callback function
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -364,7 +346,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
 
 
 void initBLE() {
-  BLEDevice::init(MQTTDEVICEID); // set server name (here: MQTTDEVICEID)
+  BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
   // create BLE Server, set callback for connect/disconnect
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new MyServerCallbacks());
@@ -384,16 +366,15 @@ void initBLE() {
   FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
   //pFeature->addDescriptor(new BLE2902());
 #else
-  /***************************************************   
+  /***************************************************
    NOTE: DO NOT create a 2902 descriptor. 
-   it will be created automatically if notifications 
+   it will be created automatically if notifications
    or indications are enabled on a characteristic.
-   
-  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
-  FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
   ****************************************************/
-#endif
+  //TreadmillDataCharacteristics.addDescriptor(new BLE2902());
+  //FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
 
+#endif
   // start service
   pService->start();
   pAdvertising = pServer->getAdvertising();
@@ -402,7 +383,6 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
   
   pAdvertising->start();
-
 }
 
 
@@ -410,12 +390,12 @@ void initSPIFFS() {
   if (!SPIFFS.begin()) {
     DEBUG_PRINTLN("Cannot mount SPIFFS volume...");
     while (1) {
-      bool on = millis() % 200 < 50;//onboard_led.on = millis() % 200 < 50;
+      bool on = millis() % 200 < 50;  // onboard_led.on = millis() % 200 < 50;
       // onboard_led.update();
       if (on)
         tft.fillScreen(TFT_RED);
       else
-	       tft.fillScreen(TFT_BLACK);
+	tft.fillScreen(TFT_BLACK);
     }
   }
   else {
@@ -426,7 +406,7 @@ void initSPIFFS() {
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS Done!");
-  delay(500);
+  delay(1000);
 }
 
 
@@ -439,7 +419,6 @@ void doReset()
   incline = 0;
 
   // calibrate
-
 }
 
 void press_external_button_low(uint32_t pin, uint32_t time_ms) {
@@ -472,6 +451,8 @@ void buttonInit()
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
       showSpeedInclineMode(speedInclineMode);
+      updateBTConnectionStatus(bleClientConnected);
+      show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
     }
     else { // button1 short click toggle speed/incline mode
       DEBUG_PRINTLN("Button 1 short click...");
@@ -480,6 +461,8 @@ void buttonInit()
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
       showSpeedInclineMode(speedInclineMode);
+      updateBTConnectionStatus(bleClientConnected);
+      show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
     }
 
   });
@@ -574,13 +557,13 @@ void IRAM_ATTR reedSwitch_ISR()
 #endif
 
     startTime = usNow;  // reset the clock
-    long elapsed = test_elapsed;
+    //long elapsed = test_elapsed;
     longpauseTime = test_elapsed;
 
     revCount++;
     workoutDistance += belt_distance;
     //Totalrevcount++;
-    accumulatorInterval += elapsed;
+    accumulatorInterval += test_elapsed;
   }
 }
 
@@ -649,40 +632,27 @@ void inclineDown()
 }
 
 float getIncline() {
-  if (hasVL53L0X) {}
-  if (hasMPU6050) {
+  if (hasVL53L0X) {
+    // calc incline/angle from distance
+    // depends on sensor placement ... TODO: configure via webinterface
+  }
+  else if (hasMPU6050) {
 #ifndef NO_MPU6050
-    // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
+    // TODO: configure sensor orientation  via webinterface
 
+    // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
-    //float y = mpu.getAngleY();   
+    //float y = mpu.getAngleY();
     
     angle = mpu.getAngleY();
+    if (angle < 0) angle = 0;
     char yStr[5];
 
     snprintf(yStr, 5, "%.2f", angle);
-    client.publish("home/treadmill/y_angle", yStr);
+    client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
 
     DEBUG_PRINT("sensor angle (Y): ");
     DEBUG_PRINTLN(angle);
-    if (treadmillInclineReturnLevel) {
-      if (angle > 0.1 && angle <= 0.5) return 1;
-      if (angle > 0.5 && angle <= 1.0) return 2;
-      if (angle > 1.0 && angle <= 1.5) return 3;
-      if (angle > 1.5 && angle <= 2.0) return 4;
-      if (angle > 2.0 && angle <= 2.5) return 5;
-      if (angle > 2.5 && angle <= 3.0) return 6;
-      if (angle > 3.0 && angle <= 3.5) return 7;
-      if (angle > 3.5 && angle <= 4.0) return 8;
-      if (angle > 4.0 && angle <= 4.4) return 9;
-      if (angle > 4.4 && angle <= 4.9) return 10;
-      if (angle > 4.9 && angle <= 5.0) return 11;
-      if (angle > 5.0 && angle <= 5.2) return 12;
-      if (angle > 5.2 && angle <= 5.5) return 13;
-      if (angle > 5.5 && angle <= 5.8) return 14;
-      if (angle > 5.8                ) return 15; // measured max = 6.23
-      return 0;
-    }
 
     incline = tan(angle / RAD_2_DEG) * 100;
 #else
@@ -782,33 +752,81 @@ String readSecond() {
 }
 
 
-void calculateRPM() {
-  // divide number of microseconds in a minute, by the average interval.
-  if (revCount > 0) { // confirm there was at least one spin in the last second
-    hasReed = true;
-    DEBUG_PRINT("revCount="); DEBUG_PRINTLN(revCount);
-    // rpmaccumulatorInterval = 60000000/(accumulatorInterval/revCount);
-    rpm = 60000000 / (accumulatorInterval / revCount);
+// void calculateRPM() {
+//   // divide number of microseconds in a minute, by the average interval.
+//   if (revCount > 0) { // confirm there was at least one spin in the last second
+//     hasReed = true;
+//     DEBUG_PRINT("revCount="); DEBUG_PRINTLN(revCount);
+//     // rpmaccumulatorInterval = 60000000/(accumulatorInterval/revCount);
+//     rpm = 60000000 / (accumulatorInterval / revCount);
+//     //accumulatorInterval = 0;
+//     //Test = Calculate average from last 4 rpms - response too slow
+//     accumulator4 -= (accumulator4 >> 2);
+//     accumulator4 += rpm;
+//     mps = belt_distance * (rpm) / (60 * 1000);
+//   }
+//   else {
+//     rpm = 0;
+//     //rpmaccumulatorInterval = 0;
+//     accumulator4 = 0;  // average rpm of last 4 samples
+//   }
+//   revCount = 0;
+//   accumulatorInterval = 0;
+//   //mps = belt_distance * (rpm) / (60 * 1000);
+// }
 
-    accumulatorInterval = 0;
+String mqtt_topics[] {
+  "home/treadmill/%MQTTDEVICEID%/setconfig",
+  "home/treadmill/%MQTTDEVICEID%/state",
+  "home/treadmill/%MQTTDEVICEID%/version",
+  "home/treadmill/%MQTTDEVICEID%/ipaddr",
+  "home/treadmill/%MQTTDEVICEID%/rst",
+  "home/treadmill/%MQTTDEVICEID%/speed",
+  "home/treadmill/%MQTTDEVICEID%/rpm",
+  "home/treadmill/%MQTTDEVICEID%/incline",
+  "home/treadmill/%MQTTDEVICEID%/y_angle"
+};
 
-    //Test = Calculate average from last 4 rpms - response too slow
-    accumulator4 -= (accumulator4 >> 2);
-    accumulator4 += rpm;
+void setupMqttTopic(const String &id)
+{
+  for (unsigned i = 0; i < MQTT_NUM_TOPICS; ++i) {
+    mqtt_topics[i].replace("%MQTTDEVICEID%", id);
   }
-  else {
-    rpm = 0;
-    rpmaccumulatorInterval = 0;
-    accumulator4 = 0;  //average rpm of last 4 samples
+}
+
+const char* getTopic(topics_t topic) {
+  return mqtt_topics[topic].c_str();
+}
+
+const char* getRstReason(esp_reset_reason_t r) {
+  switch(r) {
+  case ESP_RST_UNKNOWN:    return "ESP_RST_UNKNOWN";   //!< Reset reason can not be determined
+  case ESP_RST_POWERON:    return "ESP_RST_POWERON";   //!< Reset due to power-on event
+  case ESP_RST_EXT:        return "ESP_RST_EXT";       //!< Reset by external pin (not applicable for ESP32)
+  case ESP_RST_SW:         return "ESP_RST_SW";        //!< Software reset via esp_restart
+  case ESP_RST_PANIC:      return "ESP_RST_PANIC";     //!< Software reset due to exception/panic
+  case ESP_RST_INT_WDT:    return "ESP_RST_INT_WDT";   //!< Reset (software or hardware) due to interrupt watchdog
+  case ESP_RST_TASK_WDT:   return "ESP_RST_TASK_WDT";  //!< Reset due to task watchdog
+  case ESP_RST_WDT:        return "ESP_RST_WDT";       //!< Reset due to other watchdogs
+  case ESP_RST_DEEPSLEEP:  return "ESP_RST_DEEPSLEEP"; //!< Reset after exiting deep sleep mode
+  case ESP_RST_BROWNOUT:   return "ESP_RST_BROWNOUT";  //!< Brownout reset (software or hardware)
+  case ESP_RST_SDIO:       return "ESP_RST_SDIO";      //!< Reset over SDIO
   }
-  revCount = 0;
-  mps = belt_distance * (rpm) / (60 * 1000);
+  return "INVALID";
 }
 
 
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
+  rr = esp_reset_reason();
+
+  // fixme check return code
+  esp_efuse_mac_get_default(mac_addr);
+
+  MQTTDEVICEID += String(mac_addr[4], HEX);
+  MQTTDEVICEID += String(mac_addr[5], HEX);
+  setupMqttTopic(MQTTDEVICEID);
 
   // initial min treadmill speed
   kmph = 0.5;
@@ -818,10 +836,13 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-#ifdef TREADMILL_NORDICTRACK_12SI
+
+#if TREADMILL_MODEL == NORDICTRACK_12SI
   speedInclineMode = SPEED | INCLINE;
   hasReed          = true;
-  treadmillInclineReturnLevel = false;
+#endif
+#if TREADMILL_MODEL == TAURUS_9_5
+  hasReed          = true;
 #endif
 
   buttonInit();
@@ -841,9 +862,11 @@ void setup() {
   delay(3000);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
+
   attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
   attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING);
-  //pinMode(SPEED_REED_SWITCH_PIN, INPUT_PULLUP);
+
+  // note: I have 10k pull-up on SPEED_REED_SWITCH_PIN
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
@@ -865,8 +888,9 @@ void setup() {
   //else show offline msg, halt or reboot?!
 
   if (isWifiAvailable) {
-    client.setServer(mqtt_host_int, mqtt_port_int);
-    mqttConnect();
+    //client.setServer(mqtt_host, mqtt_port);
+    isMqttAvailable = mqttConnect();
+    delay(2000);
   }
 
   tft.fillScreen(TFT_BLACK);
@@ -902,11 +926,13 @@ void setup() {
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
+    tft.setTextColor(TFT_RED);
     tft.println("VL53L0X setup failed!");
     delay(3000);
   }
   else {
     DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
+    tft.setTextColor(TFT_GREEN);
     tft.println("VL53L0X initialized!");
     hasVL53L0X = true;
     delay(3000);
@@ -914,10 +940,7 @@ void setup() {
 #else
     hasVL53L0X = false;
 #endif
-  // tft.fillScreen(TFT_BLACK);
-  // tft.print("speedInclineMode: ");
-  // tft.println(speedInclineMode);
-  // delay(3000);
+
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
@@ -930,13 +953,15 @@ void setup() {
 
   delay(3000);
   updateDisplay(true);
-  // indicate bt connection status ... offline
-  tft.fillCircle(229, 11, 8, TFT_BLACK);
-  tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
 
   // indicate manual/auto mode (green=auto/sensor, red=manual)
-  //tft.fillCircle(210, 11, 8, TFT_RED);
   showSpeedInclineMode(speedInclineMode);
+
+  // indicate bt connection status ... offline
+  tft.fillCircle(CIRCLE_BT_STAT_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_BLACK);
+  tft.drawCircle(CIRCLE_BT_STAT_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_SKYBLUE);
+
+  show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
 
   setTime(0,0,0,0,0,0);
 }
@@ -954,21 +979,7 @@ void loop_handle_WIFI() {
     // connection was lost and now got reconnected ...
     isWifiAvailable = true;
     wifi_reconnect_counter++;
-  }
-}
-void show_WIFI() {
-  // show reconnect counter in tft
-  // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
-  tft.fillRect(2, 2, 60, 18, TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextFont(2);
-  tft.setCursor(3, 4);
-  tft.print("Wifi["); tft.print(wifi_reconnect_counter);
-  if (isWifiAvailable) {
-    tft.print("]:"); tft.print(getWifiIpAddr());
-  }
-  else {
-    tft.print("]");
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
 }
 
@@ -977,13 +988,12 @@ void loop_handle_BLE() {
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
     DEBUG_PRINTLN("BT Client connected!");
-    tft.fillCircle(229, 11, 8, TFT_SKYBLUE);
+    updateBTConnectionStatus(bleClientConnectedPrev);
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     DEBUG_PRINTLN("BT Client disconnected!");
-    tft.fillCircle(229, 11, 8, TFT_BLACK);
-    tft.drawCircle(229, 11, 8, TFT_SKYBLUE);
+    updateBTConnectionStatus(bleClientConnectedPrev);
   }
 }
 
@@ -1011,7 +1021,7 @@ void loop() {
     hasIrSense = true;
     unsigned long t = t2 - t1;
     unsigned long c = 359712; // d=10cm
-    kmph_sense = (float)(1.0/t) * c;
+    kmph_sense = (float)(1.0 / t) * c;
     noInterrupts();
     t1_valid = t2_valid = false;
     interrupts();
@@ -1021,37 +1031,45 @@ void loop() {
 
   // testing ... every second
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
-#ifdef SHOW_FPS
     sw_timer_clock = millis();
+
+#ifdef SHOW_FPS
     show_FPS(fps);
     fps = 0;
 #endif 
-    // from reed sensor
-    //interrupts();
-    //calculateRPM();
-
-    show_WIFI();
-
 
     if (speedInclineMode & INCLINE) {
       incline = getIncline(); // also sets 'angle' variable
     }
 
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
-    if (speedInclineMode & SPEED) {
+    if (speedInclineMode & SPEED) {  // get speed from sensor (no-manual mode)
+      // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
+      // and calc rpm from reed switch provide same unit
       if (hasIrSense) {
         kmph = kmph_sense;
         mps = kmph / 3.6;
         total_distance += mps;
       }
-      if (hasReed) {
-//#if 0
-        mps = belt_distance * (rpm) / (60 * 1000);
-        kmph = mps * 3.6;
-//#else
-//        mps = kmph / 3.6;
-//#endif
-        total_distance = workoutDistance / 1000; // meter
+      else if (hasReed) {
+	if (revCount > 0) { // confirm there was at least one spin in the last second
+	  noInterrupts();
+	  rpm = 60000000 / (accumulatorInterval / revCount);
+	  mps = belt_distance * (rpm) / (60 * 1000);
+	  revCount = 0;
+	  accumulatorInterval = 0;
+	  interrupts();
+
+	  kmph = mps * 3.6;
+	}
+	else {
+	  rpm = 0;
+	  //rpmaccumulatorInterval = 0;
+	  //accumulator4 = 0;  // average rpm of last 4 samples
+	}
+	//mps = belt_distance * (rpm) / (60 * 1000);
+        //kmph = mps * 3.6;
+        total_distance = workoutDistance / 1000;  // meter
       }
     }
     else {
@@ -1059,6 +1077,7 @@ void loop() {
       total_distance += mps;
     }
     elevation_gain += (double)(sin(angle) * mps);
+
 #if 0
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
@@ -1076,8 +1095,8 @@ void loop() {
     char kmphStr[6];
     snprintf(inclineStr, 6, "%.1f", incline);
     snprintf(kmphStr,    6, "%.1f", kmph);
-    client.publish("home/treadmill/incline", inclineStr);
-    client.publish("home/treadmill/speed",   kmphStr);
+    client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
+    client.publish(getTopic(MQTT_TOPIC_SPEED),   kmphStr);
 
 #ifndef SHOW_FPS
     updateDisplay(false);
