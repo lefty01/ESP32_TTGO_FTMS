@@ -16,6 +16,7 @@ https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 * Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF)
   https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
+Reed switch is installed next to the original treadmill reed contact and connected via external pull-up.
 
 ## WIFI config
 Create a file named
@@ -88,5 +89,47 @@ From this we can also calculate an average distance the magnet travels on the mo
 # Issues
 IR-Sensor (here Sensor 1) is connected to GPIO12
 
-GPIO36 interrupt, changed reed-sensor to GPIO32
+GPIO36 interrupt, changed reed-sensor to GPIO26
 https://github.com/espressif/esp-idf/issues/4585
+
+
+# PlatformIO
+
+```
+$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI --list-targets
+Environment                  Group     Name         Title                        Description
+---------------------------  --------  -----------  ---------------------------  ------------------------------------------------------------
+ESP32_TTGO_DISPLAY_TFT_eSPI  Advanced  compiledb    Compilation Database         Generate compilation database `compile_commands.json`
+ESP32_TTGO_DISPLAY_TFT_eSPI  General   clean        Clean
+ESP32_TTGO_DISPLAY_TFT_eSPI  General   cleanall     Clean All                    Clean a build environment and installed library dependencies
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  buildfs      Build Filesystem Image
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  erase        Erase Flash
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  size         Program Size                 Calculate program size
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  upload       Upload
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  uploadfs     Upload Filesystem Image
+ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  uploadfsota  Upload Filesystem Image OTA
+```
+
+```
+$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI
+```
+
+```
+$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs
+```
+
+```
+$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
+```
+
+
+## Flash Files
+* firmware:   .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/firmware.bin
+* filesystem: .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/spiffs.bin
+
+
+
+# Thanks / Credits
+... for providing inputs / thoughts / pull-requests
+* Zingo Andersen
+* Reiner Ziegler

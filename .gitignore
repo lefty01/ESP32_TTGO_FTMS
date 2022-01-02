@@ -3,9 +3,14 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+*~
 
 # Don't check in your changed version with your wifi password
 wifi_mqtt_creds.h
+client.crt.h
+client.key.h
+server_mqtt.crt.h
+
 
 # Prerequisites
 *.d
