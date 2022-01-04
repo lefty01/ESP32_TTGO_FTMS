@@ -1,0 +1,26 @@
+# ESP-IDF Partition Table - default orig
+# Name,  Type, SubType, Offset, Size, Flags
+#nvs,     data,  nvs,     0x9000,   20K,   # 0x005000
+#otadata, data,  ota,     0xe000,   8K,    # 0x002000
+#app0,    app,   ota_0,   0x10000,  1280K, # 0x140000 = 1310720
+#app1,    app,   ota_1,   0x150000, 1280K, # 0x140000 = 1310720
+#spiffs,  data,  spiffs,  0x290000, 1472K, # 0x170000 = 1507328
+
+# 1536000 = 1500K = 0x177000
+# 1536000 = 1500K = 0x177000
+# 0x400000 - (0x5000 + 0x2000 + 0x140000 + 0x140000 + 0x170000) = 3F7000 = 4k
+# spiffs = 1056768 bytes = 1032K
+
+#nvs,      data,  nvs,     0x9000,   20K,
+#otadata,  data,  ota,     0xe000,   8K,
+#app0,     app,   ota_0,   0x10000,  1450K,
+#app1,     app,   ota_1,   ,         1450K,
+#spiffs,   data,  spiffs,  ,         1032K,
+# -> this tables failed to init spiffs for some reason?!?
+
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x009000,  0x005000,
+otadata,  data, ota,     0x00e000,  0x002000,
+app0,     app,  ota_0,   0x010000,  0x1C0000,
+app1,     app,  ota_1,   0x1D0000,  0x1C0000,
+spiffs,   data, spiffs,  0x390000,  0x070000,
