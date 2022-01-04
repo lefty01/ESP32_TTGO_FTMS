@@ -35,10 +35,10 @@ With your version of this content: (e.g your wlan settings)
 const char* wifi_ssid = "****";
 const char* wifi_pass = "****";
 
-const char* mqtt_host_int = "host.org";
-const char* mqtt_user_int = "user";
-const char* mqtt_pass_int = "passw0rd";
-const unsigned mqtt_port_int = 8883;
+const char* mqtt_host = "host.org";
+const char* mqtt_user = "user";
+const char* mqtt_pass = "passw0rd";
+const unsigned mqtt_port = 8883;
 
 #endif
 ```
