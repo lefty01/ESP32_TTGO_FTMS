@@ -1,0 +1,17 @@
+#ifndef _wifi_mqtt_creds_h_
+#define _wifi_mqtt_creds_h_
+
+#ifdef MQTT_USE_SSL
+#include "server_mqtt.crt.h"
+#include "client.crt.h"
+#include "client.key.h"
+#endif
+
+const char* wifi_ssid = "<WIFI NAME>";
+const char* wifi_pass = "<WIFI PASSWD>";
+const char* mqtt_host = "host.org";
+const char* mqtt_user = "user";
+const char* mqtt_pass = "passw0rd";
+const unsigned mqtt_port = 8883;
+
+#endif

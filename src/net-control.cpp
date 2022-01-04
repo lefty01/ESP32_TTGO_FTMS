@@ -7,9 +7,6 @@ String ipAddr;
 String dnsAddr;
 const unsigned maxWifiWaitSeconds = 60;
 
-//WiFiClient espClient;
-//PubSubClient client(espClient);  // mqtt client
-
 
 String getWifiIpAddr() {
   return ipAddr;
@@ -23,8 +20,7 @@ int setupWifi() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
-
-  tft.setCursor(20, 60);
+  tft.setCursor(20, 40);
   tft.println("Connecting to WiFi");
 
   unsigned retry_counter = 0;
@@ -56,7 +52,7 @@ int setupWifi() {
 
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_GREEN);
-  tft.setCursor(20, 60);
+  tft.setCursor(20, 40);
   tft.println("Wifi CONNECTED");
   tft.print("IP Addr: "); tft.println(ipAddr);
   delay(2000);
@@ -70,10 +66,17 @@ bool mqttConnect() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
-  tft.setCursor(20, 60);
-  tft.println("Connecting to MQTT server");
+  tft.setCursor(20, 40);
+  tft.print("Connecting to MQTT server: ");
+  tft.println(mqtt_host);
 
   // Attempt to connect
+#ifdef MQTT_USE_SSL
+  espClient.setCACert(server_crt_str);
+  espClient.setCertificate(client_crt_str);
+  espClient.setPrivateKey(client_key_str);
+#endif
+
   client.setServer(mqtt_host, mqtt_port);
   if (client.connect(MQTTDEVICEID.c_str(), mqtt_user, mqtt_pass,
 		     getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) {
@@ -86,9 +89,9 @@ bool mqttConnect() {
     delay(1500);
 
     tft.println("publish version & IP");
-    rc = client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(rr), true);
-    rc = client.publish(getTopic(MQTT_TOPIC_VERSION), VERSION, true);
-    rc = client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
+    rc |= client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(rr), true);
+    rc |= client.publish(getTopic(MQTT_TOPIC_VERSION), VERSION, true);
+    rc |= client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
     if (rc) tft.println("OK");
     else    tft.println("ERROR");
     delay(1500);

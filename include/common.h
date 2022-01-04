@@ -13,7 +13,13 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
+#ifdef MQTT_USE_SSL
+#include <WiFiClientSecure.h>
+extern WiFiClientSecure espClient;
+#else
 extern WiFiClient espClient;
+#endif
+
 extern PubSubClient client;
 extern AsyncWebServer server;
 extern AsyncWebSocket ws;
