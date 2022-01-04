@@ -168,7 +168,20 @@ app1,app,ota_1,0x150000,1280K,
 spiffs,data,spiffs,0x290000,1472K,
 ```
 
+### New partition table used for ESP32_TTGO_DISPLAY_TFT_eSPI_SSL
+Modified table by increasing app partition(s) and decrease data (spiffs) partition.
+Currently data contains roughly 10k website data (html + js + css). New spiffs data partition has size of 448kB.
+At time of this commit size of 'standard' (non-ssl) app is 1196070 bytes and ssl version is 1352014 bytes.
+Available space for app with this table is: 1835008 (0x1C0000) bytes
 
+```
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x009000,  0x005000,
+otadata,  data, ota,     0x00e000,  0x002000,
+app0,     app,  ota_0,   0x010000,  0x1C0000,
+app1,     app,  ota_1,   0x1D0000,  0x1C0000,
+spiffs,   data, spiffs,  0x390000,  0x070000,
+```
 
 
 # Thanks / Credits
