@@ -70,7 +70,7 @@
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.17";
+const char* VERSION = "0.0.18";
 
 
 
@@ -295,7 +295,11 @@ AsyncWebSocket ws("/ws");
 MPU6050 mpu(Wire);
 #endif
 
+#ifdef MQTT_USE_SSL
+WiFiClientSecure espClient;
+#else
 WiFiClient espClient;
+#endif
 PubSubClient client(espClient);  // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
@@ -346,6 +350,12 @@ class MyServerCallbacks : public BLEServerCallbacks {
 
 
 void initBLE() {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("initBLE");
+
   BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
   // create BLE Server, set callback for connect/disconnect
   pServer = BLEDevice::createServer();
@@ -383,12 +393,23 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
   
   pAdvertising->start();
+  delay(2000); // added to keep tft msg a bit longer ...
 }
 
 
 void initSPIFFS() {
-  if (!SPIFFS.begin()) {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("initSPIFFS");
+
+  if (!SPIFFS.begin(true)) { // true = formatOnFail
     DEBUG_PRINTLN("Cannot mount SPIFFS volume...");
+
+    tft.setTextColor(TFT_RED);
+    tft.println("FAILED!!!");
+    delay(5000);
     while (1) {
       bool on = millis() % 200 < 50;  // onboard_led.on = millis() % 200 < 50;
       // onboard_led.update();
@@ -402,11 +423,11 @@ void initSPIFFS() {
     DEBUG_PRINTLN("SPIFFS Setup Done");
   }
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
+  tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("initSPIFFS Done!");
-  delay(1000);
+  delay(2000);
 }
 
 
@@ -888,63 +909,74 @@ void setup() {
   //else show offline msg, halt or reboot?!
 
   if (isWifiAvailable) {
-    //client.setServer(mqtt_host, mqtt_port);
     isMqttAvailable = mqttConnect();
     delay(2000);
   }
 
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("mqtt setup Done!");
-  delay(500);
+  delay(2000);
   
 #ifndef NO_MPU6050
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setCursor(20, 40);
+  tft.println("init MPU6050");
+
   byte status = mpu.begin();
   DEBUG_PRINT("MPU6050 status: ");
   DEBUG_PRINTLN(status);
   if (status != 0) {
-    tft.fillScreen(TFT_BLACK);
     tft.setTextColor(TFT_RED);
-    tft.setCursor(20, 40);
     tft.println("MPU6050 setup failed!");
     tft.println(status);
-    delay(3000);
+    delay(2000);
   }
   else {
     DEBUG_PRINTLN(F("Calculating offsets, do not move MPU6050"));
-    tft.println("Calculating offsets, do not move MPU6050 (3sec)");
+    tft.setTextFont(2);
+    tft.println("Calc offsets, do not move MPU6050 (3sec)");
+    tft.setTextFont(4);
     mpu.calcOffsets(); // gyro and accel.
-    delay(3000);
+    delay(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
+    tft.setTextColor(TFT_RED);
+    tft.println("MPU6050 OK!");
   }
 #else
-    hasMPU6050 = false;
+  hasMPU6050 = false;
 #endif
 #ifndef NO_VL53L0X
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setCursor(20, 40);
+  tft.println("init VL53L0X");
+
   sensor.setTimeout(500);
   if (!sensor.init()) {
     DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
     tft.setTextColor(TFT_RED);
     tft.println("VL53L0X setup failed!");
-    delay(3000);
+    delay(2000);
   }
   else {
     DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
     tft.setTextColor(TFT_GREEN);
     tft.println("VL53L0X initialized!");
     hasVL53L0X = true;
-    delay(3000);
+    delay(2000);
   }
 #else
     hasVL53L0X = false;
 #endif
 
-
   tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
-  tft.setTextFont(4);
+  tft.setTextColor(TFT_BLUE);
+  //tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("Setup Done");
   tft.print("Version:");
