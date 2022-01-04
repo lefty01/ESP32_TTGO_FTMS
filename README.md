@@ -132,6 +132,57 @@ $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
 * filesystem: .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/spiffs.bin
 
 
+## Partition Table
+### read partition table (newer systems might use 0x9000 address, same size)
+
+```
+$ esptool.py  read_flash 0x8000 0xc00 ptable_0x8000.img
+esptool.py v3.2-dev
+Found 1 serial ports
+Serial port /dev/ttyUSB0
+Connecting........_
+Detecting chip type... ESP32
+Chip is ESP32-D0WDQ6-V3 (revision 3)
+Features: WiFi, BT, Dual Core, 240MHz, VRef calibration in efuse, Coding Scheme None
+Crystal is 40MHz
+MAC: 84:cc:a8:60:d5:3c
+Uploading stub...
+Running stub...
+Stub running...
+3072 (100 %)
+3072 (100 %)
+Read 3072 bytes at 0x8000 in 0.3 seconds (86.9 kbit/s)...
+Hard resetting via RTS pin...
+```
+
+```
+$ gen_esp32part.py --flash-size 4MB ptable_0x8000.img
+Parsing binary partition input...
+Verifying table...
+# ESP-IDF Partition Table
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,20K,
+otadata,data,ota,0xe000,8K,
+app0,app,ota_0,0x10000,1280K,
+app1,app,ota_1,0x150000,1280K,
+spiffs,data,spiffs,0x290000,1472K,
+```
+
+### New partition table used for ESP32_TTGO_DISPLAY_TFT_eSPI_SSL
+Modified table by increasing app partition(s) and decrease data (spiffs) partition.
+Currently data contains roughly 10k website data (html + js + css). New spiffs data partition has size of 448kB.
+At time of this commit size of 'standard' (non-ssl) app is 1196070 bytes and ssl version is 1352014 bytes.
+Available space for app with this table is: 1835008 (0x1C0000) bytes
+
+```
+# Name,   Type, SubType, Offset,  Size, Flags
+nvs,      data, nvs,     0x009000,  0x005000,
+otadata,  data, ota,     0x00e000,  0x002000,
+app0,     app,  ota_0,   0x010000,  0x1C0000,
+app1,     app,  ota_1,   0x1D0000,  0x1C0000,
+spiffs,   data, spiffs,  0x390000,  0x070000,
+```
+
 
 # Thanks / Credits
 ... for providing inputs / thoughts / pull-requests
