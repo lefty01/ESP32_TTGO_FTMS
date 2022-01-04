@@ -134,7 +134,8 @@ $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
 
 ## Partition Table
 ### read partition table (newer systems might use 0x9000 address, same size)
-````
+
+```
 $ esptool.py  read_flash 0x8000 0xc00 ptable_0x8000.img
 esptool.py v3.2-dev
 Found 1 serial ports
