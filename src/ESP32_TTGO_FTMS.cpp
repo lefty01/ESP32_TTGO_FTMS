@@ -873,6 +873,18 @@ void setup() {
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("Setup Started");
+
+#ifndef USE_TFT_ESPI
+  if (tft.touch())
+  {
+    tft.setTextFont(4);
+    tft.setCursor(20, tft.height()/2);
+    tft.println("Press corner near arrow to callibrate touch");
+    tft.setCursor(0, 0);
+    tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
+  }
+#endif
+
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
@@ -1037,7 +1049,55 @@ void loop() {
   updateDisplay(false);
 #endif
 
-  buttonLoop();
+buttonLoop();
+
+#ifndef USE_TFT_ESPI
+  if (tft.touch())
+  {
+    int32_t touch_x, touch_y;
+    if (tft.getTouch(&touch_x, &touch_y)) {
+      // reset to manual mode on any touch (as for now)
+      if ( speedInclineMode != MANUAL) {
+          kmph = 0.5;
+          incline = 0;
+          grade_deg = 0;
+          angle = 0;
+          elevation = 0;
+          elevation_gain = 0;
+          speedInclineMode = MANUAL;
+      }
+      //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
+      if (touch_x >= tft.width()/2)
+      {
+        // Left side of screen is button 1
+        if (touch_y >= tft.height()/2)
+        {
+          DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
+  	      inclineDown();
+        }
+        else
+        {
+          DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
+  	      inclineUp();
+        }
+      }
+      else
+      {
+        // Right side of screen is button 2
+        if (touch_y >= tft.height()/2)
+        {
+          DEBUG_PRINTLN("Touch: Button 2 speedDown()");
+  	      speedDown();
+        }
+        else
+        {
+          DEBUG_PRINTLN("Touch: Button 2 speedUp()");
+  	      speedUp();
+        }
+      }
+    }
+  }
+#endif
 
 #ifndef NO_MPU6050
   mpu.update();
