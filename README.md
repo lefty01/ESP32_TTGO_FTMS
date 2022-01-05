@@ -1,7 +1,6 @@
 [![PlatformIO CI status](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml/badge.svg)](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml)
 
 
-
 # ESP32_TTGO_FTMS
 ESP32 based treadmill speed and incline sensor and BLE Server exposed as FTMS Service
 
