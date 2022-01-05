@@ -1,6 +1,7 @@
 #include "common.h"
 #include "wifi_mqtt_creds.h"
 
+#include <SPIFFS.h>
 #include <AsyncElegantOTA.h>
 
 String ipAddr;
