@@ -23,25 +23,21 @@ https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 Reed switch is installed next to the original treadmill reed contact and connected via external pull-up.
 
 ## WIFI config
-Create a file named
+Rename the 
 
-wifi_mqtt_creds.h
+include/wifi_mqtt_creds.h.sample 
 
-With your version of this content: (e.g your wlan settings)
-```
-#ifndef _wifi_mqtt_creds_h_
-#define _wifi_mqtt_creds_h_
+to 
 
-const char* wifi_ssid = "****";
-const char* wifi_pass = "****";
+include/wifi_mqtt_creds.h 
 
-const char* mqtt_host = "host.org";
-const char* mqtt_user = "user";
-const char* mqtt_pass = "passw0rd";
-const unsigned mqtt_port = 8883;
+and edit it.
 
-#endif
-```
+If you are using MQTT_USE_SSL you also need to rename/edit
+
+include/server_mqtt.crt.h.sample
+include/client.crt.h.sample
+include/client.key.sample
 
 ## Filesystem
 

@@ -110,12 +110,16 @@ const char* VERSION = "0.0.18";
 //  -> does this interfere with input/pullup???
 #define ADC_PIN         34
 
-#ifdef TTGO_T_DISPLAY
+#ifdef TARGET_TTGO_T_DISPLAY
 // TTGO T-Display buttons
 #define BUTTON_1        35
 #define BUTTON_2        0
 #else
+#ifdef TARGET_WT32-SC01
+// This is a touch screen so there is no buttons 
+#else
 #error Unknow button setup
+#endif
 #endif
 
 // PINS 
@@ -247,9 +251,12 @@ volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either re
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
 //const int ledPin =  13;      // the number of the LED pin
+#ifdef BUTTON_1
 Button2 btn1(BUTTON_1);
+#endif
+#ifdef BUTTON_2
 Button2 btn2(BUTTON_2);
-
+#endif
 
 uint16_t    inst_speed;
 uint16_t    inst_incline;
@@ -277,7 +284,7 @@ bool bleClientConnectedPrev = false;
 #ifdef USE_TFT_ESPI
 TFT_eSPI tft = TFT_eSPI();
 #else
-static LGFX tft;
+LGFX tft;
 #endif
 
 #ifndef NO_VL53L0X
@@ -456,6 +463,7 @@ void press_external_button_low(uint32_t pin, uint32_t time_ms) {
 
 void buttonInit()
 {
+#ifdef BUTTON_1
   // button 1 (GPIO 0) control auto/manual mode and reset timers
   btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
@@ -487,8 +495,10 @@ void buttonInit()
     }
 
   });
+#endif
 
-  // for testing purpose ... no pratical way to change spee/incline
+#ifdef BUTTON_2
+  // for testing purpose ... no pratical way to change speed/incline
   // short  click = up
   // longer click = down
   btn2.setTapHandler([](Button2& b) {
@@ -513,28 +523,17 @@ void buttonInit()
       	inclineUp();
     }
   });
-
-
-  // btn3.setPressedHandler([](Button2 & b) {
-  //   DEBUG_PRINT("Toggle Speed Sensor Auto/Manual: ");
-  //   manual_speed = !manual_speed;
-  //   if (manual_speed) {
-  //     tft.fillCircle(210, 11, 8, TFT_RED);
-  //   }
-  //   else {
-  //     tft.fillCircle(210, 11, 8, TFT_GREEN);
-  //   }
-  //   DEBUG_PRINTLN(manual_speed);
-  // });
+#endif
 }
 
 void buttonLoop()
 {
+#ifdef BUTTON_1
     btn1.loop();
+#endif
+#ifdef BUTTON_2
     btn2.loop();
-    // btn3.loop();
-    // btn4.loop();
-    // encBtnP.loop();
+#endif
 }
 
 #ifdef DEBUG0_PIN
