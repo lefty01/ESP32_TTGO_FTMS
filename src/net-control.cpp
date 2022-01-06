@@ -7,7 +7,14 @@
 String ipAddr;
 String dnsAddr;
 const unsigned maxWifiWaitSeconds = 60;
-
+#ifdef ASYNC_TCP_SSL_ENABLED
+// if using board_build.embed_txtfiles instead of spiffs -> that would not require the callback for:
+// server.onSslFileRequest(&sslFileRequestCallback, NULL);
+// (int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf))
+extern const uint8_t server_crt_start[] asm("_binary_server_crt_start");
+extern const uint8_t server_key_start[] asm("_binary_server_key_start");
+// server.beginSecure((const char*)server_crt_start, (const char*)server_key_start, NULL);
+#endif
 
 String getWifiIpAddr() {
   return ipAddr;
@@ -139,11 +146,35 @@ String processor(const String& var){
 }
 
 
+void onNotFound(AsyncWebServerRequest* request) {
+  request->send(404, "text/plain", "Not found");
+}
 
 void onRootRequest(AsyncWebServerRequest *request) {
   request->send(SPIFFS, "/index.html", "text/html", false, processor);
 }
 
+
+#ifdef ASYNC_TCP_SSL_ENABLED
+int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) {
+  //Serial.printf("SSL File: %s\n", filename);
+  // sanitize filename!??
+  File file = SPIFFS.open(filename, "r");
+  if (file) {
+    size_t size = file.size();
+    uint8_t * nbuf = (uint8_t*) malloc(size);
+    if (nbuf) {
+      size = file.read(nbuf, size);
+      file.close();
+      *buf = nbuf;
+      return size;
+    }
+    file.close();
+  }
+  *buf = 0;
+  return 0;
+}
+#endif
 
 void initAsyncWebserver()
 {
@@ -152,7 +183,12 @@ void initAsyncWebserver()
   
   AsyncElegantOTA.begin(&server);
   // Start server
-  server.begin();
+#ifdef ASYNC_TCP_SSL_ENABLED
+  //server.onSslFileRequest(&sslFileRequestCallback, NULL);
+  server.beginSecure((const char*)server_crt_start, (const char*)server_key_start, NULL);
+#else
+    server.begin();
+#endif
 }
 
 // ----------------------------------------------------------------------------
