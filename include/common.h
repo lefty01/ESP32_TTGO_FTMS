@@ -9,6 +9,9 @@
 #include <Arduino.h>
 
 #include <WiFi.h>
+#if ASYNC_TCP_SSL_ENABLED
+#include <AsyncTCP_SSL.h>
+#endif
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>

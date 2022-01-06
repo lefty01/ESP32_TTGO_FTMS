@@ -70,7 +70,7 @@
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.18";
+const char* VERSION = "0.0.19a";
 
 
 
@@ -287,9 +287,7 @@ const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
 
 bool isWifiAvailable = false;
 bool isMqttAvailable = false;
-// todo: https and require initial user pass
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+
 
 #ifndef NO_MPU6050
 MPU6050 mpu(Wire);
@@ -300,6 +298,12 @@ WiFiClientSecure espClient;
 #else
 WiFiClient espClient;
 #endif
+#ifdef ASYNC_TCP_SSL_ENABLED
+AsyncWebServer server(443);
+#else
+AsyncWebServer server(80);
+#endif
+AsyncWebSocket ws("/ws");
 PubSubClient client(espClient);  // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
