@@ -33,7 +33,7 @@ include/wifi_mqtt_creds.h
 
 and edit it.
 
-If you are using MQTT_USE_SSL you also need to rename/edit
+If you are using MQTT_USE_SSL you also need to rename/edit the following files:
 
 include/server_mqtt.crt.h.sample
 include/client.crt.h.sample
@@ -41,7 +41,16 @@ include/client.key.sample
 
 ## Filesystem
 
-Follow the instructions to instal SPIFFS filesystem upload tools here:
+To build the spiffs filesystem run:
+```
+$ pio run  -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs 
+```
+You can then flash it over-the-air as well.
+
+Also check the PlatformIO section below.
+
+
+If you are using Arduino-IDE, then follow instructions about SPIFFS filesystem upload tools here:
 https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
 
 ## arduino IDE settings
@@ -178,6 +187,15 @@ app0,     app,  ota_0,   0x010000,  0x1C0000,
 app1,     app,  ota_1,   0x1D0000,  0x1C0000,
 spiffs,   data, spiffs,  0x390000,  0x070000,
 ```
+
+# SSL
+mqtt via ssl/tls does work.
+
+The ESP32_TTGO_DISPLAY_TFT_eSPI_SSL environment now has added the ASYNC_TCP_SSL_ENABLED flag that would compile
+AsyncTLS_SSL version in order to provide a https server. However I fear that the ESP32 cannot handle all of that
+encryption.
+
+So if you only want mqtt/ssl then unset/undefine or remove this -DASYNC_TCP_SSL_ENABLED from the platform.io section.
 
 
 # Thanks / Credits
