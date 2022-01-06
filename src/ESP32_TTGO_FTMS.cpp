@@ -70,7 +70,7 @@
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.19a";
+const char* VERSION = "0.0.20rc1";
 
 
 
