@@ -87,7 +87,7 @@ The two marked icons for speed and incline are clickable and will toggle between
 where speed and incline is measured via sensor or manual mode.
 Manual mode means you override sensor readings by clicking the UP/DOWN buttons on the webinterface.
 
-![Main Website](web-main.png.png)
+![Main Website](web-main.png)
 
 
 ### OTA
