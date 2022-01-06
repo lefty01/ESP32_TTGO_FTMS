@@ -71,6 +71,7 @@
 
 const char* VERSION = "0.0.19";
 
+
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
 // by a BLE device. It also defines the procedures needed to access the data exposed by a device.
