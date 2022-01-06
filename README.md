@@ -81,6 +81,20 @@ https://arduinojson.org/v6/assistant/
 ```
 
 ## Web interface
+This is how the website should look like.
+At the top you see four values for (top-left to bottom-right): speed, distance, incline, elevation gain.
+The two marked icons for speed and incline are clickable and will toggle between auto aka. sensor reading mode
+where speed and incline is measured via sensor or manual mode.
+Manual mode means you override sensor readings by clicking the UP/DOWN buttons on the webinterface.
+
+![Main Website](web-main.png.png)
+
+
+### OTA
+Under the /update URL you can upload a new firmware image or spiffs filesystem image over-the-air.
+
+![OTA](ota-update.png)
+
 
 
 # measurements via oscilloscope
