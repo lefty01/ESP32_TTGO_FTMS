@@ -54,7 +54,7 @@ function manualAutoToggle() {
 // ----------------------------------------------------------------------------
 
 function initWebSocket() {
-  console.log('Trying to open a WebSocket connection...');
+  //console.log('Trying to open a WebSocket connection...');
 
   websocket = new WebSocket(gateway);
 
@@ -64,11 +64,11 @@ function initWebSocket() {
 }
 
 function onOpen(event) {
-  console.log('Connection opened');
+  //console.log('Connection opened');
 }
 
 function onClose(event) {
-  console.log('Connection closed');
+  //console.log('Connection closed');
   setTimeout(initWebSocket, 2000);
 }
 
