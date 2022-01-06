@@ -41,6 +41,10 @@ include/client.key.sample
 
 ## Filesystem
 
+At this point the filesystem (files within the data folder) contain the files for the webinterface:
+index.html  index.js  style.css
+
+
 To build the spiffs filesystem run:
 ```
 $ pio run  -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs 
@@ -75,6 +79,9 @@ https://arduinojson.org/v6/assistant/
   "second": "00"
 }
 ```
+
+## Web interface
+
 
 # measurements via oscilloscope
 ```
