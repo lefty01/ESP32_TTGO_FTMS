@@ -67,8 +67,7 @@
 //#define TREADMILL_MODEL TAURUS_9_5
 //#define TREADMILL_MODEL NORDICTRACK_12SI
 // or via platformio.ini:
-// -DTREADMILL_MODEL=TAURUS_9_5
-
+// -DTREADMILL_MODEL="TAURUS_9_5"
 
 const char* VERSION = "0.0.19";
 
@@ -246,6 +245,9 @@ Button2 btn1(BUTTON_1);
 #ifdef BUTTON_2
 Button2 btn2(BUTTON_2);
 #endif
+#ifdef BUTTON_3
+Button2 btn3(BUTTON_3);
+#endif
 
 uint16_t    inst_speed;
 uint16_t    inst_incline;
@@ -283,9 +285,7 @@ const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
 
 bool isWifiAvailable = false;
 bool isMqttAvailable = false;
-// todo: https and require initial user pass
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+
 
 #ifndef NO_MPU6050
 TwoWire I2C_0 = TwoWire(0);
@@ -297,6 +297,12 @@ WiFiClientSecure espClient;
 #else
 WiFiClient espClient;
 #endif
+#ifdef ASYNC_TCP_SSL_ENABLED
+AsyncWebServer server(443);
+#else
+AsyncWebServer server(80);
+#endif
+AsyncWebSocket ws("/ws");
 PubSubClient client(espClient);  // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
