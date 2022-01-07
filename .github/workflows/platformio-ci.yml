@@ -37,6 +37,8 @@ jobs:
         cd include
         for h in `ls -1 *.h.sample`; do l=${h%.sample}; ln -s $h $l; done
         cd ..
+        ln -s server.crt.sample server.crt
+        ln -s server.key.sample server.key
         pio run -v -e ESP32_TTGO_DISPLAY_TFT_eSPI \
                    -e ESP32_TTGO_DISPLAY_TFT_eSPI_SSL \
                    -e ESP32_TTGO_DISPLAY_LovyanGFX \
