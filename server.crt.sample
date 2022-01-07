@@ -1,0 +1,5 @@
+-----BEGIN CERTIFICATE-----
+replace this with your own cert ...
+
+... don't worry previous crt is not used anywhere ;)
+-----END CERTIFICATE-----
