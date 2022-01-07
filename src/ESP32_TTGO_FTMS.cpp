@@ -230,10 +230,10 @@ const float incline_interval_min  = 0.5;
 // These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
 // TODO: They could also be used to read pins
-#define TREADMILL_BUTTON_INC_DOWN_PIN 25
-#define TREADMILL_BUTTON_INC_UP_PIN   27
-#define TREADMILL_BUTTON_SPEED_DOWN_PIN 32
-#define TREADMILL_BUTTON_SPEED_UP_PIN   33
+#define TREADMILL_BUTTON_INC_DOWN_PIN    25
+#define TREADMILL_BUTTON_INC_UP_PIN      27
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN  32
+#define TREADMILL_BUTTON_SPEED_UP_PIN    33
 #define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
 #else
@@ -503,8 +503,13 @@ void buttonInit()
   });
 #endif
 
+  // if only two buttons, then button 1 switches mode and button 2 short is up, button 2 long is down
+  // if three buttons use button 2 short as up and button 3 short as down
+  // fixme: keep button2 long handler for now does not hurt
+  // initially for testing purpose ... but if we can access the controller while running it can serve as backup
+  // if sensors fail or suddnely send incorrect readings (yeah that happend to me) ... but since the controller
+  // might not be accessable we have the web interface that can run on the smartphone
 #ifdef BUTTON_2
-  // for testing purpose ... no pratical way to change speed/incline
   // short  click = up
   // longer click = down
   btn2.setTapHandler([](Button2& b) {
@@ -526,6 +531,24 @@ void buttonInit()
 	speedUp();
       if ((speedInclineMode & INCLINE) == 0)
 	inclineUp();
+    }
+  });
+#endif
+
+#ifdef BUTTON_3
+  // short  click = down
+  btn3.setTapHandler([](Button2& b) {
+    unsigned int time = b.wasPressedFor();
+    DEBUG_PRINTLN("Button 3 TapHandler");
+    if (time > 3000) {
+      // DEBUG_PRINTLN("very long (>3s) click ... do nothing");
+    }
+    else {
+      DEBUG_PRINTLN("short click...");
+      if ((speedInclineMode & SPEED) == 0)
+        speedUp();
+      if ((speedInclineMode & INCLINE) == 0)
+        inclineUp();
     }
   });
 #endif
@@ -977,6 +1000,12 @@ void setup() {
 #ifdef TFT_ROTATE
   tft.setRotation(TFT_ROTATE);
 #endif
+#ifdef TFT_BL
+  if (TFT_BL > 0) {
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  }
+#endif
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
@@ -999,7 +1028,6 @@ void setup() {
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
-
 #ifdef TREADMILL_BUTTON_INC_DOWN_PIN
   pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
 #endif
