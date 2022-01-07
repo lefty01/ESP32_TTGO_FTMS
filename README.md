@@ -19,6 +19,8 @@ https://hackaday.io/project/175237-add-bluetooth-to-treadmill
   https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
 * Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF)
   https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
+* WT32-SC01
+  https://tinyurl.com/4kbp8fkf
 
 Reed switch is installed next to the original treadmill reed contact and connected via external pull-up.
 
@@ -124,6 +126,14 @@ https://github.com/espressif/esp-idf/issues/4585
 
 
 # PlatformIO
+## TFT_eSPI config
+Check:
+https://github.com/Bodmer/TFT_eSPI/blob/master/Tools/PlatformIO/Configuring%20options.txt
+
+and/or
+
+https://blog.emtwo.ch/2020/05/using-bodmer-tftespi-library-with.html
+
 
 ```
 $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI --list-targets

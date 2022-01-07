@@ -43,12 +43,12 @@ extern LGFX tft;
 #endif
 
 // display is configured within platformio.ini
-#ifndef TFT_WIDTH
-#define TFT_WIDTH  135
-#endif
-#ifndef TFT_HEIGHT
-#define TFT_HEIGHT 240
-#endif
+/* #ifndef TFT_WIDTH */
+/* #define TFT_WIDTH  135 */
+/* #endif */
+/* #ifndef TFT_HEIGHT */
+/* #define TFT_HEIGHT 240 */
+/* #endif */
 
 
 //const int BORDER = 2;

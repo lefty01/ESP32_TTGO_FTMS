@@ -161,6 +161,7 @@ int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) {
   // sanitize filename!??
   File file = SPIFFS.open(filename, "r");
   if (file) {
+    //    ssize_t bytes_read;
     size_t size = file.size();
     uint8_t * nbuf = (uint8_t*) malloc(size);
     if (nbuf) {

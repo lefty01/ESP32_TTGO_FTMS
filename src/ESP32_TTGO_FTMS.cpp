@@ -69,7 +69,8 @@
 // or via platformio.ini:
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
-const char* VERSION = "0.0.19";
+const char* VERSION = "0.0.21";
+
 
 
 // GAP  stands for Generic Access Profile
@@ -102,25 +103,36 @@ const char* VERSION = "0.0.19";
 // GY-530 VL53L0X (ToF)
 // https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
-#ifdef TARGET_TTGO_T_DISPLAY
+
+#if TARGET_TTGO_T_DISPLAY
 // TTGO T-Display buttons
-#define BUTTON_1        35
-#define BUTTON_2        0
+#define BUTTON_1 35
+#define BUTTON_2  0
 #define SDA_0 21
 #define SCL_0 22
 #define I2C_FREQ 400000
-#else
-#ifdef TARGET_WT32_SC01
+
+#elif TARGET_WT32_SC01
 // This is a touch screen so there is no buttons
 // IO_21 and IO_22 are routed out and use used for SPI to the screen
 // Pins with names that start with J seems to be connected so screen, take care to avoid.
 #define SDA_0 18
 #define SCL_0 19
 #define I2C_FREQ 400000
+
+#elif TARGET_TTGO_T4
+// no-touch screen with three buttons
+#define BUTTON_1 38  // LEFT
+#define BUTTON_2 37  // CENTRE
+#define BUTTON_3 39  // RIGHT
+#define SDA_0 21
+#define SCL_0 22
+#define I2C_FREQ 400000
+
 #else
 #error Unknow button setup
 #endif
-#endif
+
 
 // PINS
 // NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
@@ -960,8 +972,11 @@ void setup() {
 #endif
 
   buttonInit();
-  tft.init();
+  tft.init(); // vs begin??
   tft.setRotation(1); // 3
+#ifdef TFT_ROTATE
+  tft.setRotation(TFT_ROTATE);
+#endif
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
