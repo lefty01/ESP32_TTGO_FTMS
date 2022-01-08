@@ -57,6 +57,9 @@ extern LGFX tft;
 //const int X_05 = tft.width()  / 2;
 //const int Y_05 = tft.height() / 2;
 
+#define TFT_SETUP_FONT_SIZE 4
+#define TFT_STATS_FONT_SIZE 2
+
 #define CIRCLE_SPEED_X_POS   188
 #define CIRCLE_INCLINE_X_POS 208
 #define CIRCLE_BT_STAT_X_POS 227

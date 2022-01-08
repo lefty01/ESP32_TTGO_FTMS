@@ -546,9 +546,9 @@ void buttonInit()
     else {
       DEBUG_PRINTLN("short click...");
       if ((speedInclineMode & SPEED) == 0)
-        speedUp();
+        speedDown();
       if ((speedInclineMode & INCLINE) == 0)
-        inclineUp();
+        inclineDown();
     }
   });
 #endif
@@ -605,6 +605,9 @@ void loop_handle_touch() {
       }
     }
   }
+#endif
+#ifdef BUTTON_3
+    btn3.loop();
 #endif
 }
 
