@@ -108,6 +108,8 @@ enum topics_t {
 	       MQTT_TOPIC_RPM,
 	       MQTT_TOPIC_INCLINE,
 	       MQTT_TOPIC_Y_ANGLE,
+	       MQTT_TOPIC_DIST,
+	       MQTT_TOPIC_ELEGAIN,
 	       MQTT_NUM_TOPICS
 };
 

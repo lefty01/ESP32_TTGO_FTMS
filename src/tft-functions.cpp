@@ -5,6 +5,14 @@
 const int DRAW_WIDTH  = TFT_HEIGHT;
 const int DRAW_HEIGHT = 128;  // TFT_WIDTH
 
+// how about sprites?
+// Sprite with 8 bit colour depth the RAM needed is (width x height) bytes
+// on larger displays maybe show incline profile or something
+// pace over time ... etc
+// gauge?
+
+// add support for nextion display ... since I have one I'lll give it a try ;)
+
 void initSPIFFSDone()
 {
   tft.fillScreen(TFT_BLACK);

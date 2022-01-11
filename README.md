@@ -7,20 +7,51 @@ ESP32 based treadmill speed and incline sensor and BLE Server exposed as FTMS Se
 
 Based/Inspired on/by this project:
 
-https://hackaday.io/project/175237-add-bluetooth-to-treadmill
+* https://hackaday.io/project/175237-add-bluetooth-to-treadmill
+
+and info and thoughts from this zwift forum post:
+
+* https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19
+
+## some random info (moved from code comments into Readme)
+
+GAP  stands for Generic Access Profile
+
+GATT stands for Generic Attribute Profile defines the format of the data exposed
+by a BLE device. It also defines the procedures needed to access the data exposed by a device.
+
+Characteristics: a Characteristic is always part of a Service and it represents
+a piece of information/data that a Server wants to expose to a client. For example,
+the Battery Level Characteristic represents the remaining power level of a battery
+in a device which can be read by a Client.
+
+Where a characteristic can be notified or indicated, a Client Characteristic Configuration
+descriptor shall be included in that characteristic as required by the Core Specification
+
+use Fitness Machine Service UUID: 0x1826 (server)
+with Treadmill Data Characteristic 0x2acd
+
+
 
 
 ## Parts Used
-* Treadmill Speed Sensor (Reed-Switch)
+* Treadmill Speed Sensor (Reed-Switch) [1]
   https://de.aliexpress.com/item/4000023371194.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
-* Infrared-Sensor (Obstacle Avoidance Sensor)
+
+* Infrared-Sensor (Obstacle Avoidance Sensor) [2]
   https://de.aliexpress.com/item/1005001285654366.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
-* 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050
+
+* 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050 [3]
   https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
-* Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF)
+
+* Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF) [4]
   https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
-* WT32-SC01
+
+* WT32-SC01 [5]
   https://tinyurl.com/4kbp8fkf
+
+* Lilygo TTGO-T4 (ESP32 with 240x320 Display and SD-card slot, also feat. 5-pin JST con. for I2C) [6]
+
 
 Reed switch is installed next to the original treadmill reed contact and connected via external pull-up.
 
@@ -123,6 +154,51 @@ IR-Sensor (here Sensor 1) is connected to GPIO12
 
 GPIO36 interrupt, changed reed-sensor to GPIO26
 https://github.com/espressif/esp-idf/issues/4585
+
+
+# Treadmill models
+## TAURUS 9.5
+Define as **TAURUS_9_5**
+### Specs
+Min speed is 0.5km/h and Max speed is 22km/h, speed increments at 0.1km/h.
+This model has 15 incline *Levels* which are not equal to a grade in percent. So grade ranges from 0% to about 11%.
+
+You can attach a second reed switch [2] next to the original one (that's what I did).
+Via a two-wire extension I now have a TTGO-T4 mounted to the main console (todo: add img).
+
+I think it should be easily possibly to intercept speed and incline controls from the two trigger switches,
+that would open up a bunch of new possible features (if zwift would send back incline, we could have auto-incline-mode).
+In fact I was also thinking of using either an esp32-cam module or pi-zero to capture incline from a screen or monitor.
+
+## NordicTrack T 12.2
+Define as **NORDICTRACK_12SI**
+```
+// Northtrack 12.2 Si:
+// Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
+// Steigung:        0   - 12 %    (increments .5 %)
+// On Northtrack 12.2 Si there is a connector between "computer" and lower buttons (Speed+/-, Start/Stop, Incline +/-) with all cables from
+// motor controll board MC2100ELS-18w together with all 6 buttons (Speed+/-, Start/Stop, Incline +/-)
+// This seem like a nice place to interface the unit. This might be true from many more treadmills from differnt brands from Icon Healt & Fitness Inc
+//
+// Speed:
+// Connect Tach. e.g. the Green cable 5v from MC2100ELS-18w to pin SPEED_REED_SWITCH_PIN in TTGO T-Display with a levelshifter 5v->3v in between seem to work quite ok
+// This should probably work on most many (all?) treadmills using the motor controll board MC2100ELS-18w from Icon Healt & Fitness Inc
+//
+// Incline:
+// If no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
+// Incline steps from the compuer can be read like this. 
+// Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
+// Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
+// Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
+//
+// Control
+// As for controling the treadmill connecting the cables to GROUND for abour 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
+// in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
+// Currently the scematighs is not worked out maybe they can just be connected via a levelshifter, or some sort of relay need to be used?
+// If you during some start phase send a set of Incline- until you are sure the treadmill is at it's lowers position 
+// it's problabe possible to keek track if current incline after this.
+```
+
 
 
 # PlatformIO
