@@ -1058,8 +1058,9 @@ void setup() {
     delay(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
-    tft.setTextColor(TFT_RED);
+    tft.setTextColor(TFT_GREEN);
     tft.println("MPU6050 OK!");
+    delay(2000);
   }
 #else
   hasMPU6050 = false;
@@ -1087,7 +1088,6 @@ void setup() {
 #else
   hasVL53L0X = false;
 #endif
-  delay(2000);
 
   DEBUG_PRINTLN("Setup done");
   showInfo();
