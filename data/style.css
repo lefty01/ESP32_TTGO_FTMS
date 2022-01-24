@@ -1,18 +1,18 @@
 
 html {
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     display: inline-block;
     margin: 0px auto;
     text-align: center;
 }
 
 h2 { font-size: 3.0rem; }
-p   { font-size: 3.0rem; }
+p { font-size: 3.0rem; }
 div { font-size: 2.0rem; }
 .units { font-size: 1.2rem; }
 .dht-labels{
     font-size: 1.5rem;
-    vertical-align:middle;
+    vertical-align: middle;
     padding-bottom: 15px;
 }
 
@@ -40,4 +40,3 @@ div { font-size: 2.0rem; }
 .button_int1         { background-color: #00C8DC; } /* Light-Blue  */
 .button_int2         { background-color: #008CBA; } /* Blue  */
 .button_int3         { background-color: #008CBA; } /* Blue  */
-
