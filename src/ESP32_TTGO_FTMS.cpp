@@ -72,9 +72,6 @@
 
 const char* VERSION = "0.0.18";
 
-
-
-
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
 // by a BLE device. It also defines the procedures needed to access the data exposed by a device.
@@ -115,7 +112,7 @@ const char* VERSION = "0.0.18";
 #define BUTTON_1        35
 #define BUTTON_2        0
 #else
-#ifdef TARGET_WT32-SC01
+#ifdef TARGET_WT32_SC01
 // This is a touch screen so there is no buttons 
 #else
 #error Unknow button setup
@@ -132,10 +129,10 @@ const char* VERSION = "0.0.18";
 // These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
 // TODO: They could also be used to read pins 
-#define TREADMILL_BUTTON_INC_DOWN_PIN 32
-#define TREADMILL_BUTTON_INC_UP_PIN   33
-#define TREADMILL_BUTTON_SPEED_DOWN_PIN 25
-#define TREADMILL_BUTTON_SPEED_UP_PIN   27
+#define TREADMILL_BUTTON_INC_DOWN_PIN 25
+#define TREADMILL_BUTTON_INC_UP_PIN   27
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN 32
+#define TREADMILL_BUTTON_SPEED_UP_PIN   33
 #define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
 
@@ -449,7 +446,8 @@ void doReset()
   // calibrate
 }
 
-void press_external_button_low(uint32_t pin, uint32_t time_ms) {
+void pressTreadmillButtonLow(uint32_t pin, uint32_t time_ms) {
+  DEBUG_PRINTF("pressTreadmillButtonLow(%d,%d)\n",pin,time_ms);
   digitalWrite(pin, LOW);
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
@@ -468,7 +466,6 @@ void buttonInit()
   btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 1 TapHandler");
-    //press_external_button_low(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       DEBUG_PRINTLN("RESET timer/counter!");
       doReset();
@@ -504,7 +501,6 @@ void buttonInit()
   btn2.setTapHandler([](Button2& b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 2 TapHandler");
-    //press_external_button_low(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
     }
@@ -606,7 +602,13 @@ void IRAM_ATTR speedSensor2_ISR() {
 void speedUp()
 {
   if (speedInclineMode & SPEED)
+  {
+#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
+    DEBUG_PRINTLN("PRESS speed_up on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   kmph += speed_interval;
   if (kmph > max_speed) kmph = max_speed;
@@ -617,7 +619,13 @@ void speedUp()
 void speedDown()
 {
   if (speedInclineMode & SPEED)
+  {
+#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
+    DEBUG_PRINTLN("PRESS speed_down on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   kmph -= speed_interval;
   if (kmph < min_speed) kmph = min_speed;
@@ -628,7 +636,13 @@ void speedDown()
 void inclineUp()
 {
   if (speedInclineMode & INCLINE)
+  {
+#ifdef TREADMILL_BUTTON_INC_UP_PIN
+    DEBUG_PRINTLN("PRESS incline_up on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   incline += incline_interval; // incline in %
   if (incline > max_incline) incline = max_incline;
@@ -641,7 +655,13 @@ void inclineUp()
 void inclineDown()
 {
   if (speedInclineMode & INCLINE)
+  {
+#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
+    DEBUG_PRINTLN("PRESS incline_down on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   incline -= incline_interval;
   if (incline <= min_incline) incline = min_incline;
@@ -651,7 +671,34 @@ void inclineDown()
   DEBUG_PRINTLN(incline);
 }
 
+double inclineSensorNotOnTreadmillConversion(double inAngle) {
+  double convertedAngle = inAngle;
+#if TREADMILL_MODEL == NORDICTRACK_12SI
+  /* If Sensor is placed in inside the treadmill engine
+    TODO: Maybe this can be automatic, e.g. Let user selct a incline at a time
+          and record values and select inbeween bounderies.
+          If tread mill support stearing the inclinde maube it can also be an automatic
+          calibration step.
+              /|--- ___
+           c / |        --- ___ a
+            /  |x              --- ___  Running side
+           /   |_                      --- ___
+          / A  | |                           C ---  ___
+  
+    A = inAngle (but we want the angle C)
+    sin(A)=x/c     sin(C)=x/a
+    x=c*sin(A)     x=a*sin(C)
+    C=asin(c*sin(A)/a)
+  */
+  double c=32.0;  // lenght of motor part in cm
+  double a=150.0; // lenght of running part in cm
+  convertedAngle = asin(c*sin(inAngle * DEG_TO_RAD)/a) * RAD_TO_DEG;
+#endif
+  return convertedAngle;
+}
+
 float getIncline() {
+  double sensorAngle = 0.0;
   if (hasVL53L0X) {
     // calc incline/angle from distance
     // depends on sensor placement ... TODO: configure via webinterface
@@ -663,18 +710,20 @@ float getIncline() {
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
     //float y = mpu.getAngleY();
-    
-    angle = mpu.getAngleY();
-    if (angle < 0) angle = 0;
+
+    sensorAngle = mpu.getAngleY();
+#if TREADMILL_MODEL == NORDICTRACK_12SI
+    // TODO: Maybe this should be a config somewhare together with sensor orientation
+    angle = inclineSensorNotOnTreadmillConversion(sensorAngle);
+#endif
+    if (angle < 0) angle = 0;  // TODO We might allow running downhill
     char yStr[5];
 
     snprintf(yStr, 5, "%.2f", angle);
     client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
 
-    DEBUG_PRINT("sensor angle (Y): ");
-    DEBUG_PRINTLN(angle);
+    incline = tan(angle * DEG_TO_RAD) * 100;
 
-    incline = tan(angle / RAD_2_DEG) * 100;
 #else
     //incline = 0;
     //angle = 0;
@@ -683,10 +732,7 @@ float getIncline() {
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
-  DEBUG_PRINT("sensor angle (Y): ");
-  DEBUG_PRINT(angle);
-  DEBUG_PRINT(" -> ");
-  DEBUG_PRINTLN(incline);
+  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f\n",sensorAngle, angle, incline);
 
   // probably need some more smoothing here ...
   // ...
@@ -874,6 +920,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
+#ifdef TOUCH_CALLIBRATION_AT_STARTUP
 #ifndef USE_TFT_ESPI
   if (tft.touch())
   {
@@ -884,12 +931,26 @@ void setup() {
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
 #endif
+#endif
 
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
+
+#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
   pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_INC_UP_PIN
   pinMode(TREADMILL_BUTTON_INC_UP_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
+  pinMode(TREADMILL_BUTTON_SPEED_DOWN_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
+  pinMode(TREADMILL_BUTTON_SPEED_UP_PIN, INPUT);
+#endif
+
+
 
   delay(3000);
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
