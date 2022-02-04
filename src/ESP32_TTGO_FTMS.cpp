@@ -216,10 +216,9 @@ float rpm = 0;
 float kmph; // kilometer per hour
 float kmph_sense;
 float mps;  // meter per second
-double angle;
-double grade_deg;
-
-float incline;
+double angle = 0;
+double grade_deg = 0;
+float incline = 0;
 
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
@@ -743,7 +742,6 @@ float getIncline() {
     angle = angleSensorTreadmillConversion(sensorAngle);
 
     if (angle < 0) angle = 0;  // TODO We might allow running downhill
-    char yStr[5];
 
     char yStr[5];
     char inclineStr[6];
