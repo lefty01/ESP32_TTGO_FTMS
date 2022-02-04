@@ -157,6 +157,11 @@ https://github.com/espressif/esp-idf/issues/4585
 
 
 # Treadmill models
+
+we will switch to use the [wiki](https://github.com/lefty01/ESP32_TTGO_FTMS/wiki) to document treadmill models (specifications, features, how to connect to the ESP32 controller, ...)
+
+
+
 ## TAURUS 9.5
 Define as **TAURUS_9_5**
 ### Specs
