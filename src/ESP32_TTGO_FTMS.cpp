@@ -64,16 +64,13 @@
 
 
 // Select and uncomment one of the Treadmills below
-//#define TREADMILL_MODEL "TAURUS_9_5"
-//#define TREADMILL_MODEL "NORDICTRACK_12SI"
+//#define TREADMILL_MODEL TAURUS_9_5
+//#define TREADMILL_MODEL NORDICTRACK_12SI
 // or via platformio.ini:
-// -DTREADMILL_MODEL="TAURUS_9_5"
+// -DTREADMILL_MODEL=TAURUS_9_5
 
 
 const char* VERSION = "0.0.18";
-
-
-
 
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
@@ -105,17 +102,12 @@ const char* VERSION = "0.0.18";
 // GY-530 VL53L0X (ToF)
 // https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
-
-#define ADC_EN          14  //ADC_EN is the ADC detection enable port
-//  -> does this interfere with input/pullup???
-#define ADC_PIN         34
-
 #ifdef TARGET_TTGO_T_DISPLAY
 // TTGO T-Display buttons
 #define BUTTON_1        35
 #define BUTTON_2        0
 #else
-#ifdef TARGET_WT32-SC01
+#ifdef TARGET_WT32_SC01
 // This is a touch screen so there is no buttons 
 #else
 #error Unknow button setup
@@ -129,26 +121,13 @@ const char* VERSION = "0.0.18";
 #define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
-// These are used to control/override the Treadmil, e.g. pins are connected to
-// the different button so that software can "press" them
-// TODO: They could also be used to read pins 
-#define TREADMILL_BUTTON_INC_DOWN_PIN 32
-#define TREADMILL_BUTTON_INC_UP_PIN   33
-#define TREADMILL_BUTTON_SPEED_DOWN_PIN 25
-#define TREADMILL_BUTTON_SPEED_UP_PIN   27
-#define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
-
-
-
 // DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
 // Uncomment this line to use it
-//#define DEBUG0_PIN       17
+//#define DEBUG0_PIN       13
 
 #ifdef DEBUG0_PIN
 volatile bool debug0State = LOW;
 #endif
-
-
 
 volatile unsigned long t1;
 volatile unsigned long t2;
@@ -168,7 +147,6 @@ unsigned long sw_timer_clock = 0;
 unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
-
 String MQTTDEVICEID = "ESP32_FTMS_";
 
 uint8_t mac_addr[6];
@@ -179,6 +157,7 @@ esp_reset_reason_t rr;
 #ifndef TREADMILL_MODEL
   #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
 #elif TREADMILL_MODEL == TAURUS_9_5
+#define TREADMILL_MODEL_NAME "Taurus 9.5"
 // Taurus 9.5:
 // Speed:    0.5 - 22 km/h (increments 0.1 km/h)
 // Incline:  0..15 Levels  (increments 1 Level) -> 0-11 %
@@ -191,9 +170,10 @@ const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
 
 #elif TREADMILL_MODEL == NORDICTRACK_12SI
+#define TREADMILL_MODEL_NAME "Northtrack 12.2 Si"
 // Northtrack 12.2 Si:
-// Geschwindigkeit: 0.5 - 20 km/h (increments 0.1 km/h)
-// Steigung:        0   - 12 %    (increments .5 %)
+// Speed:   0.5 - 20 km/h (increments 0.1 km/h)
+// Incline: 0   - 12 %    (increments .5 %)
 // On Northtrack 12.2 Si there is a connector between "computer" and lower buttons (Speed+/-, Start/Stop, Incline +/-) with all cables from
 // motor controll board MC2100ELS-18w together with all 6 buttons (Speed+/-, Start/Stop, Incline +/-)
 // This seem like a nice place to interface the unit. This might be true from many more treadmills from differnt brands from Icon Healt & Fitness Inc
@@ -201,56 +181,57 @@ const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
 // Speed:
 // Connect Tach. e.g. the Green cable 5v from MC2100ELS-18w to pin SPEED_REED_SWITCH_PIN in TTGO T-Display with a levelshifter 5v->3v in between seem to work quite ok
 // This should probably work on most many (all?) treadmills using the motor controll board MC2100ELS-18w from Icon Healt & Fitness Inc
-//
-// Incline:
-// If no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
-// Incline steps from the compuer can be read like this. 
-// Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
-// Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
-// Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
-//
-// Control
-// As for controling the treadmill connecting the cables to GROUND for abour 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
-// in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
-// Currently the scematighs is not worked out maybe they can just be connected via a levelshifter, or some sort of relay need to be used?
-// If you during some start phase send a set of Incline- until you are sure the treadmill is at it's lowers position 
-// it's problabe possible to keek track if current incline after this.
-
 const float max_speed   = 20.0;
 const float min_speed   =  0.5;
-const float max_incline = 12.0;
-const float min_incline =  0.0;
 const float speed_interval_min = 0.1;
-const float incline_interval_min  = 0.5;
 const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
                                    // e.g. circumfence of front roler (calibrated with a distant wheel)
                                    // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
+
+// Incline:
+// The code currenely use a MPU6050 that is placed in the "engine" box of the treadmill
+// Possible idea if no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
+//   Incline steps from the compuer can be read like this. 
+//   Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
+//   Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
+//   Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
+
+const float max_incline = 12.0;
+const float min_incline =  0.0;
+const float incline_interval_min  = 0.5;
+
+// Control
+// As for controling the treadmill connecting the cables to GROUND for about 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
+// in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
+// Currently the schematics as attached in the docs, they are just connected via a levelshifter.
+// IDEA: If we could during some calibration phase send a set of Incline- until you are sure the treadmill is at it's lowers position 
+// it's problabe possible to keep track if current incline after this.
+
+// These are used to control/override the Treadmil, e.g. pins are connected to
+// the different button so that software can "press" them
+// TODO: They could also be used to read pins 
+#define TREADMILL_BUTTON_INC_DOWN_PIN 25
+#define TREADMILL_BUTTON_INC_UP_PIN   27
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN 32
+#define TREADMILL_BUTTON_SPEED_UP_PIN   33
+#define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
 #else
   #error "Unexpected value for TREADMILL_MODEL defined!"
 #endif
 
-
-
-const float speed_interval_10 = 1.0;
-const float speed_interval_05 = 0.5;
-const float speed_interval_01 = speed_interval_min;
 const float incline_interval  = incline_interval_min;
+volatile float speed_interval = speed_interval_min;
 
-volatile float speed_interval = speed_interval_01;
-volatile unsigned long usAvg[8];
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
 volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
 volatile long accumulatorInterval = 0;    // time sum between display during intervals
-//volatile unsigned int Totalrevcount = 0;  // number of revolutions since last display update
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
 
-
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
-//const int ledPin =  13;      // the number of the LED pin
 #ifdef BUTTON_1
 Button2 btn1(BUTTON_1);
 #endif
@@ -388,9 +369,6 @@ void initBLE() {
    it will be created automatically if notifications
    or indications are enabled on a characteristic.
   ****************************************************/
-  //TreadmillDataCharacteristics.addDescriptor(new BLE2902());
-  //FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
-
 #endif
   // start service
   pService->start();
@@ -423,7 +401,7 @@ void initSPIFFS() {
       if (on)
         tft.fillScreen(TFT_RED);
       else
-	tft.fillScreen(TFT_BLACK);
+        tft.fillScreen(TFT_BLACK);
     }
   }
   else {
@@ -449,7 +427,8 @@ void doReset()
   // calibrate
 }
 
-void press_external_button_low(uint32_t pin, uint32_t time_ms) {
+void pressTreadmillButtonLow(uint32_t pin, uint32_t time_ms) {
+  DEBUG_PRINTF("pressTreadmillButtonLow(%d,%d)\n",pin,time_ms);
   digitalWrite(pin, LOW);
   pinMode(pin, OUTPUT);
   digitalWrite(pin, LOW);
@@ -468,7 +447,6 @@ void buttonInit()
   btn1.setTapHandler([](Button2 & b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 1 TapHandler");
-    //press_external_button_low(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       DEBUG_PRINTLN("RESET timer/counter!");
       doReset();
@@ -504,7 +482,6 @@ void buttonInit()
   btn2.setTapHandler([](Button2& b) {
     unsigned int time = b.wasPressedFor();
     DEBUG_PRINTLN("Button 2 TapHandler");
-    //press_external_button_low(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
     if (time > 3000) { // > 3sec enters config menu
       //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
     }
@@ -526,13 +503,63 @@ void buttonInit()
 #endif
 }
 
-void buttonLoop()
+void loop_handle_button()
 {
 #ifdef BUTTON_1
-    btn1.loop();
+  btn1.loop();
 #endif
 #ifdef BUTTON_2
-    btn2.loop();
+  btn2.loop();
+#endif
+}
+
+void loop_handle_touch() {
+  #ifndef USE_TFT_ESPI
+  if (tft.touch())
+  {
+    int32_t touch_x, touch_y;
+    if (tft.getTouch(&touch_x, &touch_y)) {
+      // reset to manual mode on any touch (as for now)
+      if ( speedInclineMode != MANUAL) {
+          kmph = 0.5;
+          incline = 0;
+          grade_deg = 0;
+          angle = 0;
+          elevation = 0;
+          elevation_gain = 0;
+          speedInclineMode = MANUAL;
+      }
+      //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
+      if (touch_x >= tft.width()/2)
+      {
+        // Left side of screen is button 1
+        if (touch_y >= tft.height()/2)
+        {
+          DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
+  	      inclineDown();
+        }
+        else
+        {
+          DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
+  	      inclineUp();
+        }
+      }
+      else
+      {
+        // Right side of screen is button 2
+        if (touch_y >= tft.height()/2)
+        {
+          DEBUG_PRINTLN("Touch: Button 2 speedDown()");
+  	      speedDown();
+        }
+        else
+        {
+          DEBUG_PRINTLN("Touch: Button 2 speedUp()");
+  	      speedUp();
+        }
+      }
+    }
+  }
 #endif
 }
 
@@ -582,7 +609,6 @@ void IRAM_ATTR reedSwitch_ISR()
 
     revCount++;
     workoutDistance += belt_distance;
-    //Totalrevcount++;
     accumulatorInterval += test_elapsed;
   }
 }
@@ -602,11 +628,17 @@ void IRAM_ATTR speedSensor2_ISR() {
   }
 }
 
-
+// UI controlled (web or button on esp32) speedUp
 void speedUp()
 {
   if (speedInclineMode & SPEED)
+  {
+#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
+    DEBUG_PRINTLN("Do/press speed_up on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   kmph += speed_interval;
   if (kmph > max_speed) kmph = max_speed;
@@ -614,10 +646,17 @@ void speedUp()
   DEBUG_PRINTLN(kmph);
 }
 
+// UI controlled (web or button on esp32) speedDown
 void speedDown()
 {
   if (speedInclineMode & SPEED)
+  {
+#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
+    DEBUG_PRINTLN("Do/press speed_down on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   kmph -= speed_interval;
   if (kmph < min_speed) kmph = min_speed;
@@ -625,10 +664,17 @@ void speedDown()
   DEBUG_PRINTLN(kmph);
 }
 
+// UI controlled (web or button on esp32) inclineUp
 void inclineUp()
 {
   if (speedInclineMode & INCLINE)
+  {
+#ifdef TREADMILL_BUTTON_INC_UP_PIN
+    DEBUG_PRINTLN("Do/press incline_up on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   incline += incline_interval; // incline in %
   if (incline > max_incline) incline = max_incline;
@@ -638,10 +684,17 @@ void inclineUp()
   DEBUG_PRINTLN(incline);
 }
 
+// UI controlled (web or button on esp32) inclineDown
 void inclineDown()
 {
   if (speedInclineMode & INCLINE)
+  {
+#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
+    DEBUG_PRINTLN("Do/press incline_down on Treadmill");
+    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+#endif
     return;
+  }
 
   incline -= incline_interval;
   if (incline <= min_incline) incline = min_incline;
@@ -651,7 +704,48 @@ void inclineDown()
   DEBUG_PRINTLN(incline);
 }
 
+// angleSensorTreadmillConversion()
+// If a treadmill has some special placement of the angle sensor
+// here is where that value is converted from sensor read to proper angle of running area.
+
+double angleSensorTreadmillConversion(double inAngle) {
+  double convertedAngle = inAngle;
+#if TREADMILL_MODEL == NORDICTRACK_12SI
+  // TODO: Maybe this should be a config somewhere together with sensor orientation
+
+  /* If Sensor is placed in inside the treadmill engine
+    TODO: Maybe this can be automatic, e.g. Let user selct a incline at a time
+          and record values and select inbeween bounderies.
+          If treadmill support stearing the incline maybe it can also be an automatic
+          calibration step. e.g. move it max down, callibrate sensor, step up max and measure
+          User input treadmill "Max incline" value and Running are length somehow.
+              /|--- ___
+           c / |        --- ___ a
+            /  |x              --- ___  Running area
+           /   |_                      --- ___
+          / A  | |                           C ---  ___
+  
+    A = inAngle (but we want the angle C)
+    sin(A)=x/c     sin(C)=x/a
+    x=c*sin(A)     x=a*sin(C)
+    C=asin(c*sin(A)/a)
+  */
+  double c = 32.0;  // lenght of motor part in cm
+  double a = 150.0; // lenght of running area in cm
+  convertedAngle = asin(c*sin(inAngle * DEG_TO_RAD)/a) * RAD_TO_DEG;
+#endif
+  return convertedAngle;
+}
+
+// getIncline()
+// This will read the used "incline" sensor, run this periodically 
+// The following global variables will be updated
+//    angle - the angle of the running are
+//    incline - the incline value (% of angle between 0 and 45 degree)
+//              incline is usally the value shown by your treadmill.
+
 float getIncline() {
+  double sensorAngle = 0.0;
   if (hasVL53L0X) {
     // calc incline/angle from distance
     // depends on sensor placement ... TODO: configure via webinterface
@@ -662,19 +756,18 @@ float getIncline() {
 
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
-    //float y = mpu.getAngleY();
-    
-    angle = mpu.getAngleY();
-    if (angle < 0) angle = 0;
+
+    sensorAngle = mpu.getAngleY();
+    angle = angleSensorTreadmillConversion(sensorAngle);
+
+    if (angle < 0) angle = 0;  // TODO We might allow running downhill
     char yStr[5];
 
     snprintf(yStr, 5, "%.2f", angle);
     client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
 
-    DEBUG_PRINT("sensor angle (Y): ");
-    DEBUG_PRINTLN(angle);
+    incline = tan(angle * DEG_TO_RAD) * 100;
 
-    incline = tan(angle / RAD_2_DEG) * 100;
 #else
     //incline = 0;
     //angle = 0;
@@ -683,10 +776,7 @@ float getIncline() {
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
-  DEBUG_PRINT("sensor angle (Y): ");
-  DEBUG_PRINT(angle);
-  DEBUG_PRINT(" -> ");
-  DEBUG_PRINTLN(incline);
+  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f\n",sensorAngle, angle, incline);
 
   // probably need some more smoothing here ...
   // ...
@@ -711,28 +801,17 @@ void setSpeedInterval(float interval)
   if ((interval < 0.1) || (interval > 2.0)) {
     DEBUG_PRINTLN("INVALID SPEED INTERVAL");
   }
-  // switch(i) {
-  // case 1: speed_interval = speed_interval_01; break;
-  // case 2: speed_interval = speed_interval_05; break;
-  // case 3: speed_interval = speed_interval_10; break;
-  // default:
-  //   DEBUG_PRINTLN("INVALID SPEED INTERVAL");
-  //   break;
-  // }
+
   speed_interval = interval;
 }
 
 String readSpeed()
 {
-  //char speed[8];
-  //snprintf(speed, 8, "%.2f", kmph);
   return String(kmph);
 }
 
 String readDist()
 {
-  // char dist[8];
-  // snprintf(dist, 8, "%.2f", total_distance/1000);
   return String(total_distance / 1000);
 }
 
@@ -745,7 +824,6 @@ String readElevation()
 {
   return String(elevation_gain);
 }
-
 
 String readHour() {
   return String(hour());
@@ -770,7 +848,6 @@ String readSecond() {
 
   return sStr;
 }
-
 
 // void calculateRPM() {
 //   // divide number of microseconds in a minute, by the average interval.
@@ -835,7 +912,20 @@ const char* getRstReason(esp_reset_reason_t r) {
   return "INVALID";
 }
 
-
+void showInfo() {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_GREEN);
+  tft.setTextFont(2);
+  tft.setCursor(5, 5);
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+              VERSION,TREADMILL_MODEL_NAME,
+              min_speed,max_speed,min_incline,max_incline,belt_distance,
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+              VERSION,TREADMILL_MODEL_NAME,
+              min_speed,max_speed,min_incline,max_incline,belt_distance,
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+}
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -856,9 +946,7 @@ void setup() {
   elevation = 0;
   elevation_gain = 0;
 
-
 #if TREADMILL_MODEL == NORDICTRACK_12SI
-  speedInclineMode = SPEED | INCLINE;
   hasReed          = true;
 #endif
 #if TREADMILL_MODEL == TAURUS_9_5
@@ -874,6 +962,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
+#ifdef TOUCH_CALLIBRATION_AT_STARTUP
 #ifndef USE_TFT_ESPI
   if (tft.touch())
   {
@@ -884,19 +973,33 @@ void setup() {
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
 #endif
+#endif
 
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
+
+#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
   pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_INC_UP_PIN
   pinMode(TREADMILL_BUTTON_INC_UP_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
+  pinMode(TREADMILL_BUTTON_SPEED_DOWN_PIN, INPUT);
+#endif
+#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
+  pinMode(TREADMILL_BUTTON_SPEED_UP_PIN, INPUT);
+#endif
+
+
 
   delay(3000);
-  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
-  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP);
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
 
-  attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING);
-  attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING);
+  attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING); //TODO used?
+  attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING); //TODO used?
 
   // note: I have 10k pull-up on SPEED_REED_SWITCH_PIN
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
@@ -906,8 +1009,7 @@ void setup() {
   Wire.begin();
   #endif
 
-  initBLE();
-  
+  initBLE(); 
   initSPIFFS();
 
   isWifiAvailable = setupWifi() ? false : true;
@@ -985,14 +1087,8 @@ void setup() {
     hasVL53L0X = false;
 #endif
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  //tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("Setup Done");
-  tft.print("Version:");
-  tft.println(VERSION);
-  DEBUG_PRINTLN("setup done");
+  DEBUG_PRINTLN("Setup done");
+  showInfo();
 
   delay(3000);
   updateDisplay(true);
@@ -1049,61 +1145,12 @@ void loop() {
   updateDisplay(false);
 #endif
 
-buttonLoop();
-
-#ifndef USE_TFT_ESPI
-  if (tft.touch())
-  {
-    int32_t touch_x, touch_y;
-    if (tft.getTouch(&touch_x, &touch_y)) {
-      // reset to manual mode on any touch (as for now)
-      if ( speedInclineMode != MANUAL) {
-          kmph = 0.5;
-          incline = 0;
-          grade_deg = 0;
-          angle = 0;
-          elevation = 0;
-          elevation_gain = 0;
-          speedInclineMode = MANUAL;
-      }
-      //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
-      if (touch_x >= tft.width()/2)
-      {
-        // Left side of screen is button 1
-        if (touch_y >= tft.height()/2)
-        {
-          DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
-  	      inclineDown();
-        }
-        else
-        {
-          DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
-  	      inclineUp();
-        }
-      }
-      else
-      {
-        // Right side of screen is button 2
-        if (touch_y >= tft.height()/2)
-        {
-          DEBUG_PRINTLN("Touch: Button 2 speedDown()");
-  	      speedDown();
-        }
-        else
-        {
-          DEBUG_PRINTLN("Touch: Button 2 speedUp()");
-  	      speedUp();
-        }
-      }
-    }
-  }
-#endif
-
 #ifndef NO_MPU6050
   mpu.update();
 #endif
-  //uint8_t result = rotary.process();
 
+  loop_handle_button();
+  loop_handle_touch();
   loop_handle_WIFI();
   loop_handle_BLE();
 
@@ -1130,7 +1177,7 @@ buttonLoop();
 #endif 
 
     if (speedInclineMode & INCLINE) {
-      incline = getIncline(); // also sets 'angle' variable
+      incline = getIncline(); // sets global 'angle' and 'incline' variable
     }
 
     // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
@@ -1143,24 +1190,21 @@ buttonLoop();
         total_distance += mps;
       }
       else if (hasReed) {
-	if (revCount > 0) { // confirm there was at least one spin in the last second
-	  noInterrupts();
-	  rpm = 60000000 / (accumulatorInterval / revCount);
-	  mps = belt_distance * (rpm) / (60 * 1000);
-	  revCount = 0;
-	  accumulatorInterval = 0;
-	  interrupts();
-
-	  kmph = mps * 3.6;
-	}
-	else {
-	  rpm = 0;
-	  //rpmaccumulatorInterval = 0;
-	  //accumulator4 = 0;  // average rpm of last 4 samples
-	}
-	//mps = belt_distance * (rpm) / (60 * 1000);
-        //kmph = mps * 3.6;
-        total_distance = workoutDistance / 1000;  // meter
+        if (revCount > 0) { // confirm there was at least one spin in the last second
+          noInterrupts();
+          rpm = 60000000 / (accumulatorInterval / revCount);
+          revCount = 0;
+          accumulatorInterval = 0;
+          interrupts();
+        }
+        else {
+          rpm = 0;
+          //rpmaccumulatorInterval = 0;
+          //accumulator4 = 0;  // average rpm of last 4 samples
+        }
+        mps = belt_distance * (rpm) / (60 * 1000); // meter per sec
+        kmph = mps * 3.6;                          // km per hour
+        total_distance = workoutDistance / 1000;   // conv mm to meter
       }
     }
     else {
@@ -1228,6 +1272,5 @@ buttonLoop();
 
     TreadmillDataCharacteristics.setValue(treadmillData, 34);
     TreadmillDataCharacteristics.notify();
-
   }
 }

@@ -202,10 +202,10 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
     if (strcmp(command, "sensor_mode") == 0) {
       if (strcmp(value, "speed") == 0)
-	speedInclineMode ^= SPEED; // b'01 toggle bit
+        speedInclineMode ^= SPEED; // b'01 toggle bit
 
       if (strcmp(value, "incline") == 0)
-	speedInclineMode ^= INCLINE; // b'10
+        speedInclineMode ^= INCLINE; // b'10
 
       showSpeedInclineMode(speedInclineMode);
       show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
@@ -213,23 +213,23 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)
-	speedUp();
+        speedUp();
       if (strcmp(value, "down") == 0)
-	speedDown();
+        speedDown();
     }
     if (strcmp(command, "incline") == 0) {
       if (strcmp(value, "up") == 0)
-	inclineUp();
+        inclineUp();
       if (strcmp(value, "down") == 0)
-	inclineDown();
+        inclineDown();
     }
     if (strcmp(command, "speed_interval") == 0) {
       if (strcmp(value, "0.1") == 0)
-	setSpeedInterval(0.1);
+        setSpeedInterval(0.1);
       if (strcmp(value, "0.5") == 0)
-	setSpeedInterval(0.5);
+        setSpeedInterval(0.5);
       if (strcmp(value, "1.0") == 0)
-	setSpeedInterval(1.0);
+        setSpeedInterval(1.0);
     }
     notifyClients();
   }
