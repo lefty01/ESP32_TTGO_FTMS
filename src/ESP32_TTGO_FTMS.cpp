@@ -64,10 +64,10 @@
 
 
 // Select and uncomment one of the Treadmills below
-//#define TREADMILL_MODEL "TAURUS_9_5"
-//#define TREADMILL_MODEL "NORDICTRACK_12SI"
+//#define TREADMILL_MODEL TAURUS_9_5
+//#define TREADMILL_MODEL NORDICTRACK_12SI
 // or via platformio.ini:
-// -DTREADMILL_MODEL="TAURUS_9_5"
+// -DTREADMILL_MODEL=TAURUS_9_5
 
 
 const char* VERSION = "0.0.18";
@@ -157,6 +157,7 @@ esp_reset_reason_t rr;
 #ifndef TREADMILL_MODEL
   #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
 #elif TREADMILL_MODEL == TAURUS_9_5
+#define TREADMILL_MODEL_NAME "Taurus 9.5"
 // Taurus 9.5:
 // Speed:    0.5 - 22 km/h (increments 0.1 km/h)
 // Incline:  0..15 Levels  (increments 1 Level) -> 0-11 %
@@ -169,6 +170,7 @@ const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
 
 #elif TREADMILL_MODEL == NORDICTRACK_12SI
+#define TREADMILL_MODEL_NAME "Northtrack 12.2 Si"
 // Northtrack 12.2 Si:
 // Speed:   0.5 - 20 km/h (increments 0.1 km/h)
 // Incline: 0   - 12 %    (increments .5 %)
@@ -227,7 +229,6 @@ volatile long accumulatorInterval = 0;    // time sum between display during int
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
-
 
 // ttgo tft: 33, 25, 26, 27
 // the number of the pushbutton pins
@@ -911,7 +912,20 @@ const char* getRstReason(esp_reset_reason_t r) {
   return "INVALID";
 }
 
-
+void showInfo() {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_GREEN);
+  tft.setTextFont(2);
+  tft.setCursor(5, 5);
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+              VERSION,TREADMILL_MODEL_NAME,
+              min_speed,max_speed,min_incline,max_incline,belt_distance,
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+              VERSION,TREADMILL_MODEL_NAME,
+              min_speed,max_speed,min_incline,max_incline,belt_distance,
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+}
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -1073,14 +1087,8 @@ void setup() {
     hasVL53L0X = false;
 #endif
 
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  //tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("Setup Done");
-  tft.print("Version:");
-  tft.println(VERSION);
-  DEBUG_PRINTLN("setup done");
+  DEBUG_PRINTLN("Setup done");
+  showInfo();
 
   delay(3000);
   updateDisplay(true);
