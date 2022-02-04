@@ -1,18 +1,18 @@
 /**
- * 
- * 
+ *
+ *
  * The MIT License (MIT)
  * Copyright © 2021 <Andreas Loeffler>
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
  * restriction, including without limitation the rights to use, copy, modify, merge, publish,
  * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all copies or
  * substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
  * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
@@ -38,7 +38,7 @@
 #include <unity.h>
 
 #ifndef NIMBLE
-// original 
+// original
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -70,7 +70,7 @@
 // -DTREADMILL_MODEL=TAURUS_9_5
 
 
-const char* VERSION = "0.0.18";
+const char* VERSION = "0.0.19";
 
 // GAP  stands for Generic Access Profile
 // GATT stands for Generic Attribute Profile defines the format of the data exposed
@@ -87,7 +87,7 @@ const char* VERSION = "0.0.18";
 // with Treadmill Data Characteristic 0x2acd
 
 // Zwift Forum Posts
-// https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19 
+// https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19
 
 // embedded webserver status &  (manual) control
 // https://hackaday.io/project/175237-add-bluetooth-to-treadmill
@@ -108,13 +108,13 @@ const char* VERSION = "0.0.18";
 #define BUTTON_2        0
 #else
 #ifdef TARGET_WT32_SC01
-// This is a touch screen so there is no buttons 
+// This is a touch screen so there is no buttons
 #else
 #error Unknow button setup
 #endif
 #endif
 
-// PINS 
+// PINS
 // NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
 
 #define SPEED_IR_SENSOR1   15
@@ -184,14 +184,14 @@ const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
 const float max_speed   = 20.0;
 const float min_speed   =  0.5;
 const float speed_interval_min = 0.1;
-const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board 
+const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board
                                    // e.g. circumfence of front roler (calibrated with a distant wheel)
                                    // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
 
 // Incline:
 // The code currenely use a MPU6050 that is placed in the "engine" box of the treadmill
 // Possible idea if no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
-//   Incline steps from the compuer can be read like this. 
+//   Incline steps from the compuer can be read like this.
 //   Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
 //   Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
 //   Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
@@ -204,12 +204,12 @@ const float incline_interval_min  = 0.5;
 // As for controling the treadmill connecting the cables to GROUND for about 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
 // in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
 // Currently the schematics as attached in the docs, they are just connected via a levelshifter.
-// IDEA: If we could during some calibration phase send a set of Incline- until you are sure the treadmill is at it's lowers position 
+// IDEA: If we could during some calibration phase send a set of Incline- until you are sure the treadmill is at it's lowers position
 // it's problabe possible to keep track if current incline after this.
 
 // These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
-// TODO: They could also be used to read pins 
+// TODO: They could also be used to read pins
 #define TREADMILL_BUTTON_INC_DOWN_PIN 25
 #define TREADMILL_BUTTON_INC_UP_PIN   27
 #define TREADMILL_BUTTON_SPEED_DOWN_PIN 32
@@ -365,7 +365,7 @@ void initBLE() {
   //pFeature->addDescriptor(new BLE2902());
 #else
   /***************************************************
-   NOTE: DO NOT create a 2902 descriptor. 
+   NOTE: DO NOT create a 2902 descriptor.
    it will be created automatically if notifications
    or indications are enabled on a characteristic.
   ****************************************************/
@@ -373,10 +373,10 @@ void initBLE() {
   // start service
   pService->start();
   pAdvertising = pServer->getAdvertising();
-  pAdvertising->setScanResponse(true);  
+  pAdvertising->setScanResponse(true);
   pAdvertising->addServiceUUID(FTMSService);
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
-  
+
   pAdvertising->start();
   delay(2000); // added to keep tft msg a bit longer ...
 }
@@ -490,14 +490,14 @@ void buttonInit()
       if ((speedInclineMode & SPEED) == 0)
 	      speedDown();
       if ((speedInclineMode & INCLINE) == 0)
-      	inclineDown();
+	inclineDown();
     }
     else {
       DEBUG_PRINTLN("short click...");
       if ((speedInclineMode & SPEED) == 0)
-      	speedUp();
+	speedUp();
       if ((speedInclineMode & INCLINE) == 0)
-      	inclineUp();
+	inclineUp();
     }
   });
 #endif
@@ -530,32 +530,26 @@ void loop_handle_touch() {
           speedInclineMode = MANUAL;
       }
       //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
-      if (touch_x >= tft.width()/2)
-      {
+      if (touch_x >= tft.width() / 2) {
         // Left side of screen is button 1
-        if (touch_y >= tft.height()/2)
-        {
-          DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
-  	      inclineDown();
+        if (touch_y >= tft.height() / 2) {
+	  DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
+	  inclineDown();
         }
-        else
-        {
-          DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
-  	      inclineUp();
+	else {
+	  DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
+	  inclineUp();
         }
       }
-      else
-      {
-        // Right side of screen is button 2
-        if (touch_y >= tft.height()/2)
-        {
-          DEBUG_PRINTLN("Touch: Button 2 speedDown()");
-  	      speedDown();
+      else {
+	// Right side of screen is button 2
+        if (touch_y >= tft.height() / 2) {
+	  DEBUG_PRINTLN("Touch: Button 2 speedDown()");
+	  speedDown();
         }
-        else
-        {
-          DEBUG_PRINTLN("Touch: Button 2 speedUp()");
-  	      speedUp();
+	else {
+	  DEBUG_PRINTLN("Touch: Button 2 speedUp()");
+	  speedUp();
         }
       }
     }
@@ -631,8 +625,7 @@ void IRAM_ATTR speedSensor2_ISR() {
 // UI controlled (web or button on esp32) speedUp
 void speedUp()
 {
-  if (speedInclineMode & SPEED)
-  {
+  if (speedInclineMode & SPEED) {
 #ifdef TREADMILL_BUTTON_SPEED_UP_PIN
     DEBUG_PRINTLN("Do/press speed_up on Treadmill");
     pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
@@ -649,8 +642,7 @@ void speedUp()
 // UI controlled (web or button on esp32) speedDown
 void speedDown()
 {
-  if (speedInclineMode & SPEED)
-  {
+  if (speedInclineMode & SPEED) {
 #ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
     DEBUG_PRINTLN("Do/press speed_down on Treadmill");
     pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
@@ -667,8 +659,7 @@ void speedDown()
 // UI controlled (web or button on esp32) inclineUp
 void inclineUp()
 {
-  if (speedInclineMode & INCLINE)
-  {
+  if (speedInclineMode & INCLINE) {
 #ifdef TREADMILL_BUTTON_INC_UP_PIN
     DEBUG_PRINTLN("Do/press incline_up on Treadmill");
     pressTreadmillButtonLow(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
@@ -687,8 +678,7 @@ void inclineUp()
 // UI controlled (web or button on esp32) inclineDown
 void inclineDown()
 {
-  if (speedInclineMode & INCLINE)
-  {
+  if (speedInclineMode & INCLINE) {
 #ifdef TREADMILL_BUTTON_INC_DOWN_PIN
     DEBUG_PRINTLN("Do/press incline_down on Treadmill");
     pressTreadmillButtonLow(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
@@ -724,7 +714,7 @@ double angleSensorTreadmillConversion(double inAngle) {
             /  |x              --- ___  Running area
            /   |_                      --- ___
           / A  | |                           C ---  ___
-  
+
     A = inAngle (but we want the angle C)
     sin(A)=x/c     sin(C)=x/a
     x=c*sin(A)     x=a*sin(C)
@@ -738,7 +728,7 @@ double angleSensorTreadmillConversion(double inAngle) {
 }
 
 // getIncline()
-// This will read the used "incline" sensor, run this periodically 
+// This will read the used "incline" sensor, run this periodically
 // The following global variables will be updated
 //    angle - the angle of the running are
 //    incline - the incline value (% of angle between 0 and 45 degree)
@@ -917,11 +907,11 @@ void showInfo() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(2);
   tft.setCursor(5, 5);
-  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
-  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n", 
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
@@ -1009,7 +999,7 @@ void setup() {
   Wire.begin();
   #endif
 
-  initBLE(); 
+  initBLE();
   initSPIFFS();
 
   isWifiAvailable = setupWifi() ? false : true;
@@ -1032,7 +1022,7 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("mqtt setup Done!");
   delay(2000);
-  
+
 #ifndef NO_MPU6050
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
@@ -1174,7 +1164,7 @@ void loop() {
 #ifdef SHOW_FPS
     show_FPS(fps);
     fps = 0;
-#endif 
+#endif
 
     if (speedInclineMode & INCLINE) {
       incline = getIncline(); // sets global 'angle' and 'incline' variable
@@ -1217,9 +1207,9 @@ void loop() {
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
     DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
     DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);
-    
+
     DEBUG_PRINT("h gain (m): ");DEBUG_PRINTLN(elevation_gain);
-    
+
     DEBUG_PRINT("kmph:      "); DEBUG_PRINTLN(kmph);
     DEBUG_PRINT("incline:   "); DEBUG_PRINTLN(incline);
     DEBUG_PRINT("angle:     "); DEBUG_PRINTLN(grade_deg);
