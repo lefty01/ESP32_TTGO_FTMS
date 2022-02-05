@@ -106,9 +106,17 @@ const char* VERSION = "0.0.19";
 // TTGO T-Display buttons
 #define BUTTON_1        35
 #define BUTTON_2        0
+#define SDA_0 21
+#define SCL_0 22
+#define I2C_FREQ 400000
 #else
 #ifdef TARGET_WT32_SC01
 // This is a touch screen so there is no buttons
+// IO_21 and IO_22 are routed out and use used for SPI to the screen
+// Pins with names that start with J seems to be connected so screen, take care to avoid.
+#define SDA_0 18
+#define SCL_0 19
+#define I2C_FREQ 400000
 #else
 #error Unknow button setup
 #endif
@@ -117,8 +125,8 @@ const char* VERSION = "0.0.19";
 // PINS
 // NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
 
-#define SPEED_IR_SENSOR1   15
-#define SPEED_IR_SENSOR2   13
+//#define SPEED_IR_SENSOR1   15
+//#define SPEED_IR_SENSOR2   13
 #define SPEED_REED_SWITCH_PIN 26 // REED-Contact
 
 // DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
@@ -280,7 +288,8 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
 #ifndef NO_MPU6050
-MPU6050 mpu(Wire);
+TwoWire I2C_0 = TwoWire(0);
+MPU6050 mpu(I2C_0);
 #endif
 
 #ifdef MQTT_USE_SSL
@@ -766,7 +775,7 @@ float getIncline() {
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
-  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f\n",sensorAngle, angle, incline);
+  //DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f\n",sensorAngle, angle, incline);
 
   // probably need some more smoothing here ...
   // ...
@@ -985,18 +994,20 @@ void setup() {
 
 
   delay(3000);
-  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
-  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
 
+#if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
+  // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
   attachInterrupt(SPEED_IR_SENSOR1, speedSensor1_ISR, FALLING); //TODO used?
   attachInterrupt(SPEED_IR_SENSOR2, speedSensor2_ISR, FALLING); //TODO used?
+#endif
 
   // note: I have 10k pull-up on SPEED_REED_SWITCH_PIN
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
   #ifndef NO_MPU6050
-  Wire.begin();
+  I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ);
   #endif
 
   initBLE();
@@ -1153,8 +1164,7 @@ void loop() {
     noInterrupts();
     t1_valid = t2_valid = false;
     interrupts();
-    DEBUG_PRINTLN(t);
-    DEBUG_PRINTLN(kmph_sense);
+    DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmph_sense);
   }
 
   // testing ... every second
@@ -1203,18 +1213,18 @@ void loop() {
     }
     elevation_gain += (double)(sin(angle) * mps);
 
-#if 0
-    DEBUG_PRINT("mps = d:    ");DEBUG_PRINTLN(mps);
-    DEBUG_PRINT("angle:      ");DEBUG_PRINTLN(angle);
-    DEBUG_PRINT("h (m):      ");DEBUG_PRINTLN(sin(angle) * mps);
+#if 1
+    DEBUG_PRINT("mps = d:    ");DEBUG_PRINT(mps);
+    DEBUG_PRINT(" angle:      ");DEBUG_PRINT(angle);
+    DEBUG_PRINT(" h (m):      ");DEBUG_PRINT(sin(angle) * mps);
 
-    DEBUG_PRINT("h gain (m): ");DEBUG_PRINTLN(elevation_gain);
+    DEBUG_PRINT(" h gain (m): ");DEBUG_PRINT(elevation_gain);
 
-    DEBUG_PRINT("kmph:      "); DEBUG_PRINTLN(kmph);
-    DEBUG_PRINT("incline:   "); DEBUG_PRINTLN(incline);
-    DEBUG_PRINT("angle:     "); DEBUG_PRINTLN(grade_deg);
-    DEBUG_PRINT("dist km:   "); DEBUG_PRINTLN(total_distance/1000);
-    DEBUG_PRINT("elegain m: "); DEBUG_PRINTLN(elevation_gain);
+    DEBUG_PRINT(" kmph:      "); DEBUG_PRINT(kmph);
+    DEBUG_PRINT(" incline:   "); DEBUG_PRINT(incline);
+    DEBUG_PRINT(" angle:     "); DEBUG_PRINT(grade_deg);
+    DEBUG_PRINT(" dist km:   "); DEBUG_PRINT(total_distance/1000);
+    DEBUG_PRINT(" elegain m: "); DEBUG_PRINTLN(elevation_gain);
 #endif
     char inclineStr[6];
     char kmphStr[6];
