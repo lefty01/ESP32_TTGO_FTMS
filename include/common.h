@@ -9,6 +9,9 @@
 #include <Arduino.h>
 
 #include <WiFi.h>
+#if ASYNC_TCP_SSL_ENABLED
+#include <AsyncTCP_SSL.h>
+#endif
 #include <ESPAsyncWebServer.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -53,6 +56,9 @@ extern LGFX tft;
 //const int HEADER_PX = HEADER * tft.height();
 //const int X_05 = tft.width()  / 2;
 //const int Y_05 = tft.height() / 2;
+
+#define TFT_SETUP_FONT_SIZE 4
+#define TFT_STATS_FONT_SIZE 2
 
 #define CIRCLE_SPEED_X_POS   188
 #define CIRCLE_INCLINE_X_POS 208
@@ -102,6 +108,8 @@ enum topics_t {
 	       MQTT_TOPIC_RPM,
 	       MQTT_TOPIC_INCLINE,
 	       MQTT_TOPIC_Y_ANGLE,
+	       MQTT_TOPIC_DIST,
+	       MQTT_TOPIC_ELEGAIN,
 	       MQTT_NUM_TOPICS
 };
 

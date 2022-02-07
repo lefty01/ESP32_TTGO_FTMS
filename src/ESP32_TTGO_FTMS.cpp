@@ -62,65 +62,47 @@
 #endif
 
 
-
 // Select and uncomment one of the Treadmills below
 //#define TREADMILL_MODEL TAURUS_9_5
 //#define TREADMILL_MODEL NORDICTRACK_12SI
 // or via platformio.ini:
-// -DTREADMILL_MODEL=TAURUS_9_5
+// -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.19";
+const char* VERSION = "0.0.21";
 
-// GAP  stands for Generic Access Profile
-// GATT stands for Generic Attribute Profile defines the format of the data exposed
-// by a BLE device. It also defines the procedures needed to access the data exposed by a device.
-// Characteristics: a Characteristic is always part of a Service and it represents
-// a piece of information/data that a Server wants to expose to a client. For example,
-// the Battery Level Characteristic represents the remaining power level of a battery
-// in a device which can be read by a Client.
 
-// Where a characteristic can be notified or indicated, a Client Characteristic Configuration
-// descriptor shall be included in that characteristic as required by the Core Specification
 
-// use Fitness Machine Service UUID: 0x1826 (server)
-// with Treadmill Data Characteristic 0x2acd
 
-// Zwift Forum Posts
-// https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19
-
-// embedded webserver status &  (manual) control
-// https://hackaday.io/project/175237-add-bluetooth-to-treadmill
-
-// Parts Used:
-// laufband geschwindigkeit sensor
-// https://de.aliexpress.com/item/4000023371194.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
-// IR Infrarot
-// https://de.aliexpress.com/item/1005001285654366.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
-// GY-521 MPU-6050 MPU6050
-// https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
-// GY-530 VL53L0X (ToF)
-// https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
-
-#ifdef TARGET_TTGO_T_DISPLAY
+#if TARGET_TTGO_T_DISPLAY
 // TTGO T-Display buttons
-#define BUTTON_1        35
-#define BUTTON_2        0
+#define BUTTON_1 35
+#define BUTTON_2  0
 #define SDA_0 21
 #define SCL_0 22
 #define I2C_FREQ 400000
-#else
-#ifdef TARGET_WT32_SC01
+
+#elif TARGET_WT32_SC01
 // This is a touch screen so there is no buttons
 // IO_21 and IO_22 are routed out and use used for SPI to the screen
 // Pins with names that start with J seems to be connected so screen, take care to avoid.
 #define SDA_0 18
 #define SCL_0 19
 #define I2C_FREQ 400000
+
+#elif TARGET_TTGO_T4
+// no-touch screen with three buttons
+#define BUTTON_1 38  // LEFT
+#define BUTTON_2 37  // CENTRE
+#define BUTTON_3 39  // RIGHT
+#define SDA_0 21
+#define SCL_0 22
+#define I2C_FREQ 400000
+
 #else
-#error Unknow button setup
+#error Unknown button setup
 #endif
-#endif
+
 
 // PINS
 // NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
@@ -166,62 +148,31 @@ esp_reset_reason_t rr;
   #error "***** ATTENTION NO TREADMILL MODEL DEFINED ******"
 #elif TREADMILL_MODEL == TAURUS_9_5
 #define TREADMILL_MODEL_NAME "Taurus 9.5"
-// Taurus 9.5:
-// Speed:    0.5 - 22 km/h (increments 0.1 km/h)
-// Incline:  0..15 Levels  (increments 1 Level) -> 0-11 %
 const float max_speed   = 22.0;
 const float min_speed   =  0.5;
-const float max_incline = 11.0;
+const float max_incline = 11.0; // incline/grade in percent(!)
 const float min_incline =  0.0;
-const float speed_interval_min = 0.1;
+const float speed_interval_min    = 0.1;
 const float incline_interval_min  = 1.0;
 const long  belt_distance = 250; // mm ... actually circumfence of motor wheel!
 
 #elif TREADMILL_MODEL == NORDICTRACK_12SI
 #define TREADMILL_MODEL_NAME "Northtrack 12.2 Si"
-// Northtrack 12.2 Si:
-// Speed:   0.5 - 20 km/h (increments 0.1 km/h)
-// Incline: 0   - 12 %    (increments .5 %)
-// On Northtrack 12.2 Si there is a connector between "computer" and lower buttons (Speed+/-, Start/Stop, Incline +/-) with all cables from
-// motor controll board MC2100ELS-18w together with all 6 buttons (Speed+/-, Start/Stop, Incline +/-)
-// This seem like a nice place to interface the unit. This might be true from many more treadmills from differnt brands from Icon Healt & Fitness Inc
-//
-// Speed:
-// Connect Tach. e.g. the Green cable 5v from MC2100ELS-18w to pin SPEED_REED_SWITCH_PIN in TTGO T-Display with a levelshifter 5v->3v in between seem to work quite ok
-// This should probably work on most many (all?) treadmills using the motor controll board MC2100ELS-18w from Icon Healt & Fitness Inc
 const float max_speed   = 20.0;
 const float min_speed   =  0.5;
-const float speed_interval_min = 0.1;
-const long  belt_distance = 153.3; // mm ... actually distance traveled of each tach from MCU1200els motor control board
-                                   // e.g. circumfence of front roler (calibrated with a distant wheel)
-                                   // Accroding to manuel this should be 19 something, but I do not get this, could 19 be based on some imperial unit?
-
-// Incline:
-// The code currenely use a MPU6050 that is placed in the "engine" box of the treadmill
-// Possible idea if no MPU6050 is used (e.g. if you place the esp32 in the computer unit and don't want to place a long cable down to treadmill band)
-//   Incline steps from the compuer can be read like this.
-//   Incline up is on the Orange cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse.
-//   Incline down is on the Yellow cable 5v about a 2s puls is visible on ech step. Many steps cause a longer pulse
-//   Incline seem to cause Violet cable to puls 3-4 times during each step, maye this can be used to keep beter cound that dividing with 2s on the above?
-
 const float max_incline = 12.0;
 const float min_incline =  0.0;
+const float speed_interval_min    = 0.1;
 const float incline_interval_min  = 0.5;
-
-// Control
-// As for controling the treadmill connecting the cables to GROUND for about 200ms on the four Speed+, Speed-, Incline+ and Incline- cables from the buttons
-// in the connector seem to do the trick. I don't expect Start/Stop to be controlled but maybe we want to read them, lets see.
-// Currently the schematics as attached in the docs, they are just connected via a levelshifter.
-// IDEA: If we could during some calibration phase send a set of Incline- until you are sure the treadmill is at it's lowers position
-// it's problabe possible to keep track if current incline after this.
+const long  belt_distance = 153.3;
 
 // These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
 // TODO: They could also be used to read pins
-#define TREADMILL_BUTTON_INC_DOWN_PIN 25
-#define TREADMILL_BUTTON_INC_UP_PIN   27
-#define TREADMILL_BUTTON_SPEED_DOWN_PIN 32
-#define TREADMILL_BUTTON_SPEED_UP_PIN   33
+#define TREADMILL_BUTTON_INC_DOWN_PIN    25
+#define TREADMILL_BUTTON_INC_UP_PIN      27
+#define TREADMILL_BUTTON_SPEED_DOWN_PIN  32
+#define TREADMILL_BUTTON_SPEED_UP_PIN    33
 #define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
 #else
@@ -246,6 +197,9 @@ Button2 btn1(BUTTON_1);
 #ifdef BUTTON_2
 Button2 btn2(BUTTON_2);
 #endif
+#ifdef BUTTON_3
+Button2 btn3(BUTTON_3);
+#endif
 
 uint16_t    inst_speed;
 uint16_t    inst_incline;
@@ -262,10 +216,9 @@ float rpm = 0;
 float kmph; // kilometer per hour
 float kmph_sense;
 float mps;  // meter per second
-double angle;
-double grade_deg;
-
-float incline;
+double angle = 0;
+double grade_deg = 0;
+float incline = 0;
 
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
@@ -283,9 +236,7 @@ const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
 
 bool isWifiAvailable = false;
 bool isMqttAvailable = false;
-// todo: https and require initial user pass
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
+
 
 #ifndef NO_MPU6050
 TwoWire I2C_0 = TwoWire(0);
@@ -297,6 +248,12 @@ WiFiClientSecure espClient;
 #else
 WiFiClient espClient;
 #endif
+#ifdef ASYNC_TCP_SSL_ENABLED
+AsyncWebServer server(443);
+#else
+AsyncWebServer server(80);
+#endif
+AsyncWebSocket ws("/ws");
 PubSubClient client(espClient);  // mqtt client
 
 // note: Fitness Machine Feature is a mandatory characteristic (property_read)
@@ -484,8 +441,13 @@ void buttonInit()
   });
 #endif
 
+  // if only two buttons, then button 1 switches mode and button 2 short is up, button 2 long is down
+  // if three buttons use button 2 short as up and button 3 short as down
+  // fixme: keep button2 long handler for now does not hurt
+  // initially for testing purpose ... but if we can access the controller while running it can serve as backup
+  // if sensors fail or suddnely send incorrect readings (yeah that happend to me) ... but since the controller
+  // might not be accessable we have the web interface that can run on the smartphone
 #ifdef BUTTON_2
-  // for testing purpose ... no pratical way to change speed/incline
   // short  click = up
   // longer click = down
   btn2.setTapHandler([](Button2& b) {
@@ -507,6 +469,24 @@ void buttonInit()
 	speedUp();
       if ((speedInclineMode & INCLINE) == 0)
 	inclineUp();
+    }
+  });
+#endif
+
+#ifdef BUTTON_3
+  // short  click = down
+  btn3.setTapHandler([](Button2& b) {
+    unsigned int time = b.wasPressedFor();
+    DEBUG_PRINTLN("Button 3 TapHandler");
+    if (time > 3000) {
+      // DEBUG_PRINTLN("very long (>3s) click ... do nothing");
+    }
+    else {
+      DEBUG_PRINTLN("short click...");
+      if ((speedInclineMode & SPEED) == 0)
+        speedDown();
+      if ((speedInclineMode & INCLINE) == 0)
+        inclineDown();
     }
   });
 #endif
@@ -563,6 +543,9 @@ void loop_handle_touch() {
       }
     }
   }
+#endif
+#ifdef BUTTON_3
+    btn3.loop();
 #endif
 }
 
@@ -750,37 +733,42 @@ float getIncline() {
     // depends on sensor placement ... TODO: configure via webinterface
   }
   else if (hasMPU6050) {
+    // MPU6050 returns a incline/grade in degrees(!)
 #ifndef NO_MPU6050
     // TODO: configure sensor orientation  via webinterface
-
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
-
     sensorAngle = mpu.getAngleY();
     angle = angleSensorTreadmillConversion(sensorAngle);
 
     if (angle < 0) angle = 0;  // TODO We might allow running downhill
-    char yStr[5];
 
+    char yStr[5];
+    char inclineStr[6];
     snprintf(yStr, 5, "%.2f", angle);
-    client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
 
     incline = tan(angle * DEG_TO_RAD) * 100;
+    snprintf(inclineStr, 6, "%.1f", incline);
+
+    //client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
+    client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
 
 #else
     //incline = 0;
     //angle = 0;
 #endif
   }
+
   if (incline <= min_incline) incline = min_incline;
   if (incline > max_incline)  incline = max_incline;
 
-  //DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f\n",sensorAngle, angle, incline);
+  //DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, incline);
 
   // probably need some more smoothing here ...
   // ...
   return incline;
 }
+
 
 void setSpeed(float speed)
 {
@@ -880,7 +868,9 @@ String mqtt_topics[] {
   "home/treadmill/%MQTTDEVICEID%/speed",
   "home/treadmill/%MQTTDEVICEID%/rpm",
   "home/treadmill/%MQTTDEVICEID%/incline",
-  "home/treadmill/%MQTTDEVICEID%/y_angle"
+  "home/treadmill/%MQTTDEVICEID%/y_angle",
+  "home/treadmill/%MQTTDEVICEID%/dist",
+  "home/treadmill/%MQTTDEVICEID%/elegain"
 };
 
 void setupMqttTopic(const String &id)
@@ -953,8 +943,17 @@ void setup() {
 #endif
 
   buttonInit();
-  tft.init();
+  tft.init(); // vs begin??
   tft.setRotation(1); // 3
+#ifdef TFT_ROTATE
+  tft.setRotation(TFT_ROTATE);
+#endif
+#ifdef TFT_BL
+  if (TFT_BL > 0) {
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+  }
+#endif
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
@@ -977,7 +976,6 @@ void setup() {
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
-
 #ifdef TREADMILL_BUTTON_INC_DOWN_PIN
   pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
 #endif
@@ -1058,8 +1056,9 @@ void setup() {
     delay(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
-    tft.setTextColor(TFT_RED);
+    tft.setTextColor(TFT_GREEN);
     tft.println("MPU6050 OK!");
+    delay(2000);
   }
 #else
   hasMPU6050 = false;
@@ -1085,7 +1084,7 @@ void setup() {
     delay(2000);
   }
 #else
-    hasVL53L0X = false;
+  hasVL53L0X = false;
 #endif
 
   DEBUG_PRINTLN("Setup done");
@@ -1121,6 +1120,8 @@ void loop_handle_WIFI() {
     wifi_reconnect_counter++;
     show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
+  if (!isMqttAvailable)
+    isMqttAvailable = mqttConnect();
 }
 
 void loop_handle_BLE() {
@@ -1186,7 +1187,7 @@ void loop() {
       // and calc rpm from reed switch provide same unit
       if (hasIrSense) {
         kmph = kmph_sense;
-        mps = kmph / 3.6;
+        mps = kmph / 3.6; // meter per second (EVERY_SECOND)
         total_distance += mps;
       }
       else if (hasReed) {
@@ -1211,7 +1212,8 @@ void loop() {
       mps = kmph / 3.6;
       total_distance += mps;
     }
-    elevation_gain += (double)(sin(angle) * mps);
+    //elevation_gain += (double)(sin(angle) * mps);
+    elevation_gain += incline / 100 * mps;
 
 #if 1
     DEBUG_PRINT("mps = d:    ");DEBUG_PRINT(mps);
@@ -1226,12 +1228,12 @@ void loop() {
     DEBUG_PRINT(" dist km:   "); DEBUG_PRINT(total_distance/1000);
     DEBUG_PRINT(" elegain m: "); DEBUG_PRINTLN(elevation_gain);
 #endif
-    char inclineStr[6];
     char kmphStr[6];
-    snprintf(inclineStr, 6, "%.1f", incline);
     snprintf(kmphStr,    6, "%.1f", kmph);
-    client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
+
     client.publish(getTopic(MQTT_TOPIC_SPEED),   kmphStr);
+    //client.publish(getTopic(MQTT_TOPIC_DIST),    readDist().c_str());
+    //client.publish(getTopic(MQTT_TOPIC_ELEGAIN), readElevation().c_str());
 
 #ifndef SHOW_FPS
     updateDisplay(false);
