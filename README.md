@@ -1,5 +1,6 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/c7464b451b464d18985294a8f54acb69)](https://app.codacy.com/gh/lefty01/ESP32_TTGO_FTMS?utm_source=github.com&utm_medium=referral&utm_content=lefty01/ESP32_TTGO_FTMS&utm_campaign=Badge_Grade_Settings)
 [![PlatformIO CI status](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml/badge.svg)](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=TQGGMQ45T4QKJ)
 
 
 # ESP32_TTGO_FTMS
