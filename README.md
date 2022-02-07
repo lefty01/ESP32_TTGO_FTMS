@@ -86,7 +86,6 @@ You can then flash it over-the-air as well.
 
 Also check the PlatformIO section below.
 
-
 If you are using Arduino-IDE, then follow instructions about SPIFFS filesystem upload tools here:
 https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
 
@@ -242,7 +241,6 @@ $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs
 ```
 $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
 ```
-
 
 ## Flash Files
 * firmware:   .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/firmware.bin
