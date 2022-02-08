@@ -3,7 +3,7 @@
 
 // with tft.setRotation(1); => landscape orientation (usb right side)
 const int DRAW_WIDTH  = TFT_HEIGHT;
-const int DRAW_HEIGHT = 128;  // TFT_WIDTH
+const int DRAW_HEIGHT = TFT_WIDTH;
 
 // how about sprites?
 // Sprite with 8 bit colour depth the RAM needed is (width x height) bytes
@@ -41,7 +41,7 @@ void updateDisplay(bool clear)
   tft.setTextFont(4);
 
   // speed top left
-  tft.fillRect(0,                 30, 118, 40, TFT_BLACK);
+  tft.fillRect(0, DRAW_HEIGHT / 2 - 18, 118, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT / 2 - 36);
   tft.setTextFont(2);
   tft.print("Speed:");  //TODO move labels printing to outside "draw everytime" code

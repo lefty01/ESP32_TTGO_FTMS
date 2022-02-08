@@ -241,6 +241,10 @@ $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs
 ```
 
 ```
+$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t uploadfs
+```
+
+```
 $ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
 ```
 
