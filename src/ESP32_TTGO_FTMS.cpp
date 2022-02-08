@@ -500,12 +500,14 @@ void loop_handle_button()
 #ifdef BUTTON_2
   btn2.loop();
 #endif
+#ifdef BUTTON_3
+    btn3.loop();
+#endif
 }
 
 void loop_handle_touch() {
-  #ifndef USE_TFT_ESPI
-  if (tft.touch())
-  {
+#ifndef USE_TFT_ESPI
+  if (tft.touch()) {
     int32_t touch_x, touch_y;
     if (tft.getTouch(&touch_x, &touch_y)) {
       // reset to manual mode on any touch (as for now)
@@ -543,9 +545,6 @@ void loop_handle_touch() {
       }
     }
   }
-#endif
-#ifdef BUTTON_3
-    btn3.loop();
 #endif
 }
 
