@@ -510,6 +510,7 @@ void loop_handle_touch() {
   if (tft.touch()) {
     int32_t touch_x, touch_y;
     if (tft.getTouch(&touch_x, &touch_y)) {
+      DEBUG_PRINTF("touch: x=%.3d y=%.3d\n", touch_x, touch_y);
       // reset to manual mode on any touch (as for now)
       if ( speedInclineMode != MANUAL) {
           kmph = 0.5;
@@ -914,6 +915,7 @@ void showInfo() {
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
 }
+
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -1089,7 +1091,7 @@ void setup() {
   DEBUG_PRINTLN("Setup done");
   showInfo();
 
-  delay(3000);
+  delay(4000);
   updateDisplay(true);
 
   // indicate manual/auto mode (green=auto/sensor, red=manual)
@@ -1119,7 +1121,7 @@ void loop_handle_WIFI() {
     wifi_reconnect_counter++;
     show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
-  if (!isMqttAvailable)
+  if (!isMqttAvailable && isWifiAvailable)
     isMqttAvailable = mqttConnect();
 }
 

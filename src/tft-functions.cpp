@@ -11,7 +11,7 @@ const int DRAW_HEIGHT = TFT_WIDTH;
 // pace over time ... etc
 // gauge?
 
-// add support for nextion display ... since I have one I'lll give it a try ;)
+// add support for nextion display ... since I have one I'll give it a try ;)
 
 void initSPIFFSDone()
 {
@@ -36,42 +36,44 @@ void updateDisplay(bool clear)
     tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
     tft.drawFastVLine(DRAW_WIDTH / 2, 22,                   DRAW_HEIGHT - 22, TFT_WHITE);
     tft.drawFastHLine(1,              DRAW_HEIGHT / 2 + 20, DRAW_WIDTH  -  2, TFT_WHITE);
+
+    tft.setTextFont(2);
+
+    tft.setCursor(4, DRAW_HEIGHT / 2 - 36);
+    tft.print("Speed:");
+
+    tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 36);
+    tft.print("Incline:");
+
+    tft.setCursor(4, DRAW_HEIGHT - 42);
+    tft.print("Dist:");
+
+    tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 42);
+    tft.print("Elev.gain:");
   }
 
   tft.setTextFont(4);
 
   // speed top left
-  tft.fillRect(0, DRAW_HEIGHT / 2 - 18, 118, 40, TFT_BLACK);
-  tft.setCursor(4, DRAW_HEIGHT / 2 - 36);
-  tft.setTextFont(2);
-  tft.print("Speed:");  //TODO move labels printing to outside "draw everytime" code
+  tft.fillRect(0, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(kmph);
 
   // incline top right
-  tft.fillRect(DRAW_WIDTH / 2 + 2, 30, 118, 40, TFT_BLACK);
-  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 36);
-  tft.setTextFont(2);
-  tft.print("Incline:");
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(incline);
 
   // dist bot left
-  tft.fillRect(0, DRAW_HEIGHT - 40, 118, 40, TFT_BLACK);
-  tft.setCursor(4, DRAW_HEIGHT - 38);
-  tft.setTextFont(2);
-  tft.print("Dist:");
+  tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println(total_distance/1000);
 
   // elevation bot right
-  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 40, 118, 40, TFT_BLACK);
-  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 38);
-  tft.setTextFont(2);
-  tft.print("Elev.gain:");
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
