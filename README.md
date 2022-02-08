@@ -1,5 +1,6 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/c7464b451b464d18985294a8f54acb69)](https://app.codacy.com/gh/lefty01/ESP32_TTGO_FTMS?utm_source=github.com&utm_medium=referral&utm_content=lefty01/ESP32_TTGO_FTMS&utm_campaign=Badge_Grade_Settings)
-[![PlatformIO CI status](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml/badge.svg)](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml) 
+[![PlatformIO CI status](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml/badge.svg)](https://github.com/lefty01/ESP32_TTGO_FTMS/actions/workflows/platformio-ci.yml)
+[![Join the chat at https://gitter.im/lefty01/ESP32_TTGO_FTMS](https://badges.gitter.im/lefty01/ESP32_TTGO_FTMS.svg)](https://gitter.im/lefty01/ESP32_TTGO_FTMS?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 
 # ESP32_TTGO_FTMS
