@@ -33,6 +33,39 @@ descriptor shall be included in that characteristic as required by the Core Spec
 use Fitness Machine Service UUID: 0x1826 (server)
 with Treadmill Data Characteristic 0x2acd
 
+## Description
+In the meantime this project basically consits of this software project (ESP32 firmware) as well as a hardware project
+that has the goal to develop some solid PCB to hold one or the other ESP32 development boards.
+The hardware project can be found here: https://oshwlab.com/zingo_1902/esp32_ttgo_display
+This project is maintained by [zingo](https://github.com/zingo)
+
+In the most common and most simple use-case you can either connect the treadmill reed-switch aka speed sensor to the ESP32 or connect two infrared sensors see [2] and put some markers on the treadmill belt.
+
+Together with an MPU6050 [3] you will then be able to get speed and incline readings from the ESP32.
+
+The ESP32 will act as BLE server and transmit this data. For example connect with the Zwift app (from Android or PC) to the ESP32. It should show up as a speed sensor, see below. The name is ESP32_FTMS_XXXX with XXXX being last part of the ESP32 device ID (I added that part since I sometimes had more than one board powered).
+
+![Zwift Pair](doc/zwift_pair.png)
+
+That's about it ... you might not need or want more. You could then even go without any tft screen and place the board into the motor room of your treadmill for example.
+
+There are a few additional features however that I came up with during initial development and debug. 
+
+For example there is an additional web interface.
+And since I started with some spare TTGO-T-Display board you have TFT display support.
+The display is used during init or setup of the board and displays some information about the system.
+Later you will get speed, incline, total distance, and total elevation gain readings from the display.
+
+While experimenting with sensor positions and sensor types I found it useful to override speed and incline values.
+So this is still possible via a) the web-ui b) buttons on the ESP32 dev board or c) via touchscreen interface.
+We call this speed/incline auto or manual mode.
+
+With the development of the custom PCB we look further into ways to directly interface with the treadmill controls.
+In this way you could run in manual mode but get the input from treadmill buttons or triggers instead of buttons on the ESP32.
+Or, it could then as well be possible to turn things around and have the ESP32 control your treadmill speed and incline.
+For example if we get the incline values while running on Zwift (ocr capture, sniff it, zwift future feature to send run incline in someway) then we can feed this value via the ESP32 back to the treadmill, sounds great but might take a while to get there.
+
+If you go with the infrared sensor the this is the most treadmill-model-independant solution. Check the code at the moment the sensors need to be roughly 100mm apart.
 
 
 
@@ -121,13 +154,13 @@ The two marked icons for speed and incline are clickable and will toggle between
 where speed and incline is measured via sensor or manual mode.
 Manual mode means you override sensor readings by clicking the UP/DOWN buttons on the webinterface.
 
-![Main Website](web-main.png)
+![Main Website](doc/web-main.png)
 
 
 ### OTA
 Under the /update URL you can upload a new firmware image or spiffs filesystem image over-the-air.
 
-![OTA](ota-update.png)
+![OTA](doc/ota-update.png)
 
 
 
