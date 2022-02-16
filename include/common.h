@@ -28,11 +28,12 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 
 
-#ifdef HAS_TOUCH_DISPLAY
-
+#if LGFX_USE_V1
 #include <LovyanGFX.hpp>
 #include <LGFX_AUTODETECT.hpp>
 extern LGFX tft;
+
+#ifdef HAS_TOUCH_DISPLAY
 extern LGFX_Button touchButtons[];
 extern LGFX_Button btnSpeedToggle;
 extern LGFX_Button btnInclineToggle;
@@ -40,12 +41,11 @@ extern LGFX_Button btnSpeedUp;
 extern LGFX_Button btnSpeedDown;
 extern LGFX_Button btnInclineUp;
 extern LGFX_Button btnInclineDown;
+#endif
 
 #else
-
 #include <TFT_eSPI.h>
 extern TFT_eSPI tft;
-
 #endif
 
 // display is configured within platformio.ini

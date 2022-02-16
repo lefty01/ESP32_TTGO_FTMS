@@ -258,11 +258,13 @@ float incline = 0;
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
 
-#ifdef USE_TFT_ESPI
-TFT_eSPI tft = TFT_eSPI();
-#else
+#if LGFX_USE_V1
 LGFX tft;
+LGFX_Sprite sprite(&tft);
+#elif USE_TFT_ESPI
+TFT_eSPI tft = TFT_eSPI();
 #endif
+
 
 #ifndef NO_VL53L0X
 VL53L0X sensor;
@@ -572,6 +574,8 @@ void loop_handle_touch() {
     if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
     else                          btnSpeedToggle.drawButton(true);
     showSpeedInclineMode(speedInclineMode);
+    updateBTConnectionStatus(bleClientConnected);
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
   if (btnInclineToggle.justPressed()) {
     DEBUG_PRINTLN("incline mode toggle!");
@@ -579,6 +583,8 @@ void loop_handle_touch() {
     if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
     else                            btnInclineToggle.drawButton(true);
     showSpeedInclineMode(speedInclineMode);
+    updateBTConnectionStatus(bleClientConnected);
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
 
   if (btnSpeedUp.justPressed()) {
