@@ -97,25 +97,25 @@ void updateDisplay(bool clear)
   tft.setTextFont(4);
 
   // speed top left
-  tft.fillRect(0, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.fillRect(0, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(kmph);
 
   // incline top right
-  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 18);
   tft.setTextFont(4);
   tft.println(incline);
 
   // dist bot left
-  tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println(total_distance/1000);
 
   // elevation bot right
-  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
