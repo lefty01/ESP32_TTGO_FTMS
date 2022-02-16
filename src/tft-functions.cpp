@@ -2,8 +2,15 @@
 
 
 // with tft.setRotation(1); => landscape orientation (usb right side)
+
+#if defined(DRAW_STATS_WIDTH) && defined(DRAW_STATS_HEIGHT)
+const int DRAW_WIDTH  = DRAW_STATS_WIDTH;
+const int DRAW_HEIGHT = DRAW_STATS_HEIGHT;
+#else
 const int DRAW_WIDTH  = TFT_HEIGHT;
 const int DRAW_HEIGHT = TFT_WIDTH;
+#endif
+
 
 // how about sprites?
 // Sprite with 8 bit colour depth the RAM needed is (width x height) bytes
@@ -31,6 +38,41 @@ void updateDisplay(bool clear)
 
   tft.setTextColor(TFT_ORANGE);
   tft.setTextFont(2);
+
+// FIXME: is that a "good" way to handle different (touch) screen ...!??
+#if defined(TARGET_WT32_SC01)
+
+  if (clear) {
+      // create buttons
+      //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
+
+  // for (uint8_t row=0; row<5; row++) {
+  //     for (uint8_t col=0; col<3; col++) {
+  // 	  buttons[col + row*3].initButton(&tft, BUTTON_X+col*(BUTTON_W+BUTTON_SPACING_X),
+  // 					  BUTTON_Y+row*(BUTTON_H+BUTTON_SPACING_Y),    // x, y, w, h, outline, fill, text
+  // 					  BUTTON_W, BUTTON_H, ILI9341_WHITE, buttoncolors[col+row*3], ILI9341_WHITE,
+  // 					  buttonlabels[col + row*3], BUTTON_TEXTSIZE);
+  // 	  buttons[col + row*3].drawButton();
+  //   }
+  // }
+
+    // draw touch control buttons within DRAW_CTRL_WIDTH/HEIGHT
+
+    // tft.fillRect(250,  50,  50,  30, TFT_WHITE);  // mode
+    // tft.fillRect(250,  90,  50,  30, TFT_BLUE);   // incline up
+    // tft.fillRect(250, 130,  50,  30, TFT_YELLOW); // incline down
+    // tft.fillRect(330,  90,  50,  30, TFT_BLUE);   // speed up
+    // tft.fillRect(330, 130,  50,  30, TFT_YELLOW); // speed down
+
+
+    btnSpeedToggle   .drawButton();
+    btnInclineToggle .drawButton();
+    btnSpeedUp       .drawButton();
+    btnSpeedDown     .drawButton();
+    btnInclineUp     .drawButton();
+    btnInclineDown   .drawButton();
+
+  }
 
   if (clear) {
     tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
@@ -77,6 +119,56 @@ void updateDisplay(bool clear)
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
+
+#else
+
+
+  if (clear) {
+    tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
+    tft.drawFastVLine(DRAW_WIDTH / 2, 22,                   DRAW_HEIGHT - 22, TFT_WHITE);
+    tft.drawFastHLine(1,              DRAW_HEIGHT / 2 + 20, DRAW_WIDTH  -  2, TFT_WHITE);
+
+    tft.setTextFont(2);
+
+    tft.setCursor(4, DRAW_HEIGHT / 2 - 36);
+    tft.print("Speed:");
+
+    tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 36);
+    tft.print("Incline:");
+
+    tft.setCursor(4, DRAW_HEIGHT - 42);
+    tft.print("Dist:");
+
+    tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 42);
+    tft.print("Elev.gain:");
+  }
+
+  tft.setTextFont(4);
+
+  // speed top left
+  tft.fillRect(0, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.setCursor(4, DRAW_HEIGHT / 2 - 18);
+  tft.setTextFont(4);
+  tft.println(kmph);
+
+  // incline top right
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT / 2 - 20, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT / 2 - 18);
+  tft.setTextFont(4);
+  tft.println(incline);
+
+  // dist bot left
+  tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.setCursor(4, DRAW_HEIGHT - 20);
+  tft.setTextFont(4);
+  tft.println(total_distance/1000);
+
+  // elevation bot right
+  tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
+  tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
+  tft.setTextFont(4);
+  tft.println((uint32_t)elevation_gain);
+#endif // display TARGET
 }
 
 void updateBTConnectionStatus(bool connected)

@@ -28,18 +28,24 @@ extern AsyncWebServer server;
 extern AsyncWebSocket ws;
 
 
-#ifdef USE_TFT_ESPI
-  #include <TFT_eSPI.h>
-#else
-  #include <LovyanGFX.hpp>
-  #include <LGFX_AUTODETECT.hpp>
-#endif
+#ifdef HAS_TOUCH_DISPLAY
 
-
-#ifdef USE_TFT_ESPI
-extern TFT_eSPI tft;
-#else
+#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
 extern LGFX tft;
+extern LGFX_Button touchButtons[];
+extern LGFX_Button btnSpeedToggle;
+extern LGFX_Button btnInclineToggle;
+extern LGFX_Button btnSpeedUp;
+extern LGFX_Button btnSpeedDown;
+extern LGFX_Button btnInclineUp;
+extern LGFX_Button btnInclineDown;
+
+#else
+
+#include <TFT_eSPI.h>
+extern TFT_eSPI tft;
+
 #endif
 
 // display is configured within platformio.ini
@@ -70,6 +76,11 @@ extern LGFX tft;
 #define CIRCLE_Y_POS          11
 #define CIRCLE_RADIUS          8
 
+
+// TARGET_WT32_SC01 alternate touchscreen layout
+#if TARGET_WT32_SC01
+
+#endif
 
 enum SensorModeFlags {
 		      MANUAL  = 0,
