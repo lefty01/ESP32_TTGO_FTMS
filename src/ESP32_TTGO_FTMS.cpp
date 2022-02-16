@@ -1080,8 +1080,7 @@ void setup() {
 
 
 #if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
-  if (tft.touch())
-  {
+  if (tft.touch()) {
     tft.setTextFont(4);
     tft.setCursor(20, tft.height()/2);
     tft.println("Press corner near arrow to callibrate touch");
@@ -1107,6 +1106,7 @@ void setup() {
   pinMode(TREADMILL_BUTTON_SPEED_UP_PIN, INPUT);
 #endif
 
+#ifdef TARGET_WT32_SC01
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
   //     touchButtons[n] = LGFX_Button();
   // }
@@ -1119,7 +1119,7 @@ void setup() {
   btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
   //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
   //modeButton.drawButton();
-
+#endif
 
   delay(3000);
 
