@@ -41,10 +41,12 @@ int setupWifi() {
     retry_counter++;
     if (retry_counter > maxWifiWaitSeconds) {
       DEBUG_PRINTLN(" TIMEOUT!");
+      tft.setTextFont(4);
       tft.fillScreen(TFT_BLACK);
       tft.setTextColor(TFT_RED);
       tft.setCursor(20, 60);
       tft.println("Wifi TIMEOUT");
+      delay(2000);
       return 1;
     }
   }

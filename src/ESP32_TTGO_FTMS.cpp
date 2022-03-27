@@ -2,7 +2,7 @@
  *
  *
  * The MIT License (MIT)
- * Copyright © 2021 <Andreas Loeffler>
+ * Copyright © 2021, 2022 <Andreas Loeffler>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
@@ -69,7 +69,7 @@
 // -DTREADMILL_MODEL="TAURUS_9_5"
 
 
-const char* VERSION = "0.0.21";
+const char* VERSION = "0.0.22";
 
 
 
@@ -89,6 +89,36 @@ const char* VERSION = "0.0.21";
 #define SDA_0 18
 #define SCL_0 19
 #define I2C_FREQ 400000
+#ifndef NUM_TOUCH_BUTTONS
+#define NUM_TOUCH_BUTTONS 6
+#endif
+//LGFX_Button touchButtons[NUM_TOUCH_BUTTONS];
+LGFX_Button btnSpeedToggle    = LGFX_Button();
+LGFX_Button btnInclineToggle  = LGFX_Button();
+LGFX_Button btnSpeedUp        = LGFX_Button();
+LGFX_Button btnSpeedDown      = LGFX_Button();
+LGFX_Button btnInclineUp      = LGFX_Button();
+LGFX_Button btnInclineDown    = LGFX_Button();
+// 480 x 320, use full-top-half to show speed, incline, total_dist, and acc. elevation gain
+// maybe draw some nice gauges for speed/incline and odometers for dist and elevation
+// in addition might want to have an elevation profile being displayed
+// 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
+#define btnToggle_W           100
+#define btnToggle_H            50
+
+#define btnSpeedToggle_X       250
+#define btnSpeedToggle_Y         5
+#define btnInclineToggle_X     360
+#define btnInclineToggle_Y       5
+#define btnSpeedUp_X           250
+#define btnSpeedUp_Y           100
+#define btnSpeedDown_X         250
+#define btnSpeedDown_Y         170
+#define btnInclineUp_X         360
+#define btnInclineUp_Y         100
+#define btnInclineDown_X       360
+#define btnInclineDown_Y       170
+
 
 #elif TARGET_TTGO_T4
 // no-touch screen with three buttons
@@ -123,6 +153,9 @@ volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
 volatile boolean t2_valid = false;
+volatile boolean touch_b1 = false;
+volatile boolean touch_b2 = false;
+volatile boolean touch_b3 = false;
 
 
 uint8_t speedInclineMode = SPEED;
@@ -134,6 +167,7 @@ boolean hasReed    = false;
 #define EVERY_SECOND 1000
 #define WIFI_CHECK   30 * EVERY_SECOND
 unsigned long sw_timer_clock = 0;
+unsigned long touch_timer = 0;
 unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
 
@@ -201,6 +235,7 @@ Button2 btn2(BUTTON_2);
 Button2 btn3(BUTTON_3);
 #endif
 
+
 uint16_t    inst_speed;
 uint16_t    inst_incline;
 uint16_t    inst_grade;
@@ -223,11 +258,13 @@ float incline = 0;
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
 
-#ifdef USE_TFT_ESPI
-TFT_eSPI tft = TFT_eSPI();
-#else
+#if LGFX_USE_V1
 LGFX tft;
+LGFX_Sprite sprite(&tft);
+#elif USE_TFT_ESPI
+TFT_eSPI tft = TFT_eSPI();
 #endif
+
 
 #ifndef NO_VL53L0X
 VL53L0X sensor;
@@ -506,45 +543,131 @@ void loop_handle_button()
 }
 
 void loop_handle_touch() {
-#ifndef USE_TFT_ESPI
-  if (tft.touch()) {
-    int32_t touch_x, touch_y;
-    if (tft.getTouch(&touch_x, &touch_y)) {
-      // reset to manual mode on any touch (as for now)
-      if ( speedInclineMode != MANUAL) {
-          kmph = 0.5;
-          incline = 0;
-          grade_deg = 0;
-          angle = 0;
-          elevation = 0;
-          elevation_gain = 0;
-          speedInclineMode = MANUAL;
-      }
-      //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
-      if (touch_x >= tft.width() / 2) {
-        // Left side of screen is button 1
-        if (touch_y >= tft.height() / 2) {
-	  DEBUG_PRINTLN("Touch: Button 1 inclineDown()");
-	  inclineDown();
-        }
-	else {
-	  DEBUG_PRINTLN("Touch: Button 1 inclineUp()");
-	  inclineUp();
-        }
-      }
-      else {
-	// Right side of screen is button 2
-        if (touch_y >= tft.height() / 2) {
-	  DEBUG_PRINTLN("Touch: Button 2 speedDown()");
-	  speedDown();
-        }
-	else {
-	  DEBUG_PRINTLN("Touch: Button 2 speedUp()");
-	  speedUp();
-        }
-      }
-    }
+#if defined (HAS_TOUCH_DISPLAY)
+  int32_t touch_x = 0, touch_y = 0;
+
+  tft.getTouch(&touch_x, &touch_y);
+
+  // FIXME: switch to button array (touchButtons[]) and cycle through buttons here
+  if (btnSpeedToggle.contains(touch_x, touch_y)) btnSpeedToggle.press(true);
+  else                                           btnSpeedToggle.press(false);
+
+  if (btnInclineToggle.contains(touch_x, touch_y)) btnInclineToggle.press(true);
+  else                                             btnInclineToggle.press(false);
+
+  if (btnSpeedUp.contains(touch_x, touch_y)) btnSpeedUp.press(true);
+  else                                       btnSpeedUp.press(false);
+
+  if (btnSpeedDown.contains(touch_x, touch_y)) btnSpeedDown.press(true);
+  else                                         btnSpeedDown.press(false);
+
+  if (btnInclineUp.contains(touch_x, touch_y)) btnInclineUp.press(true);
+  else                                         btnInclineUp.press(false);
+
+  if (btnInclineDown.contains(touch_x, touch_y)) btnInclineDown.press(true);
+  else                                           btnInclineDown.press(false);
+
+
+  if (btnSpeedToggle.justPressed()) {
+    DEBUG_PRINTLN("speed mode toggle!");
+    speedInclineMode ^= SPEED; // b'01 toggle bit
+    if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
+    else                          btnSpeedToggle.drawButton(true);
+    showSpeedInclineMode(speedInclineMode);
+    updateBTConnectionStatus(bleClientConnected);
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
+  if (btnInclineToggle.justPressed()) {
+    DEBUG_PRINTLN("incline mode toggle!");
+    speedInclineMode ^= INCLINE; // b'10
+    if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
+    else                            btnInclineToggle.drawButton(true);
+    showSpeedInclineMode(speedInclineMode);
+    updateBTConnectionStatus(bleClientConnected);
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+  }
+
+  if (btnSpeedUp.justPressed()) {
+    btnSpeedUp.drawButton(true);
+    speedUp();
+  }
+  if (btnSpeedUp.justReleased()) {
+    btnSpeedUp.drawButton();
+  }
+  if (btnSpeedDown.justPressed()) {
+    btnSpeedDown.drawButton(true);
+    speedDown();
+  }
+  if (btnSpeedDown.justReleased()) {
+    btnSpeedDown.drawButton();
+  }
+
+  if (btnInclineUp.justPressed()) {
+    btnInclineUp.drawButton(true);
+    inclineUp();
+  }
+  if (btnInclineUp.justReleased()) {
+    btnInclineUp.drawButton();
+  }
+  if (btnInclineDown.justPressed()) {
+    btnInclineDown.drawButton(true);
+    inclineDown();
+  }
+  if (btnInclineDown.justReleased()) {
+    btnInclineDown.drawButton();
+  }
+
+  // if (tft.touch() && ((millis() - touch_timer) > 120)) {
+  //   touch_timer = millis();
+
+  //   if (tft.getTouch(&touch_x, &touch_y)) {
+  //     DEBUG_PRINTF("touch: x=%.3d y=%.3d\n", touch_x, touch_y);
+
+  //     if ((touch_x >= 250) && (touch_x <= 300) &&
+  // 	  (touch_y >=  50) && (touch_y <= 80)) {
+  // 	touch_b1 = true;
+
+  // 	speedInclineMode += 1;
+  // 	speedInclineMode %= _NUM_MODES_;
+  // 	DEBUG_PRINT("speedInclineMode=");
+  // 	DEBUG_PRINTLN(speedInclineMode);
+  // 	showSpeedInclineMode(speedInclineMode);
+  // 	updateBTConnectionStatus(bleClientConnected);
+  // 	show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+  // 	// reset to manual mode on any touch (as for now)
+  //       // if ( speedInclineMode != MANUAL) {
+  //       //   kmph = 0.5;
+  //       //   incline = 0;
+  //       //   grade_deg = 0;
+  //       //   angle = 0;
+  //       //   elevation = 0;
+  //       //   elevation_gain = 0;
+  //       //   speedInclineMode = MANUAL;
+  //       // }
+  //     }
+  //     //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
+  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
+  // 	       (touch_y >=  90) && (touch_y <= 120)) {
+  // 	DEBUG_PRINTLN("Touch: Button 2 inclineUp()");
+  // 	inclineUp();
+  //     }
+  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
+  // 	       (touch_y >= 130) && (touch_y <= 150)) {
+  // 	DEBUG_PRINTLN("Touch: Button 3 inclineDown()");
+  // 	inclineDown();
+  //     }
+  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
+  // 	       (touch_y >=  90) && (touch_y <= 120)) {
+  // 	DEBUG_PRINTLN("Touch: Button 4 speedUp()");
+  // 	speedUp();
+  //     }
+  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
+  // 	       (touch_y >= 130) && (touch_y <= 150)) {
+  // 	DEBUG_PRINTLN("Touch: Button 5 speedDown()");
+  // 	speedDown();
+  //     }
+  //   }
+  // }
 #endif
 }
 
@@ -619,7 +742,7 @@ void speedUp()
   if (speedInclineMode & SPEED) {
 #ifdef TREADMILL_BUTTON_SPEED_UP_PIN
     DEBUG_PRINTLN("Do/press speed_up on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN, TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 #endif
     return;
   }
@@ -636,7 +759,7 @@ void speedDown()
   if (speedInclineMode & SPEED) {
 #ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
     DEBUG_PRINTLN("Do/press speed_down on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN, TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 #endif
     return;
   }
@@ -914,6 +1037,8 @@ void showInfo() {
               min_speed,max_speed,min_incline,max_incline,belt_distance,
               hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
 }
+
+
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -959,10 +1084,9 @@ void setup() {
   tft.setCursor(20, 40);
   tft.println("Setup Started");
 
-#ifdef TOUCH_CALLIBRATION_AT_STARTUP
-#ifndef USE_TFT_ESPI
-  if (tft.touch())
-  {
+
+#if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
+  if (tft.touch()) {
     tft.setTextFont(4);
     tft.setCursor(20, tft.height()/2);
     tft.println("Press corner near arrow to callibrate touch");
@@ -970,7 +1094,7 @@ void setup() {
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
 #endif
-#endif
+
 
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
@@ -988,7 +1112,20 @@ void setup() {
   pinMode(TREADMILL_BUTTON_SPEED_UP_PIN, INPUT);
 #endif
 
-
+#ifdef TARGET_WT32_SC01
+  // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
+  //     touchButtons[n] = LGFX_Button();
+  // }
+  // fixme: ...
+  btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
+  btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
+  btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
+  btnSpeedDown     .initButtonUL(&tft, btnSpeedDown_X,      btnSpeedDown_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
+  btnInclineUp     .initButtonUL(&tft, btnInclineUp_X,      btnInclineUp_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
+  btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
+  //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
+  //modeButton.drawButton();
+#endif
 
   delay(3000);
 
@@ -1089,7 +1226,7 @@ void setup() {
   DEBUG_PRINTLN("Setup done");
   showInfo();
 
-  delay(3000);
+  delay(4000);
   updateDisplay(true);
 
   // indicate manual/auto mode (green=auto/sensor, red=manual)
@@ -1119,7 +1256,7 @@ void loop_handle_WIFI() {
     wifi_reconnect_counter++;
     show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
-  if (!isMqttAvailable)
+  if (!isMqttAvailable && isWifiAvailable)
     isMqttAvailable = mqttConnect();
 }
 
@@ -1214,18 +1351,15 @@ void loop() {
     //elevation_gain += (double)(sin(angle) * mps);
     elevation_gain += incline / 100 * mps;
 
-#if 1
-    DEBUG_PRINT("mps = d:    ");DEBUG_PRINT(mps);
-    DEBUG_PRINT(" angle:      ");DEBUG_PRINT(angle);
-    DEBUG_PRINT(" h (m):      ");DEBUG_PRINT(sin(angle) * mps);
-
-    DEBUG_PRINT(" h gain (m): ");DEBUG_PRINT(elevation_gain);
-
-    DEBUG_PRINT(" kmph:      "); DEBUG_PRINT(kmph);
-    DEBUG_PRINT(" incline:   "); DEBUG_PRINT(incline);
-    DEBUG_PRINT(" angle:     "); DEBUG_PRINT(grade_deg);
-    DEBUG_PRINT(" dist km:   "); DEBUG_PRINT(total_distance/1000);
-    DEBUG_PRINT(" elegain m: "); DEBUG_PRINTLN(elevation_gain);
+#if 0
+    DEBUG_PRINT("mps = d: ");       DEBUG_PRINT(mps);
+    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(angle);
+    DEBUG_PRINT("   h (m): ");      DEBUG_PRINT(sin(angle) * mps);
+    DEBUG_PRINT("   h gain (m): "); DEBUG_PRINT(elevation_gain);
+    DEBUG_PRINT("   kmph: ");       DEBUG_PRINT(kmph);
+    DEBUG_PRINT("   incline: ");    DEBUG_PRINT(incline);
+    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(grade_deg);
+    DEBUG_PRINT("   dist km: ");    DEBUG_PRINTLN(total_distance/1000);
 #endif
     char kmphStr[6];
     snprintf(kmphStr,    6, "%.1f", kmph);
