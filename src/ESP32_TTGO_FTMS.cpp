@@ -61,6 +61,7 @@
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
 #endif
 
+#include "GPIOExtenderAW9523.h"
 
 // Select and uncomment one of the Treadmills below
 //#define TREADMILL_MODEL TAURUS_9_5
@@ -139,7 +140,8 @@ LGFX_Button btnInclineDown    = LGFX_Button();
 
 //#define SPEED_IR_SENSOR1   15
 //#define SPEED_IR_SENSOR2   13
-#define SPEED_REED_SWITCH_PIN 26 // REED-Contact
+static constexpr int AW9523_INTERRUPT_PIN  = 25; // GPIO Extender interrupt
+static constexpr int SPEED_REED_SWITCH_PIN = 26; // REED-Contact
 
 // DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
 // Uncomment this line to use it
@@ -199,15 +201,6 @@ const float min_incline =  0.0;
 const float speed_interval_min    = 0.1;
 const float incline_interval_min  = 0.5;
 const long  belt_distance = 153.3;
-
-// These are used to control/override the Treadmil, e.g. pins are connected to
-// the different button so that software can "press" them
-// TODO: They could also be used to read pins
-#define TREADMILL_BUTTON_INC_DOWN_PIN    25
-#define TREADMILL_BUTTON_INC_UP_PIN      27
-#define TREADMILL_BUTTON_SPEED_DOWN_PIN  32
-#define TREADMILL_BUTTON_SPEED_UP_PIN    33
-#define TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS   250
 
 #else
   #error "Unexpected value for TREADMILL_MODEL defined!"
@@ -274,11 +267,13 @@ const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
 bool isWifiAvailable = false;
 bool isMqttAvailable = false;
 
+static TwoWire I2C_0 = TwoWire(0);
 
 #ifndef NO_MPU6050
-TwoWire I2C_0 = TwoWire(0);
-MPU6050 mpu(I2C_0);
+static MPU6050 mpu(I2C_0);
 #endif
+
+static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 
 #ifdef MQTT_USE_SSL
 WiFiClientSecure espClient;
@@ -430,18 +425,22 @@ void doReset()
   // calibrate
 }
 
-void pressTreadmillButtonLow(uint32_t pin, uint32_t time_ms) {
-  DEBUG_PRINTF("pressTreadmillButtonLow(%d,%d)\n",pin,time_ms);
-  digitalWrite(pin, LOW);
-  pinMode(pin, OUTPUT);
-  digitalWrite(pin, LOW);
-  delay(time_ms);
-  //digitalWrite(pin, HIGH);
-  //delay(time_ms/2);
-  //digitalWrite(pin, LOW);
-  pinMode(pin, INPUT);
-}
+// A simple event handler, currenly just a call stack, an event queue would be smarter
+// but this solves the problem as a start, not sure it we really have the usecase where
+// we need a queue, lets add it in that case
 
+void handle_event(EventType event)
+{
+  // Add more event handlers here in prio order, checking if handled before running
+  // each handle will return true is event is handled so we can stop the event check
+  // in that case.
+  // Currently there is no queue so if Events are translated to new events and call
+  // handle_event() to post them take care to not get into loops.
+  if (GPIOExtender.pressEvent(event)) return;
+
+  DEBUG_PRINTF("handle_event() Cant handle Event:0x%x\n",static_cast<uint32_t>(event));
+  return;
+}
 
 void buttonInit()
 {
@@ -740,10 +739,7 @@ void IRAM_ATTR speedSensor2_ISR() {
 void speedUp()
 {
   if (speedInclineMode & SPEED) {
-#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
-    DEBUG_PRINTLN("Do/press speed_up on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_UP_PIN, TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-#endif
+    handle_event(EventType::TREADMILL_SPEED_UP);
     return;
   }
 
@@ -757,10 +753,7 @@ void speedUp()
 void speedDown()
 {
   if (speedInclineMode & SPEED) {
-#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
-    DEBUG_PRINTLN("Do/press speed_down on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_SPEED_DOWN_PIN, TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-#endif
+    handle_event(EventType::TREADMILL_SPEED_DOWN);
     return;
   }
 
@@ -774,10 +767,7 @@ void speedDown()
 void inclineUp()
 {
   if (speedInclineMode & INCLINE) {
-#ifdef TREADMILL_BUTTON_INC_UP_PIN
-    DEBUG_PRINTLN("Do/press incline_up on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_UP_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-#endif
+    handle_event(EventType::TREADMILL_INC_UP);
     return;
   }
 
@@ -793,10 +783,7 @@ void inclineUp()
 void inclineDown()
 {
   if (speedInclineMode & INCLINE) {
-#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
-    DEBUG_PRINTLN("Do/press incline_down on Treadmill");
-    pressTreadmillButtonLow(TREADMILL_BUTTON_INC_DOWN_PIN,TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-#endif
+    handle_event(EventType::TREADMILL_INC_DOWN);
     return;
   }
 
@@ -1039,6 +1026,29 @@ void showInfo() {
 }
 
 
+#ifdef AW9523_IRQ_MODE
+static void IRAM_ATTR GPIOExtenderInterrupt(void) {
+  GPIOExtender.gotInterrupt();
+}
+#endif
+
+
+static void initGPIOExtender(void) {
+  while (!GPIOExtender.begin())
+  {
+    Serial.println("GPIOExtender not found");
+    return;
+  }
+
+#ifdef AW9523_IRQ_MODE
+  pinMode(AW9523_INTERRUPT_PIN, INPUT_PULLUP); 
+  //pinMode(AW9523_INTERRUPT_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(AW9523_INTERRUPT_PIN), GPIOExtenderInterrupt, CHANGE);
+  GPIOExtender.getPins(); // Get pins one to clear intrrupts
+#endif
+  Serial.println("GPIOExtender Setup Done");
+}
+
 void setup() {
   DEBUG_BEGIN(115200);
   DEBUG_PRINTLN("setup started");
@@ -1099,18 +1109,6 @@ void setup() {
 #ifdef DEBUG0_PIN
   pinMode(DEBUG0_PIN, OUTPUT);
 #endif
-#ifdef TREADMILL_BUTTON_INC_DOWN_PIN
-  pinMode(TREADMILL_BUTTON_INC_DOWN_PIN, INPUT);
-#endif
-#ifdef TREADMILL_BUTTON_INC_UP_PIN
-  pinMode(TREADMILL_BUTTON_INC_UP_PIN, INPUT);
-#endif
-#ifdef TREADMILL_BUTTON_SPEED_DOWN_PIN
-  pinMode(TREADMILL_BUTTON_SPEED_DOWN_PIN, INPUT);
-#endif
-#ifdef TREADMILL_BUTTON_SPEED_UP_PIN
-  pinMode(TREADMILL_BUTTON_SPEED_UP_PIN, INPUT);
-#endif
 
 #ifdef TARGET_WT32_SC01
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
@@ -1140,9 +1138,10 @@ void setup() {
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
-  #ifndef NO_MPU6050
   I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ);
-  #endif
+
+  initGPIOExtender();
+
 
   initBLE();
   initSPIFFS();
@@ -1287,6 +1286,7 @@ void loop() {
   mpu.update();
 #endif
 
+  GPIOExtender.loopHandler();
   loop_handle_button();
   loop_handle_touch();
   loop_handle_WIFI();
@@ -1351,7 +1351,7 @@ void loop() {
     //elevation_gain += (double)(sin(angle) * mps);
     elevation_gain += incline / 100 * mps;
 
-#if 0
+ #if 0
     DEBUG_PRINT("mps = d: ");       DEBUG_PRINT(mps);
     DEBUG_PRINT("   angle: ");      DEBUG_PRINT(angle);
     DEBUG_PRINT("   h (m): ");      DEBUG_PRINT(sin(angle) * mps);
