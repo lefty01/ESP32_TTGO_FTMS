@@ -126,6 +126,23 @@ enum topics_t {
 
 extern String mqtt_topics[];
 
+// Events
+enum class EventType {
+  KEY_UP,
+  KEY_LEFT,
+  KEY_DOWN,
+  KEY_RIGHT,
+  KEY_OK,
+  KEY_BACK,
+  TREADMILL_REED,
+  TREADMILL_START,
+  TREADMILL_SPEED_DOWN,
+  TREADMILL_INC_DOWN,
+  TREADMILL_STOP,
+  TREADMILL_SPEED_UP,
+  TREADMILL_INC_UP,
+};
+
 
 String readHour();
 String readMinute();
@@ -154,6 +171,8 @@ bool mqttConnect();
 void notifyClients();
 const char* getTopic(topics_t topic);
 const char* getRstReason(esp_reset_reason_t r);
+
+void handle_event(EventType event);
 
 
 #endif
