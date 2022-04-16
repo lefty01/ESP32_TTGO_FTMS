@@ -29,11 +29,11 @@ void initSPIFFSDone()
   tft.println("initSPIFFS Done!");
 }
 
-
 void updateDisplay(bool clear)
 {
   if (clear) {
     tft.fillScreen(TFT_BLACK);
+    updateHeader();
   }
 
   tft.setTextColor(TFT_ORANGE);
@@ -231,4 +231,15 @@ void show_WIFI(const unsigned long reconnect_counter, const String &ip) {
   tft.print(reconnect_counter);
   tft.print("]: ");
   tft.print(ip);
+}
+
+void updateHeader()
+{
+  // indicate manual/auto mode (green=auto/sensor, red=manual)
+  showSpeedInclineMode(speedInclineMode);
+
+  // indicate bt connection status ... offline
+  updateBTConnectionStatus(bleClientConnected);
+
+  show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
 }

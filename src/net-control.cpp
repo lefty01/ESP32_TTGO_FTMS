@@ -70,15 +70,18 @@ int setupWifi() {
 }
 
 
-bool mqttConnect() {
+bool mqttConnect(bool draw) {
   bool rc;
   DEBUG_PRINT("Attempting MQTT connection...");
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextFont(2);
-  tft.setCursor(20, 40);
-  tft.print("Connecting to MQTT server: ");
-  tft.println(mqtt_host);
+  if (draw)
+  {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextFont(2);
+    tft.setCursor(20, 40);
+    tft.print("Connecting to MQTT server: ");
+    tft.println(mqtt_host);
+  }
 
   // Attempt to connect
 #ifdef MQTT_USE_SSL
@@ -90,34 +93,56 @@ bool mqttConnect() {
   client.setServer(mqtt_host, mqtt_port);
   if (client.connect(MQTTDEVICEID.c_str(), mqtt_user, mqtt_pass,
 		     getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) {
-    DEBUG_PRINTLN("connected");
     // Once connected, publish an announcement...
-    tft.println("publish connected...");
+    DEBUG_PRINTLN("publish connected...");
+    if (draw)
+    {
+      tft.println("publish connected...");
+    }
     rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
-    if (rc) tft.println("OK");
-    else    tft.println("ERROR");
-    delay(1500);
 
-    tft.println("publish version & IP");
+    if (rc) DEBUG_PRINTLN("OK");
+    else    DEBUG_PRINTLN("ERROR");
+    DEBUG_PRINTLN("publish version & IP");
+
+    if (draw)
+    {
+      if (rc) tft.println("OK");
+      else    tft.println("ERROR");
+      delay(1500);
+      tft.println("publish version & IP");
+    }
+
     rc |= client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(rr), true);
     rc |= client.publish(getTopic(MQTT_TOPIC_VERSION), VERSION, true);
     rc |= client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
-    if (rc) tft.println("OK");
-    else    tft.println("ERROR");
-    delay(1500);
 
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN);
-    tft.setCursor(20, 60);
-    tft.println("MQTT CONNECTED");
+    if (rc) DEBUG_PRINTLN("OK");
+    else    DEBUG_PRINTLN("ERROR");
+
+    if (draw)
+    {
+      if (rc) tft.println("OK");
+      else    tft.println("ERROR");
+      delay(1500);
+      tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_GREEN);
+      tft.setCursor(20, 60);
+      tft.println("MQTT CONNECTED");
+    }
+    DEBUG_PRINTLN("MQTT CONNECTED");
     return true;
   } else {
     DEBUG_PRINT("failed, rc=");
     DEBUG_PRINTLN(client.state());
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_RED);
-    tft.setCursor(20, 60);
-    tft.println("MQTT FAILED");
+    if (draw)
+    {
+      tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_RED);
+      tft.setCursor(20, 60);
+      tft.println("MQTT FAILED");
+      delay(1000);
+    }
   }
   return false;
 }
@@ -246,9 +271,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       if (strcmp(value, "incline") == 0)
         speedInclineMode ^= INCLINE; // b'10
 
-      showSpeedInclineMode(speedInclineMode);
-      show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
-      updateBTConnectionStatus(bleClientConnected);
+      updateHeader();
     }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)
