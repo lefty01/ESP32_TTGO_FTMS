@@ -57,6 +57,11 @@ bool GPIOExtenderAW9523::begin()
     return true;
 }
 
+bool GPIOExtenderAW9523::isAvailable()
+{
+    return enabled;
+}
+
 uint16_t GPIOExtenderAW9523::getPins(void)
 {
     if (enabled)

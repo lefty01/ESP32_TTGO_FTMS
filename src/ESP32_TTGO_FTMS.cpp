@@ -980,14 +980,14 @@ void showInfo() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(2);
   tft.setCursor(5, 5);
-  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
-  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
 }
 
 

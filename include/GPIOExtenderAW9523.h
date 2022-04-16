@@ -40,6 +40,8 @@ public:
 
   bool begin();
 
+  bool isAvailable();
+
   uint16_t getPins(void);
   bool checkInterrupt(void);
 
