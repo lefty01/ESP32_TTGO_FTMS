@@ -143,14 +143,6 @@ LGFX_Button btnInclineDown    = LGFX_Button();
 static constexpr int AW9523_INTERRUPT_PIN  = 25; // GPIO Extender interrupt
 static constexpr int SPEED_REED_SWITCH_PIN = 26; // REED-Contact
 
-// DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
-// Uncomment this line to use it
-//#define DEBUG0_PIN       13
-
-#ifdef DEBUG0_PIN
-volatile bool debug0State = LOW;
-#endif
-
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
@@ -670,20 +662,6 @@ void loop_handle_touch() {
 #endif
 }
 
-#ifdef DEBUG0_PIN
-// Safe to use from Interrupt code
-void IRAM_ATTR showAndToggleDebug0_I() {
-  digitalWrite(DEBUG0_PIN, debug0State);
-  debug0State = !debug0State;
-}
-
-// Safe to use from Interrupt code
-void IRAM_ATTR showDebug0_I(bool state) {
-  digitalWrite(DEBUG0_PIN, state);
-  debug0State = !state;
-}
-#endif
-
 void IRAM_ATTR reedSwitch_ISR()
 {
   // calculate the microseconds since the last interrupt.
@@ -705,10 +683,6 @@ void IRAM_ATTR reedSwitch_ISR()
   if (test_elapsed > longpauseTime / 2) {
     // acts as a debounce, don't looking for interupts soon after the first hit.
     //Serial.println(test_elapsed); //Serial.println(" Counted");
-
-#ifdef DEBUG0_PIN
-    showAndToggleDebug0_I();
-#endif
 
     startTime = usNow;  // reset the clock
     //long elapsed = test_elapsed;
@@ -1103,11 +1077,6 @@ void setup() {
     tft.setCursor(0, 0);
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
-#endif
-
-
-#ifdef DEBUG0_PIN
-  pinMode(DEBUG0_PIN, OUTPUT);
 #endif
 
 #ifdef TARGET_WT32_SC01
