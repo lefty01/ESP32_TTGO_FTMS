@@ -157,6 +157,7 @@ void inclineUp();
 void inclineDown();
 
 void updateDisplay(bool clear);
+void updateHeader();
 void initAsyncWebserver();
 void initWebSocket();
 String getWifiIpAddr();
@@ -167,7 +168,7 @@ void show_WIFI(const unsigned long reconnect_counter, const String &ip);
 String getWifiIpAddr();
 void setSpeedInterval(float interval);
 int setupWifi();
-bool mqttConnect();
+bool mqttConnect( bool draw);
 void notifyClients();
 const char* getTopic(topics_t topic);
 const char* getRstReason(esp_reset_reason_t r);
