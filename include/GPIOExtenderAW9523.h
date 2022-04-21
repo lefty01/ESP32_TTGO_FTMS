@@ -2,7 +2,7 @@
  *
  *
  * The MIT License (MIT)
- * Copyright © 2021, 2022 <Andreas Loeffler>
+ * Copyright © 2022 <Andreas Loeffler> <Zingo Andersen>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
@@ -39,6 +39,8 @@ public:
   }
 
   bool begin();
+
+  bool isAvailable();
 
   uint16_t getPins(void);
   bool checkInterrupt(void);

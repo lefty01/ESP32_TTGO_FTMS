@@ -143,14 +143,6 @@ LGFX_Button btnInclineDown    = LGFX_Button();
 static constexpr int AW9523_INTERRUPT_PIN  = 25; // GPIO Extender interrupt
 static constexpr int SPEED_REED_SWITCH_PIN = 26; // REED-Contact
 
-// DEBUG0_PIN could point to an led you connect or read by a osciliscope or logical analyzer
-// Uncomment this line to use it
-//#define DEBUG0_PIN       13
-
-#ifdef DEBUG0_PIN
-volatile bool debug0State = LOW;
-#endif
-
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile boolean t1_valid = false;
@@ -172,6 +164,7 @@ unsigned long sw_timer_clock = 0;
 unsigned long touch_timer = 0;
 unsigned long wifi_reconnect_timer = 0;
 unsigned long wifi_reconnect_counter = 0;
+unsigned long mqtt_reconnect_counter = 0;
 
 String MQTTDEVICEID = "ESP32_FTMS_";
 
@@ -459,9 +452,7 @@ void buttonInit()
       speedInclineMode = MANUAL;
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
-      showSpeedInclineMode(speedInclineMode);
-      updateBTConnectionStatus(bleClientConnected);
-      show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+      updateHeader();
     }
     else { // button1 short click toggle speed/incline mode
       DEBUG_PRINTLN("Button 1 short click...");
@@ -469,9 +460,7 @@ void buttonInit()
       speedInclineMode %= _NUM_MODES_;
       DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
-      showSpeedInclineMode(speedInclineMode);
-      updateBTConnectionStatus(bleClientConnected);
-      show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+      updateHeader();
     }
 
   });
@@ -572,18 +561,14 @@ void loop_handle_touch() {
     speedInclineMode ^= SPEED; // b'01 toggle bit
     if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
     else                          btnSpeedToggle.drawButton(true);
-    showSpeedInclineMode(speedInclineMode);
-    updateBTConnectionStatus(bleClientConnected);
-    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+    updateHeader();
   }
   if (btnInclineToggle.justPressed()) {
     DEBUG_PRINTLN("incline mode toggle!");
     speedInclineMode ^= INCLINE; // b'10
     if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
     else                            btnInclineToggle.drawButton(true);
-    showSpeedInclineMode(speedInclineMode);
-    updateBTConnectionStatus(bleClientConnected);
-    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+    updateHeader();
   }
 
   if (btnSpeedUp.justPressed()) {
@@ -630,9 +615,7 @@ void loop_handle_touch() {
   // 	speedInclineMode %= _NUM_MODES_;
   // 	DEBUG_PRINT("speedInclineMode=");
   // 	DEBUG_PRINTLN(speedInclineMode);
-  // 	showSpeedInclineMode(speedInclineMode);
-  // 	updateBTConnectionStatus(bleClientConnected);
-  // 	show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+  // 	updateHeader();
   // 	// reset to manual mode on any touch (as for now)
   //       // if ( speedInclineMode != MANUAL) {
   //       //   kmph = 0.5;
@@ -670,20 +653,6 @@ void loop_handle_touch() {
 #endif
 }
 
-#ifdef DEBUG0_PIN
-// Safe to use from Interrupt code
-void IRAM_ATTR showAndToggleDebug0_I() {
-  digitalWrite(DEBUG0_PIN, debug0State);
-  debug0State = !debug0State;
-}
-
-// Safe to use from Interrupt code
-void IRAM_ATTR showDebug0_I(bool state) {
-  digitalWrite(DEBUG0_PIN, state);
-  debug0State = !state;
-}
-#endif
-
 void IRAM_ATTR reedSwitch_ISR()
 {
   // calculate the microseconds since the last interrupt.
@@ -705,10 +674,6 @@ void IRAM_ATTR reedSwitch_ISR()
   if (test_elapsed > longpauseTime / 2) {
     // acts as a debounce, don't looking for interupts soon after the first hit.
     //Serial.println(test_elapsed); //Serial.println(" Counted");
-
-#ifdef DEBUG0_PIN
-    showAndToggleDebug0_I();
-#endif
 
     startTime = usNow;  // reset the clock
     //long elapsed = test_elapsed;
@@ -1015,14 +980,14 @@ void showInfo() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(2);
   tft.setCursor(5, 5);
-  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
-  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\n",
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,TREADMILL_MODEL_NAME,
               min_speed,max_speed,min_incline,max_incline,belt_distance,
-              hasReed,hasMPU6050, hasVL53L0X, hasIrSense);
+              hasReed,hasMPU6050, hasVL53L0X, hasIrSense, GPIOExtender.isAvailable());
 }
 
 
@@ -1105,11 +1070,6 @@ void setup() {
   }
 #endif
 
-
-#ifdef DEBUG0_PIN
-  pinMode(DEBUG0_PIN, OUTPUT);
-#endif
-
 #ifdef TARGET_WT32_SC01
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
   //     touchButtons[n] = LGFX_Button();
@@ -1156,7 +1116,7 @@ void setup() {
   //else show offline msg, halt or reboot?!
 
   if (isWifiAvailable) {
-    isMqttAvailable = mqttConnect();
+    isMqttAvailable = mqttConnect(true);
     delay(2000);
   }
 
@@ -1228,15 +1188,6 @@ void setup() {
   delay(4000);
   updateDisplay(true);
 
-  // indicate manual/auto mode (green=auto/sensor, red=manual)
-  showSpeedInclineMode(speedInclineMode);
-
-  // indicate bt connection status ... offline
-  tft.fillCircle(CIRCLE_BT_STAT_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_BLACK);
-  tft.drawCircle(CIRCLE_BT_STAT_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_SKYBLUE);
-
-  show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
-
   setTime(0,0,0,0,0,0);
 }
 
@@ -1245,6 +1196,9 @@ void loop_handle_WIFI() {
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
     wifi_reconnect_timer = millis();
     isWifiAvailable = false;
+    isMqttAvailable = false;
+    mqtt_reconnect_counter = 0;
+
     DEBUG_PRINTLN("Reconnecting to WiFi...");
     WiFi.disconnect();
     WiFi.reconnect();
@@ -1256,7 +1210,18 @@ void loop_handle_WIFI() {
     show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
   }
   if (!isMqttAvailable && isWifiAvailable)
-    isMqttAvailable = mqttConnect();
+  {
+    // TODO Add a menu item to start a new retry?
+    //      Or and mqtt enable/disable config when we have on device configs
+    //      Do we want to retry this more less often like every 15 min or 1h?
+    // Limit this to 2 retrys to not bug down a system forever if not availible
+    if (mqtt_reconnect_counter < 2)
+    {
+      mqtt_reconnect_counter++;
+      isMqttAvailable = mqttConnect(true);
+      updateDisplay(true);
+    }
+  }
 }
 
 void loop_handle_BLE() {
