@@ -79,17 +79,17 @@ const char* VERSION = "0.0.22";
 // TTGO T-Display buttons
 #define BUTTON_1 35
 #define BUTTON_2  0
-#define SDA_0 21
-#define SCL_0 22
-#define I2C_FREQ 400000
+static const int SDA_0 = 21;
+static const int SCL_0 = 22;
+static const uint32_t I2C_FREQ = 400000;
 
 #elif TARGET_WT32_SC01
 // This is a touch screen so there is no buttons
 // IO_21 and IO_22 are routed out and use used for SPI to the screen
 // Pins with names that start with J seems to be connected so screen, take care to avoid.
-#define SDA_0 18
-#define SCL_0 19
-#define I2C_FREQ 400000
+static const int SDA_0 = 18;
+static const int SCL_0 = 19;
+static const uint32_t I2C_FREQ = 400000;
 #ifndef NUM_TOUCH_BUTTONS
 #define NUM_TOUCH_BUTTONS 6
 #endif
