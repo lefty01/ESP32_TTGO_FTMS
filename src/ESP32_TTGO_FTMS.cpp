@@ -126,10 +126,9 @@ LGFX_Button btnInclineDown    = LGFX_Button();
 #define BUTTON_1 38  // LEFT
 #define BUTTON_2 37  // CENTRE
 #define BUTTON_3 39  // RIGHT
-#define SDA_0 21
-#define SCL_0 22
-#define I2C_FREQ 400000
-
+static const int SDA_0 = 21;
+static const int SCL_0 = 22;
+static const uint32_t I2C_FREQ = 400000;
 #else
 #error Unknown button setup
 #endif
@@ -1098,7 +1097,7 @@ void setup() {
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
-  I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ);
+  I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
 
   initGPIOExtender();
 
