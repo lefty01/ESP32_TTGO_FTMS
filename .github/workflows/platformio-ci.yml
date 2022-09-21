@@ -39,8 +39,8 @@ jobs:
         cd ..
         ln -s server.crt.sample server.crt
         ln -s server.key.sample server.key
-        pio run -v -e ESP32_TTGO_DISPLAY_TFT_eSPI \
-                   -e ESP32_TTGO_DISPLAY_TFT_eSPI_SSL \
-                   -e ESP32_TTGO_DISPLAY_LovyanGFX \
-                   -e ESP32_WT32-SC01_LovyanGFX \
-                   -e ESP32_TTGO_T4_TFT_eSPI
+        pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI \
+                -e ESP32_TTGO_DISPLAY_TFT_eSPI_SSL \
+                -e ESP32_TTGO_DISPLAY_LovyanGFX \
+                -e ESP32_WT32-SC01_LovyanGFX \
+                -e ESP32_TTGO_T4_TFT_eSPI
