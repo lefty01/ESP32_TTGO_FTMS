@@ -1,12 +1,106 @@
-#include "common.h"
-#include "wifi_mqtt_creds.h"
 
+#define NIMBLE
+//#include "common.h"
 #include <SPIFFS.h>
 #include <AsyncElegantOTA.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+#include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
+
+#include "ESP32_TTGO_FTMS.h"
+#include "net-control.h" 
+#include "config.h"
+#include "debug_print.h"
+#include "hardware.h"
+#include "wifi_mqtt_creds.h"
+
+//#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <ESPAsyncWebServer.h>     //Local WebServer used to serve the configuration portal
+#include "ESPAsyncWiFiManager.h"   //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
+#ifndef NIMBLE
+// original
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h> // notify
+#else
+#include <NimBLEDevice.h>
+#endif
+#ifdef MQTT_USE_SSL
+#include <WiFiClientSecure.h>
+extern WiFiClientSecure espClient;
+#else
+extern WiFiClient espClient;
+#endif
+
+bool bleClientConnected = false;
+bool bleClientConnectedPrev = false;
+
+#ifdef MQTT_USE_SSL
+WiFiClientSecure espClient;
+#else
+WiFiClient espClient;
+#endif
+#ifdef ASYNC_TCP_SSL_ENABLED
+AsyncWebServer server(443);
+#else
+AsyncWebServer server(80);
+#endif
+AsyncWebSocket ws("/ws");
+PubSubClient client(espClient);  // mqtt client
+DNSServer dns;  
+
+//extern AsyncWebServer server;
+//extern AsyncWebSocket ws;
+
+AsyncWiFiManager wifiManager(&server,&dns);
+
+//cs bool WifiAvailable = false;
+bool isMqttAvailable = false;
+bool isWifiAvailable = false;
+
+static unsigned long mqtt_reconnect_counter = 0; 
+unsigned long wifi_reconnect_timer = 0;
 
 String ipAddr;
 String dnsAddr;
-const unsigned maxWifiWaitSeconds = 60;
+uint8_t mac_addr[6];
+
+String MQTTDEVICEID = "ESP32_FTMS_";
+
+// mqtt topics
+enum topics_t {
+	       MQTT_TOPIC_SETCONFIG = 0,
+	       MQTT_TOPIC_STATE,
+	       MQTT_TOPIC_VERSION,
+	       MQTT_TOPIC_IPADDR,
+	       MQTT_TOPIC_RST,
+	       MQTT_TOPIC_SPEED,
+	       MQTT_TOPIC_RPM,
+	       MQTT_TOPIC_INCLINE,
+	       MQTT_TOPIC_Y_ANGLE,
+	       MQTT_TOPIC_DIST,
+	       MQTT_TOPIC_ELEGAIN,
+	       MQTT_NUM_TOPICS
+};
+
+String mqtt_topics[] {
+  "home/treadmill/%MQTTDEVICEID%/setconfig",
+  "home/treadmill/%MQTTDEVICEID%/state",
+  "home/treadmill/%MQTTDEVICEID%/version",
+  "home/treadmill/%MQTTDEVICEID%/ipaddr",
+  "home/treadmill/%MQTTDEVICEID%/rst",
+  "home/treadmill/%MQTTDEVICEID%/speed",
+  "home/treadmill/%MQTTDEVICEID%/rpm",
+  "home/treadmill/%MQTTDEVICEID%/incline",
+  "home/treadmill/%MQTTDEVICEID%/y_angle",
+  "home/treadmill/%MQTTDEVICEID%/dist",
+  "home/treadmill/%MQTTDEVICEID%/elegain"
+};
+
+uint16_t    inst_speed;
+
 #ifdef ASYNC_TCP_SSL_ENABLED
 // if using board_build.embed_txtfiles instead of spiffs -> that would not require the callback for:
 // server.onSslFileRequest(&sslFileRequestCallback, NULL);
@@ -16,72 +110,331 @@ extern const uint8_t server_key_start[] asm("_binary_server_key_start");
 // server.beginSecure((const char*)server_crt_start, (const char*)server_key_start, NULL);
 #endif
 
+// note: Fitness Machine Feature is a mandatory characteristic (property_read)
+#define FTMSService BLEUUID((uint16_t)0x1826)
+
+BLEServer* pServer = NULL;
+BLECharacteristic* pTreadmill    = NULL;
+BLECharacteristic* pFeature      = NULL;
+BLECharacteristic* pControlPoint = NULL;
+BLECharacteristic* pStatus       = NULL;
+BLEAdvertisementData advert;
+BLEAdvertisementData scan_response;
+BLEAdvertising *pAdvertising;
+
+// {0x2ACD,"Treadmill Data"},
+BLECharacteristic TreadmillDataCharacteristics(BLEUUID((uint16_t)0x2ACD),
+#ifndef NIMBLE
+					       BLECharacteristic::PROPERTY_NOTIFY
+#else
+					       NIMBLE_PROPERTY::NOTIFY
+#endif
+					       );
+
+BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
+#ifndef NIMBLE
+						      BLECharacteristic::PROPERTY_READ
+#else
+						      NIMBLE_PROPERTY::READ
+#endif
+						      );
+
+BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901)
+#ifdef NIMBLE
+				  , NIMBLE_PROPERTY::READ,1000
+#endif
+				  );
+
+// seems kind of a standard callback function
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    bleClientConnected = true;
+  };
+
+  void onDisconnect(BLEServer* pServer) {
+    bleClientConnected = false;
+  }
+};
+
+void loop_handle_BLE() 
+{
+  // if changed to connected ...
+  if (bleClientConnected && !bleClientConnectedPrev) {
+    bleClientConnectedPrev = true;
+    DEBUG_PRINTLN("BT Client connected!");
+#ifndef NO_DISPLAY
+    updateBTConnectionStatus(bleClientConnectedPrev);
+#endif    
+  }
+  else if (!bleClientConnected && bleClientConnectedPrev) {
+    bleClientConnectedPrev = false;
+    DEBUG_PRINTLN("BT Client disconnected!");
+#ifndef NO_DISPLAY    
+    updateBTConnectionStatus(bleClientConnectedPrev);
+#endif    
+  }
+}
+void initBLE() {
+#ifndef NO_DISPLAY  
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_BLUE);
+  tft.setTextFont(4);
+  tft.setCursor(20, 40);
+  tft.println("initBLE");
+#endif
+  BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
+
+  // create BLE Server, set callback for connect/disconnect
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new MyServerCallbacks());
+
+  // create the fitness machine service within the server
+  BLEService *pService = pServer->createService(FTMSService);
+
+  pService->addCharacteristic(&TreadmillDataCharacteristics);
+  TreadmillDescriptor.setValue("Treadmill Descriptor Value ABC");
+  TreadmillDataCharacteristics.addDescriptor(&TreadmillDescriptor);
+  pService->addCharacteristic(&FitnessMachineFeatureCharacteristic);
+
+  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
+  // Create a BLE Descriptor
+#ifndef NIMBLE
+  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
+  FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
+  //pFeature->addDescriptor(new BLE2902());
+#else
+  /***************************************************
+   NOTE: DO NOT create a 2902 descriptor.
+   it will be created automatically if notifications
+   or indications are enabled on a characteristic.
+  ****************************************************/
+#endif
+  // start service
+  pService->start();
+  pAdvertising = pServer->getAdvertising();
+  pAdvertising->setScanResponse(true);
+  pAdvertising->addServiceUUID(FTMSService);
+  //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
+
+  pAdvertising->start();
+  delay(2000); // added to keep tft msg a bit longer ...
+}
+
+void updateBLEdata(void)
+{
+  uint8_t treadmillData[34] = {};
+  uint16_t flags = 0x0018;  // b'000000011000
+  //                             119876543210
+  //                             20
+  // get speed and incline ble ready
+  inst_speed   = kmph * 100;    // kilometer per hour with a resolution of 0.01
+  inst_incline = incline * 10;  // percent with a resolution of 0.1
+  inst_grade   = grade_deg * 10;
+  inst_elevation_gain = elevation_gain * 10;
+
+  // now data is filled starting at bit0 and appended for the
+  // fields we 'enable' via the flags above ...
+  //treadmillData[0,1] -> flags
+  treadmillData[0] = (uint8_t)(flags & 0xFF);
+  treadmillData[1] = (uint8_t)(flags >> 8);
+
+  // speed
+  treadmillData[2] = (uint8_t)(inst_speed & 0xFF);
+  treadmillData[3] = (uint8_t)(inst_speed >> 8);
+
+  // incline & degree
+  treadmillData[4] = (uint8_t)(inst_incline & 0xFF);
+  treadmillData[5] = (uint8_t)(inst_incline >> 8);
+  treadmillData[6] = (uint8_t)(inst_grade & 0xFF);
+  treadmillData[7] = (uint8_t)(inst_grade >> 8);
+
+  // Positive Elevation Gain 16 Meters with a resolution of 0.1
+  treadmillData[8] = (uint8_t)(inst_elevation_gain & 0xFF);
+  treadmillData[9] = (uint8_t)(inst_elevation_gain >> 8);
+
+   // flags do enable negative elevation as well but this will be always 0
+  TreadmillDataCharacteristics.setValue(treadmillData, 34);
+  TreadmillDataCharacteristics.notify();
+}
+
 String getWifiIpAddr() {
   return ipAddr;
 }
 
-// note: delays mainly to keep tft text shortly readable
-int setupWifi() {
-  DEBUG_PRINTLN();
-  DEBUG_PRINTLN("Connecting to wifi");
+void resetWifiConnection(AsyncWebServerRequest *request)
+{
+  wifiManager.resetSettings();
+  DEBUG_PRINTLN("Wifi connection reset");
+  while(1)
+  {
+    // hangup for reset by wdt
+  }
+}
 
+void resetStopWatch(void)
+{
+  setTime(0,0,0,0,0,0);
+}
+
+//csint initWifi()
+void initWifi()
+{
+  bool res;
+  DEBUG_PRINTLN("Init Wifi");
+
+  // reset settings - wipe stored credentials for testing
+  // these are stored by the esp library
+  // wm.resetSettings();
+
+  // Automatically connect using saved credentials,
+  // if connection fails, it starts an access point with the specified name ( "AutoConnectAP"),
+  // if empty will auto generate SSID, if password is blank it will be anonymous AP (wm.autoConnect())
+  // then goes into a blocking loop awaiting configuration and will return success result
+  //Local intialization. Once its business is done, there is no need to keep it around
+
+  //reset saved settings
+  //wifiManager.resetSettings();
+  //wifiManager.setDebugOutput(true);
+  //res = wifiManager.autoConnect(); // auto generated AP name from chipid
+  // res = wm.autoConnect("AutoConnectAP"); // anonymous ap
+  res = wifiManager.autoConnect("FTMS Threadmill AP");
+    
+  if(!res) 
+  {
+//cs    WifiAvailable = false;
+    isWifiAvailable = false;
+
+    DEBUG_PRINTF("Failed to connect");
+//    Serial.println("Failed to connect"); 
+//    ESP.restart();
+  } 
+  else 
+  {
+    isWifiAvailable = true;
+    //if you get here you have connected to the WiFi    
+    ipAddr  = WiFi.localIP().toString();
+    dnsAddr = WiFi.dnsIP().toString();
+
+    DEBUG_PRINTLN("");
+    DEBUG_PRINTLN("WiFi connected");
+    DEBUG_PRINT("IP address: ");
+    DEBUG_PRINTLN(ipAddr);
+    DEBUG_PRINT("DNS address: ");
+    DEBUG_PRINTLN(dnsAddr);
+  }
+//cs  return WifiAvailable;
+}
+
+void loop_handle_WIFI() 
+{
+//  static unsigned long mqtt_reconnect_counter = 0; 
+//  unsigned long wifi_reconnect_timer = 0;
+//  bool isWifiAvailable = false;
+  
+  // re-connect to wifi
+  if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
+    wifi_reconnect_timer = millis();
+    isWifiAvailable = false;
+    isMqttAvailable = false;
+    mqtt_reconnect_counter = 0;
+
+    DEBUG_PRINTLN("Disconnect and Reconnecting to WiFi...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+  }
+
+  if (!isWifiAvailable && (WiFi.status() == WL_CONNECTED)) 
+  {
+    // connection was lost and now got reconnected ...
+    isWifiAvailable = true;
+    wifi_reconnect_counter++;
+    DEBUG_PRINTLN("Reconnecting to wifi...");
+    DEBUG_PRINT("isWifiAvailable="); DEBUG_PRINTLN(isWifiAvailable);
+    DEBUG_PRINT("WiFi.status="); DEBUG_PRINTLN(WiFi.status());
+
+#ifndef NO_DISPLAY    
+    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+#endif    
+  }
+
+  if (!isMqttAvailable && isWifiAvailable)
+  {
+    // TODO Add a menu item to start a new retry?
+    //      Or and mqtt enable/disable config when we have on device configs
+    //      Do we want to retry this more less often like every 15 min or 1h?
+    // Limit this to 2 retrys to not bug down a system forever if not availible
+    if (mqtt_reconnect_counter < 2)
+    {
+      DEBUG_PRINTLN("Reconnecting to mqtt...");
+      mqtt_reconnect_counter++;
+      isMqttAvailable = mqttConnect();
+#ifndef NO_DISPLAY
+      updateDisplay(true);
+#endif      
+    }
+  }
+}
+
+const char* getTopic(topics_t topic) 
+{
+  return mqtt_topics[topic].c_str();
+}
+
+void publish_topics(void)
+{
+  char kmphStr[6];
+  snprintf(kmphStr,    6, "%.1f", kmph);
+
+  client.publish(getTopic(MQTT_TOPIC_SPEED),   kmphStr);
+}
+
+void setupMqttTopic(const String &id)
+{
+  for (unsigned i = 0; i < MQTT_NUM_TOPICS; ++i) {
+    mqtt_topics[i].replace("%MQTTDEVICEID%", id);
+  }
+}
+
+int initMqtt(void)
+{
+  DEBUG_PRINTLN("Init Mqtt");
+
+  esp_efuse_mac_get_default(mac_addr);
+
+  MQTTDEVICEID += String(mac_addr[4], HEX);
+  MQTTDEVICEID += String(mac_addr[5], HEX);
+
+  setupMqttTopic(MQTTDEVICEID);
+  isMqttAvailable = mqttConnect();
+  delay(2000);
+
+#ifndef NO_DISPLAY  
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_BLUE);
+    tft.setTextFont(4);
+    tft.setCursor(20, 40);
+    tft.println("mqtt setup Done!");
+    delay(2000);
+#endif  
+
+
+  return isMqttAvailable;
+}
+
+bool mqttConnect(void) 
+{
+  bool rc = false;
+  bool result = false;
+
+  DEBUG_PRINT("Attempting MQTT connection...");
+ #ifndef NO_DISPLAY
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
   tft.setCursor(20, 40);
-  tft.println("Connecting to WiFi");
-
-  unsigned retry_counter = 0;
-  WiFi.begin(wifi_ssid, wifi_pass);
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    DEBUG_PRINT(".");
-    tft.print(".");
-    retry_counter++;
-    if (retry_counter > maxWifiWaitSeconds) {
-      DEBUG_PRINTLN(" TIMEOUT!");
-      tft.setTextFont(4);
-      tft.fillScreen(TFT_BLACK);
-      tft.setTextColor(TFT_RED);
-      tft.setCursor(20, 60);
-      tft.println("Wifi TIMEOUT");
-      delay(2000);
-      return 1;
-    }
-  }
-  ipAddr  = WiFi.localIP().toString();
-  dnsAddr = WiFi.dnsIP().toString();
-
-  DEBUG_PRINTLN("");
-  DEBUG_PRINTLN("WiFi connected");
-  DEBUG_PRINTLN("IP address: ");
-  DEBUG_PRINTLN(ipAddr);
-  DEBUG_PRINTLN("DNS address: ");
-  DEBUG_PRINTLN(dnsAddr);
-
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
-  tft.setCursor(20, 40);
-  tft.println("Wifi CONNECTED");
-  tft.print("IP Addr: "); tft.println(ipAddr);
-  delay(2000);
-  return 0;
-}
-
-
-bool mqttConnect(bool draw) {
-  bool rc;
-  DEBUG_PRINT("Attempting MQTT connection...");
-  if (draw)
-  {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextFont(2);
-    tft.setCursor(20, 40);
-    tft.print("Connecting to MQTT server: ");
-    tft.println(mqtt_host);
-  }
+  tft.print("Connecting to MQTT server: ");
+  tft.println(mqtt_host);
+#endif  
 
   // Attempt to connect
 #ifdef MQTT_USE_SSL
@@ -92,64 +445,65 @@ bool mqttConnect(bool draw) {
 
   client.setServer(mqtt_host, mqtt_port);
   if (client.connect(MQTTDEVICEID.c_str(), mqtt_user, mqtt_pass,
-		     getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) {
+	    getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) 
+  {
     // Once connected, publish an announcement...
     DEBUG_PRINTLN("publish connected...");
-    if (draw)
-    {
-      tft.println("publish connected...");
-    }
+#ifndef NO_DISPLAY    
+    tft.println("publish connected...");
+#endif    
     rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
 
     if (rc) DEBUG_PRINTLN("OK");
     else    DEBUG_PRINTLN("ERROR");
     DEBUG_PRINTLN("publish version & IP");
 
-    if (draw)
-    {
-      if (rc) tft.println("OK");
-      else    tft.println("ERROR");
-      delay(1500);
-      tft.println("publish version & IP");
-    }
+#ifndef NO_DISPLAY
+    if (rc) tft.println("OK");
+    else    tft.println("ERROR");
+    delay(1500);
+    tft.println("publish version & IP");
+#endif    
 
-    rc |= client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(rr), true);
+    rc |= client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(reset_reason), true);
     rc |= client.publish(getTopic(MQTT_TOPIC_VERSION), VERSION, true);
     rc |= client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
 
     if (rc) DEBUG_PRINTLN("OK");
-    else    DEBUG_PRINTLN("ERROR");
+      else  DEBUG_PRINTLN("ERROR");
 
-    if (draw)
-    {
-      if (rc) tft.println("OK");
-      else    tft.println("ERROR");
-      delay(1500);
-      tft.fillScreen(TFT_BLACK);
-      tft.setTextColor(TFT_GREEN);
-      tft.setCursor(20, 60);
-      tft.println("MQTT CONNECTED");
-    }
+#ifndef NO_DISPLAY
+    if (rc) tft.println("OK");
+    else    tft.println("ERROR");
+  
+    delay(1500);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_GREEN);
+    tft.setCursor(20, 60);
+    tft.println("MQTT CONNECTED");
+#endif    
     DEBUG_PRINTLN("MQTT CONNECTED");
-    return true;
-  } else {
+    result = true;
+  } 
+  else
+  {
     DEBUG_PRINT("failed, rc=");
     DEBUG_PRINTLN(client.state());
-    if (draw)
-    {
-      tft.fillScreen(TFT_BLACK);
-      tft.setTextColor(TFT_RED);
-      tft.setCursor(20, 60);
-      tft.println("MQTT FAILED");
-      delay(1000);
-    }
+#ifndef NO_DISPLAY    
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_RED);
+    tft.setCursor(20, 60);
+    tft.println("MQTT FAILED");
+    delay(1000);
+#endif    
+    result= false;
   }
-  return false;
+return result;
 }
 
-
 // replaces placeholders
-String processor(const String& var){
+String processor(const String& var)
+{
   if (var == "HOUR")
     return readHour();
   else if (var == "MINUTE")
@@ -167,24 +521,26 @@ String processor(const String& var){
   else if (var == "VERSION")
     return VERSION;
   else if (var == "RESET_REASON")
-    return getRstReason(rr);
+    return getRstReason(reset_reason);
 
   return String();
 }
 
 
-void onNotFound(AsyncWebServerRequest* request) {
+void onNotFound(AsyncWebServerRequest* request) 
+{
   request->send(404, "text/plain", "Not found");
 }
 
-void onRootRequest(AsyncWebServerRequest *request) {
+void onRootRequest(AsyncWebServerRequest *request) 
+{
   request->send(SPIFFS, "/index.html", "text/html", false, processor);
 }
 
-
 #ifdef ASYNC_TCP_SSL_ENABLED
-int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) {
-  //Serial.printf("SSL File: %s\n", filename);
+int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) 
+{
+  //Serial.printf("SSL File: %s\n", filename);  
   // sanitize filename!??
   File file = SPIFFS.open(filename, "r");
   if (file) {
@@ -206,7 +562,9 @@ int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) {
 
 void initAsyncWebserver()
 {
+  DEBUG_PRINTLN("Init Webserver");
   server.on("/", HTTP_GET, onRootRequest);
+  server.on("/resetwifi", HTTP_GET, resetWifiConnection);
   server.serveStatic("/", SPIFFS, "/");
 
   AsyncElegantOTA.begin(&server);
@@ -225,7 +583,8 @@ void initAsyncWebserver()
 
 // https://arduinojson.org/v6/assistant/
 
-void notifyClients() {
+void notifyClients() 
+{
   StaticJsonDocument<256> doc;
 
   doc["speed"]          = kmph;
@@ -246,7 +605,8 @@ void notifyClients() {
 }
 
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) 
+{
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
 
   if (info->final && info->index == 0 &&
@@ -271,7 +631,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
       if (strcmp(value, "incline") == 0)
         speedInclineMode ^= INCLINE; // b'10
 
+#ifndef NO_DISPLAY
       updateHeader();
+#endif      
     }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)
@@ -302,25 +664,73 @@ void onEvent(AsyncWebSocket       *server,
              AwsEventType          type, // connect/disconnect/data/pong
              void                 *arg,
              uint8_t              *data,
-             size_t                len) {
-  switch (type) {
-  case WS_EVT_CONNECT:
-    DEBUG_PRINTF("WebSocket client #%u connected from %s\n", client->id(),
-		 client->remoteIP().toString().c_str());
-    break;
-  case WS_EVT_DISCONNECT:
-    DEBUG_PRINTF("WebSocket client #%u disconnected\n", client->id());
-    break;
-  case WS_EVT_DATA:
-    handleWebSocketMessage(arg, data, len);
-    break;
-  case WS_EVT_PONG:
-  case WS_EVT_ERROR:
-    break;
+             size_t                len) 
+{
+  switch (type) 
+  {
+    case WS_EVT_CONNECT:
+      DEBUG_PRINTF("WebSocket client #%u connected from %s\n", client->id(),
+		   client->remoteIP().toString().c_str());
+      break;
+    case WS_EVT_DISCONNECT:
+      DEBUG_PRINTF("WebSocket client #%u disconnected\n", client->id());
+      break;
+    case WS_EVT_DATA:
+      handleWebSocketMessage(arg, data, len);
+      break;
+    case WS_EVT_PONG:
+    case WS_EVT_ERROR:
+      break;
   }
 }
 
-void initWebSocket() {
+
+String readSpeed()
+{
+  return String(kmph);
+}
+
+String readDist()
+{
+  return String(total_distance / 1000);
+}
+
+String readIncline()
+{
+  return String(incline);
+}
+
+String readElevation()
+{
+  return String(elevation_gain);
+}
+
+String readHour() {
+  return String(hour());
+}
+
+String readMinute() {
+  int m = minute();
+  String mStr(m);
+
+  if (m < 10)
+    mStr = "0" + mStr;
+
+  return mStr;
+}
+
+String readSecond() {
+  int s = second();
+  String sStr(s);
+
+  if (s < 10)
+    sStr = "0" + sStr;
+
+  return sStr;
+}
+
+void initWebSocket() 
+{
   ws.onEvent(onEvent);
   server.addHandler(&ws);
 }
