@@ -1,3 +1,6 @@
+#ifndef _HARDWARE_H_
+#define _HARDWARE_H_
+
 /**
  *
  *
@@ -22,11 +25,33 @@
 
 #pragma once
 
-#include "common.h"
 #include <Wire.h>
 
 //#define AW9523_IRQ_MODE  //TODO see if we can get this to work or remove the code
 static constexpr int TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS = 250;
+extern volatile long workoutDistance;
+extern unsigned long wifi_reconnect_counter;
+extern bool timer_tick;
+
+#ifndef NO_DISPLAY
+#ifdef LGFX_USE_V1
+#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
+extern LGFX tft;
+#ifdef HAS_TOUCH_DISPLAY
+extern LGFX_Button touchButtons[];
+extern LGFX_Button btnSpeedToggle;
+extern LGFX_Button btnInclineToggle;
+extern LGFX_Button btnSpeedUp;
+extern LGFX_Button btnSpeedDown;
+extern LGFX_Button btnInclineUp;
+extern LGFX_Button btnInclineDown;
+#endif
+#else
+#include <TFT_eSPI.h>
+extern TFT_eSPI tft;
+#endif
+#endif
 
 class GPIOExtenderAW9523
 {
@@ -39,31 +64,22 @@ public:
   }
 
   bool begin();
-
   bool isAvailable();
-
   uint16_t getPins(void);
   bool checkInterrupt(void);
-
 #ifdef AW9523_IRQ_MODE
   void IRAM_ATTR gotInterrupt(void);
 #endif
-
   void loopHandler(void);
   void logPins(void);
-
   bool pressEvent(EventType eventButton);
-
 private:
   uint8_t read(uint8_t reg);
   bool write(uint8_t reg, uint8_t data);
-
   bool enabled = false;
   bool isInterrupted = false;
   TwoWire *wire;
-
   static constexpr uint8_t AW9523_ADDR = 0x5B;
-
   static constexpr uint8_t INPUT_PORT0 = 0x00; //P0 port input state
   static constexpr uint8_t INPUT_PORT1 = 0x01; //P1 port input state
   static constexpr uint8_t OUTPUT_PORT0 = 0x02; //P0 port output state
@@ -92,30 +108,37 @@ private:
   static constexpr uint8_t DIM13 = 0x21; //P1_5 LED current control
   static constexpr uint8_t DIM14 = 0x22; //P1_6 LED current control
   static constexpr uint8_t DIM15 = 0x23; //P1_7 LED current control
-
   static constexpr uint8_t SW_RSTN = 0x7F;
-
   static constexpr uint8_t ID_AW9523 = 0x23;
-
   static constexpr uint16_t AW9523_KEY_UP    = 0x0001;
   static constexpr uint16_t AW9523_KEY_LEFT  = 0x0002;
   static constexpr uint16_t AW9523_KEY_DOWV  = 0x0004;
   static constexpr uint16_t AW9523_KEY_RIGHT = 0x0008;
   static constexpr uint16_t AW9523_KEY_OK    = 0x0010;
   static constexpr uint16_t AW9523_KEY_BACK  = 0x0020;
-
   static constexpr uint16_t AW9523_TREADMILL_REED       = 0x0100;
 
 // These are used to control/override the Treadmil, e.g. pins are connected to
 // the different button so that software can "press" them
 // TODO: They could also be used to read pins, to see if user presses them
-
   static constexpr uint16_t AW9523_TREADMILL_START      = 0x0200;
   static constexpr uint16_t AW9523_TREADMILL_SPEED_DOWN = 0x0400;
   static constexpr uint16_t AW9523_TREADMILL_INC_DOWN   = 0x0800;
   static constexpr uint16_t AW9523_TREADMILL_INC_UP     = 0x1000;
   static constexpr uint16_t AW9523_TREADMILL_SPEED_UP   = 0x2000;
   static constexpr uint16_t AW9523_TREADMILL_STOP       = 0x4000;
-
-
 };
+
+void initHardware(void);
+void initSensors(void);
+void initButton(void);
+void loop_handle_hardware(void);
+void loop_handle_button(void);
+void handle_event(EventType event);
+float calculate_RPM(void);
+float getIncline(void);
+extern esp_reset_reason_t reset_reason;
+extern const char* getRstReason(esp_reset_reason_t r);
+extern TwoWire I2C_0;
+extern GPIOExtenderAW9523 GPIOExtender;
+#endif

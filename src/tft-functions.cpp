@@ -1,4 +1,23 @@
-#include "common.h"
+#ifndef NO_DISPLAY
+#include "ESP32_TTGO_FTMS.h"
+#include "hardware.h"
+#include "net-control.h"
+#include "display.h"
+
+#define TFT_SETUP_FONT_SIZE 4
+#define TFT_STATS_FONT_SIZE 2
+
+#define CIRCLE_SPEED_X_POS   188
+#define CIRCLE_INCLINE_X_POS 208
+#define CIRCLE_BT_STAT_X_POS 227
+
+#define CIRCLE_SPEED_Y_POS    11
+#define CIRCLE_INCLINE_Y_POS  11
+#define CIRCLE_BT_STAT_Y_POS  11
+#define CIRCLE_Y_POS          11
+#define CIRCLE_RADIUS          8
+
+
 
 
 // with tft.setRotation(1); => landscape orientation (usb right side)
@@ -20,17 +39,9 @@ const int DRAW_HEIGHT = TFT_WIDTH;
 
 // add support for nextion display ... since I have one I'll give it a try ;)
 
-void initSPIFFSDone()
-{
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("initSPIFFS Done!");
-}
-
 void updateDisplay(bool clear)
 {
+#ifndef NO_DISPLAY      
   if (clear) {
     tft.fillScreen(TFT_BLACK);
     updateHeader();
@@ -41,7 +52,6 @@ void updateDisplay(bool clear)
 
 // FIXME: is that a "good" way to handle different (touch) screen ...!??
 #if defined(TARGET_WT32_SC01)
-
   if (clear) {
       // create buttons
       //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
@@ -119,10 +129,7 @@ void updateDisplay(bool clear)
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
-
 #else
-
-
   if (clear) {
     tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
     tft.drawFastVLine(DRAW_WIDTH / 2, 22,                   DRAW_HEIGHT - 22, TFT_WHITE);
@@ -169,6 +176,7 @@ void updateDisplay(bool clear)
   tft.setTextFont(4);
   tft.println((uint32_t)elevation_gain);
 #endif // display TARGET
+#endif // no_display
 }
 
 void updateBTConnectionStatus(bool connected)
@@ -243,3 +251,4 @@ void updateHeader()
 
   show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
 }
+#endif
