@@ -226,6 +226,9 @@ void initBLE() {
 
 void updateBLEdata(void)
 {
+  uint16_t inst_incline = 0;
+  uint16_t inst_grade = 0;
+  uint16_t inst_elevation_gain = 0;
   uint8_t treadmillData[34] = {};
   uint16_t flags = 0x0018;  // b'000000011000
   //                             119876543210

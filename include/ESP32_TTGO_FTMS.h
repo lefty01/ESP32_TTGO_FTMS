@@ -59,10 +59,7 @@ extern double total_distance;
 extern double elevation_gain;
 extern uint8_t speedInclineMode;
 extern volatile float speed_interval;
-extern uint16_t    inst_incline;
-extern uint16_t    inst_grade;
 extern double grade_deg;
-extern uint16_t    inst_elevation_gain;
 extern double angle;
 
 void logText(const char *text);

@@ -57,11 +57,8 @@ float kmph_sense=0;
 float  incline=0;
 double total_distance=0;
 double elevation_gain=0;
-uint16_t    inst_incline;
-uint16_t    inst_grade;
-uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
-uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
-uint16_t    inst_elevation_gain = 0;
+//uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
+//uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
 double      elevation;
 float mps;  // meter per second
 double angle = 0;
