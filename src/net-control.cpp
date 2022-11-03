@@ -1,7 +1,9 @@
 
 #define NIMBLE
 //#include "common.h"
-#include <SPIFFS.h>
+//#include <SPIFFS.h>
+//#include <FS.h>
+#include <LittleFS.h>
 #include <AsyncElegantOTA.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -175,6 +177,7 @@ void loop_handle_BLE()
   }
 }
 void initBLE() {
+  logText("init BLE...");
 #ifndef NO_DISPLAY  
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
@@ -218,6 +221,7 @@ void initBLE() {
 
   pAdvertising->start();
   delay(2000); // added to keep tft msg a bit longer ...
+  logText("done\n");  
 }
 
 void updateBLEdata(void)
@@ -280,8 +284,8 @@ void resetStopWatch(void)
 void initWifi()
 {
   bool res;
-  DEBUG_PRINTLN("Init Wifi");
 
+  logText("Init Wifi...");  
   // reset settings - wipe stored credentials for testing
   // these are stored by the esp library
   // wm.resetSettings();
@@ -304,7 +308,8 @@ void initWifi()
 //cs    WifiAvailable = false;
     isWifiAvailable = false;
 
-    DEBUG_PRINTF("Failed to connect");
+//    DEBUG_PRINTF("Failed to connect");
+  logText("failed\n");  
 //    Serial.println("Failed to connect"); 
 //    ESP.restart();
   } 
@@ -315,6 +320,7 @@ void initWifi()
     ipAddr  = WiFi.localIP().toString();
     dnsAddr = WiFi.dnsIP().toString();
 
+    logText("done\n");  
     DEBUG_PRINTLN("");
     DEBUG_PRINTLN("WiFi connected");
     DEBUG_PRINT("IP address: ");
@@ -397,7 +403,7 @@ void setupMqttTopic(const String &id)
 
 int initMqtt(void)
 {
-  DEBUG_PRINTLN("Init Mqtt");
+  logText("Init Mqtt...");
 
   esp_efuse_mac_get_default(mac_addr);
 
@@ -413,7 +419,7 @@ int initMqtt(void)
     tft.setTextColor(TFT_BLUE);
     tft.setTextFont(4);
     tft.setCursor(20, 40);
-    tft.println("mqtt setup Done!");
+    tft.println("mqtt setup done!");
     delay(2000);
 #endif  
 
@@ -426,7 +432,7 @@ bool mqttConnect(void)
   bool rc = false;
   bool result = false;
 
-  DEBUG_PRINT("Attempting MQTT connection...");
+  logText("Attempting MQTT connection...\n");  
  #ifndef NO_DISPLAY
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
@@ -534,7 +540,7 @@ void onNotFound(AsyncWebServerRequest* request)
 
 void onRootRequest(AsyncWebServerRequest *request) 
 {
-  request->send(SPIFFS, "/index.html", "text/html", false, processor);
+  request->send(LittleFS, "/index.html", "text/html", false, processor);
 }
 
 #ifdef ASYNC_TCP_SSL_ENABLED
@@ -562,10 +568,11 @@ int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf)
 
 void initAsyncWebserver()
 {
+  logText("init webserver...");
   DEBUG_PRINTLN("Init Webserver");
   server.on("/", HTTP_GET, onRootRequest);
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
-  server.serveStatic("/", SPIFFS, "/");
+  server.serveStatic("/", LittleFS, "/");
 
   AsyncElegantOTA.begin(&server);
   // Start server
@@ -575,6 +582,7 @@ void initAsyncWebserver()
 #else
     server.begin();
 #endif
+  logText("done\n");
 }
 
 // ----------------------------------------------------------------------------

@@ -20,6 +20,7 @@ TFT_eSPI tft = TFT_eSPI();
 
 void initDisplay(void)
 {
+  logText("Init display...");    
 #ifndef NO_DISPLAY  
   tft.init(); // vs begin??
   tft.setRotation(1); // 3
@@ -53,6 +54,7 @@ void initDisplay(void)
 #ifndef NO_DISPLAY 
   delay(3000);
 #endif  
+  logText("done\n");  
 }
 
 void showInfo() {

@@ -2,6 +2,8 @@
 #define _debug_print_h_
 
 
+#define DEBUG 1
+
 #ifdef DEBUG
 
 #ifdef DEBUG_MQTT
