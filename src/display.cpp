@@ -80,7 +80,7 @@ void loop_handle_touch(void) {
 #if defined (HAS_TOUCH_DISPLAY)
   int32_t touch_x = 0, touch_y = 0;
 
- // DEBUG_PRINTLN("loop handle touch..");
+  //DEBUG_PRINTLN("loop handle touch..");
   tft.getTouch(&touch_x, &touch_y);
 
   // FIXME: switch to button array (touchButtons[]) and cycle through buttons here

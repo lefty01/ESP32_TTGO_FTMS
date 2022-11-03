@@ -18,8 +18,8 @@
 #define default_min_speed  0.5
 #define default_max_incline 5.0
 #define default_min_incline 0.0
-#define default_speed_interval_min 0.1
-#define default_incline_interval_min 1.0
+#define default_speed_interval 0.1
+#define default_incline_interval 1.0
 #define default_belt_distance 250
 #define default_hasMPU6050 false
 #define default_hasVL53L0X false
@@ -30,8 +30,8 @@
 #define abs_min_speed  0.0
 #define abs_max_incline 12.0
 #define abs_min_incline 0.0
-#define abs_speed_interval_min 1.0
-#define abs_incline_interval_min 1.0
+#define abs_speed_interval 1.0
+#define abs_incline_interval 1.0
 #define abs_belt_distance 250
 
 String treadmill_name;
@@ -39,11 +39,14 @@ float max_speed;
 float min_speed;
 float max_incline; // incline/grade in percent(!)
 float min_incline;
-float speed_interval_min;
-float incline_interval_min;
+//float speed_interval_min;
+//float incline_interval_min;
 long  belt_distance; // mm ... actually circumfence of motor wheel!
-float incline_interval = incline_interval_min;
-volatile float speed_interval = speed_interval_min;
+//float incline_interval = incline_interval_min;
+//volatile float speed_interval = speed_interval_min;
+float incline_interval=0;
+volatile float speed_interval=0;
+
 bool hasMPU6050;
 bool hasVL53L0X;
 bool hasIrSense;
@@ -63,10 +66,10 @@ void dump_settings(void)
   DEBUG_PRINTLN(max_incline);
   DEBUG_PRINT("min_incline: "); 
   DEBUG_PRINTLN(min_incline);
-  DEBUG_PRINT("speed_interval_min: "); 
-  DEBUG_PRINTLN(speed_interval_min);
-  DEBUG_PRINT("incline_interval_min: "); 
-  DEBUG_PRINTLN(incline_interval_min);
+  DEBUG_PRINT("speed_interval: "); 
+  DEBUG_PRINTLN(speed_interval);
+  DEBUG_PRINT("incline_interval: "); 
+  DEBUG_PRINTLN(incline_interval);
   DEBUG_PRINT("belt_distance: "); 
   DEBUG_PRINTLN(belt_distance);
   DEBUG_PRINT("hasMPU6050: "); 
@@ -221,13 +224,15 @@ void initConfig(void)
   min_speed  = LittleFS_findFloat(F("min_speed"));
   max_incline  = LittleFS_findFloat(F("max_incline"));
   min_incline  = LittleFS_findFloat(F("min_incline"));
-  speed_interval_min  = LittleFS_findFloat(F("speed_interval_min"));
-  incline_interval_min  = LittleFS_findFloat(F("incline_interval_min"));
+  speed_interval  = LittleFS_findFloat(F("speed_interval"));
+  incline_interval  = LittleFS_findFloat(F("incline_interval"));
   belt_distance  = LittleFS_findFloat(F("belt_distance"));  
   hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
   hasVL53L0X    = LittleFS_findInt(F("hasVL53L0X"));
   hasIrSense    = LittleFS_findInt(F("hasIrSense"));
   hasReed    = LittleFS_findInt(F("hasReed"));
+
+  speedInclineMode = hasReed ? SPEED : MANUAL;
 
   // check if values were valid, else set to safe defaults
   if (treadmill_name.length() == 0)
@@ -260,16 +265,16 @@ void initConfig(void)
     logText("invalid min incline, using default\n");
   }
 
-  if ((speed_interval_min > abs_speed_interval_min) || (speed_interval_min < 0))
+  if ((speed_interval > abs_speed_interval) || (speed_interval < 0))
   {
-    speed_interval_min = default_speed_interval_min;
-    logText("invalid min speed interval, using default\n");
+    speed_interval = default_speed_interval;
+    logText("invalid speed interval, using default\n");
   }
 
-  if ((incline_interval_min > abs_incline_interval_min) || (incline_interval_min < 0))
+  if ((incline_interval > abs_incline_interval) || (incline_interval < 0))
   {
-    incline_interval_min = default_incline_interval_min;
-    logText("invalid min incline interval, using default\n");
+    incline_interval = default_incline_interval;
+    logText("invalid incline interval, using default\n");
   }
 
   if ((belt_distance > abs_belt_distance) || (belt_distance < 0))
@@ -302,6 +307,8 @@ void initConfig(void)
     hasReed = default_hasReed;
     logText("invalid reed sensor setting, using default (false)\n");
   }
+//  incline_interval  = incline_interval_min;
+//  speed_interval = speed_interval_min;
 
 dump_settings();
   logText("done\n");  
