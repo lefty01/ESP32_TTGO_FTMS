@@ -274,6 +274,7 @@ void loop_handle_button()
 
 void initButton()
 {
+  logText("initButton...");  
 #ifdef BUTTON_1
   // button 1 (GPIO 0) control auto/manual mode and reset timers
   btn1.setTapHandler(btn1TapHandler);
@@ -301,6 +302,7 @@ void initButton()
   //     touchButtons[n] = LGFX_Button();
   // }
   // fixme: ...
+  logText(",inittouch...");  
   btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
   btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
   btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
@@ -309,8 +311,8 @@ void initButton()
   btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
   //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
   //modeButton.drawButton();
-  DEBUG_PRINTLN("buttons initialised..");
 #endif
+  logText("done\n");  
 }
 
 void delayWithDisplayUpdate(unsigned long delayMilli)
@@ -337,26 +339,26 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 void initSensors(void)
 {
 #ifndef NO_MPU6050  
-  logText("init MPU6050\n");
+  logText("init MPU6050....");
 
   byte status = mpu.begin();
-  DEBUG_PRINT("MPU6050 status: ");
-  DEBUG_PRINTLN(status);
+  DEBUG_PRINT("status: ");
+  DEBUG_PRINT(status);
 
   if (status != 0) 
   {
-    logText("MPU6050 setup failed!\n");
+    logText(" failed\n");
   }
   else
   {
-    logText("Calc offsets, do not move MPU6050 (3sec)\n");
+    logText("Calc offsets, do not move MPU6050 (3sec)");
 
     mpu.calcOffsets(); // gyro and accel.
     delayWithDisplayUpdate(2000);
     speedInclineMode |= INCLINE;
     hasMPU6050 = true;
 
-    logText("MPU6050 OK!\n");
+    logText(" done\n");
   }
 #else
   hasMPU6050 = false;
@@ -489,6 +491,8 @@ void loop_handle_hardware(void)
   unsigned long t;
   const unsigned long c = 359712; // d=10cm
 
+  I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
+
   GPIOExtender.loopHandler();
 
   if ((millis() - sw_timer_clock) > EVERY_SECOND) 
@@ -511,6 +515,7 @@ void loop_handle_hardware(void)
     interrupts();
     DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmph_sense);
   }
+  I2C_0.end();  
 } 
 
 // A simple event handler, currenly just a call stack, an event queue would be smarter
@@ -554,6 +559,7 @@ float calculate_RPM(void)
 }
 
 static void initGPIOExtender(void) {
+  logText("initGPIOExtender...\n");  
   while (!GPIOExtender.begin())
   {
     DEBUG_PRINTLN("GPIOExtender not found");
@@ -566,7 +572,7 @@ static void initGPIOExtender(void) {
   attachInterrupt(digitalPinToInterrupt(AW9523_INTERRUPT_PIN), GPIOExtenderInterrupt, CHANGE);
   GPIOExtender.getPins(); // Get pins one to clear intrrupts
 #endif
-  DEBUG_PRINTLN("GPIOExtender Setup Done");
+   logText("done\n");  
 }
 
 #ifdef AW9523_IRQ_MODE
@@ -816,6 +822,7 @@ void IRAM_ATTR GPIOExtenderAW9523::gotInterrupt(void)
 
 void initHardware(void)
 {
+  logText("init Hardware...");  
   reset_reason = esp_reset_reason();
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?
@@ -831,6 +838,7 @@ void initHardware(void)
   I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
   
   initGPIOExtender();
+  logText("done\n");
 }
 
 const char* getRstReason(esp_reset_reason_t r) {

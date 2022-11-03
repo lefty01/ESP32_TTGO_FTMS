@@ -32,8 +32,8 @@
 //#include "common.h"
 #include <math.h>
 #include <SPI.h>
-
-#include <SPIFFS.h>
+//#include <FS.h>
+#include <LittleFS.h>
 #include <Preferences.h>
 #include <unity.h>
 
@@ -86,17 +86,26 @@ void logText(String text)
   logText(text.c_str());
 }
 
-void initSPIFFS() {
-  logText("initSPIFFS\n");
+void initLittleFS() 
+{
+  logText("initLittleFS...");
 
-  if (!SPIFFS.begin(true)) { // true = formatOnFail
-    logText("Cannot mount SPIFFS volume FAILED!!!\n");
-  }  
-  else {
-    DEBUG_PRINTLN("SPIFFS Setup Done");
+  // begin, format if failed
+  if(!LittleFS.begin(true))  // true = formatOnFail
+  {
+    logText("Failed, Cannot mount LittkeFS volume\n");
+//    Serial.println("LITTLEFS Mount Failed");
+
+//        return;
   }
-
-  logText("initSPIFFS Done!\n");  
+//  LittleFS.begin();
+  
+//  if (!SPIFFS.begin(true)) { // true = formatOnFail
+//    logText("Failed, Cannot mount SPIFFS volume\n");
+//  }  
+//  else {
+    logText("done\n");
+//  }
 }
 
 
@@ -258,15 +267,18 @@ void setup()
   elevation_gain = 0;
 
   DEBUG_BEGIN(115200);
-  DEBUG_PRINTLN("setup started");
+
+  delay(2000);  
+  logText("setup started...\n");
+  delay(4000);  
 
   initWifi();
-  initSPIFFS();
+  initLittleFS();
+  initButton();
+  initBLE();
   initConfig();
   initHardware();
-  initButton();
   initDisplay();
-  initBLE();
   
   if (isWifiAvailable) 
   {
@@ -280,7 +292,7 @@ void setup()
   updateDisplay(true);
   resetStopWatch();
 
-  DEBUG_PRINTLN("Setup done");
+  logText("setup done\n");
 }
 
 void loop() 
