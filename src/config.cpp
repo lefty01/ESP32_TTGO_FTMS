@@ -232,8 +232,6 @@ void initConfig(void)
   hasIrSense    = LittleFS_findInt(F("hasIrSense"));
   hasReed    = LittleFS_findInt(F("hasReed"));
 
-  speedInclineMode = hasReed ? SPEED : MANUAL;
-
   // check if values were valid, else set to safe defaults
   if (treadmill_name.length() == 0)
   {
@@ -309,6 +307,7 @@ void initConfig(void)
   }
 //  incline_interval  = incline_interval_min;
 //  speed_interval = speed_interval_min;
+  speedInclineMode = hasReed ? SPEED : MANUAL;
 
 dump_settings();
   logText("done\n");  
