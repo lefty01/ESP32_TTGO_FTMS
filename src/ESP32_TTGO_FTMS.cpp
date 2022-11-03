@@ -184,7 +184,9 @@ void inclineDown()
 
 double angleSensorTreadmillConversion(double inAngle) {
   double convertedAngle = inAngle;
-#if TREADMILL_MODEL == NORDICTRACK_12SI
+
+#warning todo remove this   
+//#if TREADMILL_MODEL == NORDICTRACK_12SI
   // TODO: Maybe this should be a config somewhere together with sensor orientation
 
   /* If Sensor is placed in inside the treadmill engine
@@ -207,7 +209,7 @@ double angleSensorTreadmillConversion(double inAngle) {
   double c = 32.0;  // lenght of motor part in cm
   double a = 150.0; // lenght of running area in cm
   convertedAngle = asin(c*sin(inAngle * DEG_TO_RAD)/a) * RAD_TO_DEG;
-#endif
+//#endif
   return convertedAngle;
 }
 

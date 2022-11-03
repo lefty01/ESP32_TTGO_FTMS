@@ -22,13 +22,13 @@
 
 #include <Arduino.h>
 #include <Button2.h>
-#ifndef NO_MPU6050
+//#ifndef NO_MPU6050
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
-#endif
-#ifndef NO_VL53L0X
+//#endif
+//#ifndef NO_VL53L0X
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
-#endif
+//#endif
 
 
 #include "ESP32_TTGO_FTMS.h"
@@ -157,14 +157,14 @@ static const uint32_t I2C_FREQ = 400000;
 #error Unknown HW Platform
 #endif
 
-#ifndef NO_VL53L0X
+//#ifndef NO_VL53L0X
 VL53L0X sensor;
 const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
-#endif
+//#endif
 
-#ifndef NO_MPU6050
+//#ifndef NO_MPU6050
 static MPU6050 mpu(I2C_0);
-#endif
+//#endif
 
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
@@ -338,49 +338,46 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 
 void initSensors(void)
 {
-#ifndef NO_MPU6050  
-  logText("init MPU6050....");
-
-  byte status = mpu.begin();
-  DEBUG_PRINT("status: ");
-  DEBUG_PRINT(status);
-
-  if (status != 0) 
+  if (hasMPU6050)
   {
-    logText(" failed\n");
-  }
-  else
-  {
-    logText("Calc offsets, do not move MPU6050 (3sec)");
+    logText("init MPU6050....");
 
-    mpu.calcOffsets(); // gyro and accel.
-    delayWithDisplayUpdate(2000);
-    speedInclineMode |= INCLINE;
-    hasMPU6050 = true;
+    byte status = mpu.begin();
+    DEBUG_PRINT("status: ");
+    DEBUG_PRINT(status);
 
-    logText(" done\n");
-  }
-#else
-  hasMPU6050 = false;
-#endif
-#ifndef NO_VL53L0X
-  logText("init VL53L0X\n");
-  sensor.setTimeout(500);
+    if (status != 0) 
+    {
+      logText(" failed\n");
+    }
+    else
+    {
+      logText("Calc offsets, do not move MPU6050 (3sec)");
 
-  if (!sensor.init()) 
-  {
-    DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
-    logText("VL53L0X setup failed!\n");    
+      mpu.calcOffsets(); // gyro and accel.
+      delayWithDisplayUpdate(2000);
+      speedInclineMode |= INCLINE;
+
+      logText(" done\n");
+    }
   }
-  else 
+
+  if (hasVL53L0X) 
   {
-    DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
-    logText("VL53L0X initialized!\n");
-    hasVL53L0X = true;
+    logText("init VL53L0X\n");
+    sensor.setTimeout(500);
+
+    if (!sensor.init()) 
+    {
+      DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
+      logText("VL53L0X setup failed!\n");    
+    }
+    else 
+    {
+      DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
+      logText("VL53L0X initialized!\n");
+    }
   }
-#else
-  hasVL53L0X = false;
-#endif
 }
 
 void IRAM_ATTR reedSwitch_ISR()
@@ -445,13 +442,15 @@ float getIncline(void)
   char yStr[5];
   char inclineStr[6];
 
-  if (hasVL53L0X) {
+  if (hasVL53L0X) 
+  {
     // calc incline/angle from distance
     // depends on sensor placement ... TODO: configure via webinterface
   }
-  else if (hasMPU6050) {
+
+  if (hasMPU6050) 
+  {
     // MPU6050 returns a incline/grade in degrees(!)
-#ifndef NO_MPU6050
     // TODO: configure sensor orientation  via webinterface
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
@@ -466,20 +465,17 @@ float getIncline(void)
     snprintf(inclineStr, 6, "%.1f", temp_incline);
 
     //client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
-#warning check out is this must be here ******************
+#warning check out if this must be here ******************
     // CS WHY IS THIS HERE
     //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     // ******************************************
-#else
-    //incline = 0;
-    //angle = 0;
-#endif
   }
 
   if (temp_incline <= min_incline) temp_incline = min_incline;
   if (temp_incline > max_incline)  temp_incline = max_incline;
 
-  //DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, temp_incline);
+#warning cs todo remove this
+  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, temp_incline);
 
   // probably need some more smoothing here ...
   // ...
@@ -489,6 +485,7 @@ float getIncline(void)
 void loop_handle_hardware(void)
 {
   unsigned long t;
+#warning remove this contsant to some file  
   const unsigned long c = 359712; // d=10cm
 
   I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
@@ -501,9 +498,10 @@ void loop_handle_hardware(void)
     timer_tick = true;
   } 
 
-#ifndef NO_MPU6050
-  mpu.update();
-#endif
+  if (hasMPU6050)
+  {
+    mpu.update();
+  }  
 
   t = t2 - t1;
   // check ir-speed sensor if not manual mode

@@ -1,12 +1,12 @@
-treadmillname=Taurus 9.5
+treadmillname=Sole F85
 max_speed=22.0
 min_speed=0.5
 max_incline=11.0
 min_incline=0.0
-speed_interval_min=0.1
-incline_interval_min=1.0
+speed_interval=0.1
+incline_interval=1.0
 belt_distance=250
-hasMPU6050=1
+hasMPU6050=0
 hasVL53L0X=0
 hasIrSense=0
-hasReed=1
+hasReed=0
