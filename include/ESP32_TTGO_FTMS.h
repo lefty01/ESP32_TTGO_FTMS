@@ -58,7 +58,7 @@ extern float  incline;
 extern double total_distance;
 extern double elevation_gain;
 extern uint8_t speedInclineMode;
-extern volatile float speed_interval;
+//extern volatile float speed_interval_step;
 extern double grade_deg;
 extern double angle;
 
