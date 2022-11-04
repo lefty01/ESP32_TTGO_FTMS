@@ -141,4 +141,5 @@ extern esp_reset_reason_t reset_reason;
 extern const char* getRstReason(esp_reset_reason_t r);
 extern TwoWire I2C_0;
 extern GPIOExtenderAW9523 GPIOExtender;
+void do_it(void);
 #endif

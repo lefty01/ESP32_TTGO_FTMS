@@ -18,8 +18,8 @@
 #define default_min_speed  0.5
 #define default_max_incline 5.0
 #define default_min_incline 0.0
-#define default_speed_interval 0.1
-#define default_incline_interval 1.0
+#define default_speed_interval_step 0.1
+#define default_incline_interval_step 1.0
 #define default_belt_distance 250
 #define default_hasMPU6050 false
 #define default_hasVL53L0X false
@@ -30,56 +30,53 @@
 #define abs_min_speed  0.0
 #define abs_max_incline 12.0
 #define abs_min_incline 0.0
-#define abs_speed_interval 1.0
-#define abs_incline_interval 1.0
+#define abs_speed_interval_step 1.0
+#define abs_incline_interval_step 1.0
 #define abs_belt_distance 250
 
-String treadmill_name;
-float max_speed;
-float min_speed;
-float max_incline; // incline/grade in percent(!)
-float min_incline;
-//float speed_interval_min;
-//float incline_interval_min;
-long  belt_distance; // mm ... actually circumfence of motor wheel!
-//float incline_interval = incline_interval_min;
-//volatile float speed_interval = speed_interval_min;
-float incline_interval=0;
-volatile float speed_interval=0;
+struct TreadmillConfiguration configTreadmill;
 
-bool hasMPU6050;
-bool hasVL53L0X;
-bool hasIrSense;
-bool hasReed;
+//String treadmill_name;
+//float max_speed;
+//float min_speed;
+//float max_incline; // incline/grade in percent(!)
+//float min_incline;
+//long  belt_distance; // mm ... actually circumfence of motor wheel!
+//float incline_interval_step=0;
+//volatile float speed_interval_step=0;
+//bool hasMPU6050;
+//bool hasVL53L0X;
+//bool hasIrSense;
+//bool hasReed;
 const char* VERSION = "0.0.22";
 
 
 void dump_settings(void)
 {
   DEBUG_PRINT("treadmillname: "); 
-  DEBUG_PRINTLN(treadmill_name);
+  DEBUG_PRINTLN(configTreadmill.treadmill_name);
   DEBUG_PRINT("max_speed: "); 
-  DEBUG_PRINTLN(max_speed);
+  DEBUG_PRINTLN(configTreadmill.max_speed);
   DEBUG_PRINT("min_speed: "); 
-  DEBUG_PRINTLN(min_speed);
+  DEBUG_PRINTLN(configTreadmill.min_speed);
   DEBUG_PRINT("max_incline: "); 
-  DEBUG_PRINTLN(max_incline);
+  DEBUG_PRINTLN(configTreadmill.max_incline);
   DEBUG_PRINT("min_incline: "); 
-  DEBUG_PRINTLN(min_incline);
-  DEBUG_PRINT("speed_interval: "); 
-  DEBUG_PRINTLN(speed_interval);
-  DEBUG_PRINT("incline_interval: "); 
-  DEBUG_PRINTLN(incline_interval);
+  DEBUG_PRINTLN(configTreadmill.min_incline);
+  DEBUG_PRINT("speed_interval step: "); 
+  DEBUG_PRINTLN(configTreadmill.speed_interval_step);
+  DEBUG_PRINT("incline_interval step: "); 
+  DEBUG_PRINTLN(configTreadmill.incline_interval_step);
   DEBUG_PRINT("belt_distance: "); 
-  DEBUG_PRINTLN(belt_distance);
+  DEBUG_PRINTLN(configTreadmill.belt_distance);
   DEBUG_PRINT("hasMPU6050: "); 
-  DEBUG_PRINTLN(hasMPU6050);
+  DEBUG_PRINTLN(configTreadmill.hasMPU6050);
   DEBUG_PRINT("hasVL53L0X: "); 
-  DEBUG_PRINTLN(hasVL53L0X);
+  DEBUG_PRINTLN(configTreadmill.hasVL53L0X);
   DEBUG_PRINT("hasIrSense: "); 
-  DEBUG_PRINTLN(hasIrSense);
+  DEBUG_PRINTLN(configTreadmill.hasIrSense);
   DEBUG_PRINT("hasReed: "); 
-  DEBUG_PRINTLN(hasReed);
+  DEBUG_PRINTLN(configTreadmill.hasReed);
   DEBUG_PRINTLN("");
 
 }
@@ -219,95 +216,94 @@ void initConfig(void)
 {
   logText("initConfig...");
 
-  treadmill_name = LittleFS_findString(F("treadmillname"));
-  max_speed  = LittleFS_findFloat(F("max_speed"));
-  min_speed  = LittleFS_findFloat(F("min_speed"));
-  max_incline  = LittleFS_findFloat(F("max_incline"));
-  min_incline  = LittleFS_findFloat(F("min_incline"));
-  speed_interval  = LittleFS_findFloat(F("speed_interval"));
-  incline_interval  = LittleFS_findFloat(F("incline_interval"));
-  belt_distance  = LittleFS_findFloat(F("belt_distance"));  
-  hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
-  hasVL53L0X    = LittleFS_findInt(F("hasVL53L0X"));
-  hasIrSense    = LittleFS_findInt(F("hasIrSense"));
-  hasReed    = LittleFS_findInt(F("hasReed"));
+  configTreadmill.treadmill_name = LittleFS_findString(F("treadmillname"));
+  configTreadmill.max_speed  = LittleFS_findFloat(F("max_speed"));
+  configTreadmill.min_speed  = LittleFS_findFloat(F("min_speed"));
+  configTreadmill.max_incline  = LittleFS_findFloat(F("max_incline"));
+  configTreadmill.min_incline  = LittleFS_findFloat(F("min_incline"));
+  configTreadmill.speed_interval_step  = LittleFS_findFloat(F("speed_interval_step"));
+  configTreadmill.incline_interval_step  = LittleFS_findFloat(F("incline_interval_step"));
+  configTreadmill.belt_distance  = LittleFS_findFloat(F("belt_distance"));  
+  configTreadmill.hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
+  configTreadmill.hasVL53L0X    = LittleFS_findInt(F("hasVL53L0X"));
+  configTreadmill.hasIrSense    = LittleFS_findInt(F("hasIrSense"));
+  configTreadmill.hasReed    = LittleFS_findInt(F("hasReed"));
 
   // check if values were valid, else set to safe defaults
-  if (treadmill_name.length() == 0)
+  if (configTreadmill.treadmill_name.length() == 0)
   {
-    treadmill_name = default_treadmill_name;
+    configTreadmill.treadmill_name = default_treadmill_name;
     logText("no treadmill name defined, using default\n");
   }
   
-  if ((max_speed > abs_max_speed) || (max_speed < 0))
+  if ((configTreadmill.max_speed > abs_max_speed) || (configTreadmill.max_speed < 0))
   {
-    max_speed = default_max_speed;
+    configTreadmill.max_speed = default_max_speed;
     logText("invalid max speed, using default\n");
   }
 
-  if ((min_speed < abs_min_speed) || (min_speed < 0))
+  if ((configTreadmill.min_speed < abs_min_speed) || (configTreadmill.min_speed < 0))
   {
-    min_speed = default_min_speed;
+    configTreadmill.min_speed = default_min_speed;
     logText("invalid min speed, using default\n");  
   }
 
-  if ((max_incline > abs_max_incline) || (max_incline < 0))
+  if ((configTreadmill.max_incline > abs_max_incline) || (configTreadmill.max_incline < 0))
   {
-    max_incline = default_max_incline;
+    configTreadmill.max_incline = default_max_incline;
     logText("invalid max incline, using default\n");
   }
 
-  if ((min_incline < abs_min_incline) || (min_incline < 0))
+  if ((configTreadmill.min_incline < abs_min_incline) || (configTreadmill.min_incline < 0))
   {
-    min_incline = default_min_incline;
+    configTreadmill.min_incline = default_min_incline;
     logText("invalid min incline, using default\n");
   }
 
-  if ((speed_interval > abs_speed_interval) || (speed_interval < 0))
+  if ((configTreadmill.speed_interval_step > abs_speed_interval_step) || (configTreadmill.speed_interval_step < 0))
   {
-    speed_interval = default_speed_interval;
-    logText("invalid speed interval, using default\n");
+    configTreadmill.speed_interval_step = default_speed_interval_step;
+    logText("invalid speed interval step, using default\n");
   }
 
-  if ((incline_interval > abs_incline_interval) || (incline_interval < 0))
+  if ((configTreadmill.incline_interval_step > abs_incline_interval_step) || (configTreadmill.incline_interval_step < 0))
   {
-    incline_interval = default_incline_interval;
-    logText("invalid incline interval, using default\n");
+    configTreadmill.incline_interval_step = default_incline_interval_step;
+    logText("invalid incline interval step, using default\n");
   }
 
-  if ((belt_distance > abs_belt_distance) || (belt_distance < 0))
+  if ((configTreadmill.belt_distance > abs_belt_distance) || (configTreadmill.belt_distance < 0))
   {
-    belt_distance = default_belt_distance;
+    configTreadmill.belt_distance = default_belt_distance;
     logText("invalid belt distance, using default\n");
   }
 
-  if ((hasMPU6050 < 0) || (hasMPU6050 > 1))
+  if ((configTreadmill.hasMPU6050 < 0) || (configTreadmill.hasMPU6050 > 1))
   {
-    hasMPU6050 = default_hasMPU6050;
+    configTreadmill.hasMPU6050 = default_hasMPU6050;
     logText("invalid MPU6050 setting, using default (false)\n");
 
   }
 
-  if ((hasVL53L0X < 0) || (hasVL53L0X >1))
+  if ((configTreadmill.hasVL53L0X < 0) || (configTreadmill.hasVL53L0X >1))
   {
-    hasVL53L0X = default_hasVL53L0X;
+    configTreadmill.hasVL53L0X = default_hasVL53L0X;
     logText("invalid VL53L0X setting, using default (false)\n");
   }
 
-  if ((hasIrSense < 0) || (hasIrSense > 1))
+  if ((configTreadmill.hasIrSense < 0) || (configTreadmill.hasIrSense > 1))
   {
-    hasIrSense = default_hasIrSense;
+    configTreadmill.hasIrSense = default_hasIrSense;
     logText("invalid Ir sense setting, using default (false)\n");
   }
 
-  if ((hasReed < 0) || (hasReed > 1))
+  if ((configTreadmill.hasReed < 0) || (configTreadmill.hasReed > 1))
   {
-    hasReed = default_hasReed;
+    configTreadmill.hasReed = default_hasReed;
     logText("invalid reed sensor setting, using default (false)\n");
   }
-//  incline_interval  = incline_interval_min;
-//  speed_interval = speed_interval_min;
-  speedInclineMode = hasReed ? SPEED : MANUAL;
+
+  speedInclineMode = configTreadmill.hasReed ? SPEED : MANUAL;
 
 dump_settings();
   logText("done\n");  

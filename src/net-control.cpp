@@ -600,7 +600,7 @@ void notifyClients()
 
   doc["speed"]          = kmph;
   doc["incline"]        = incline;
-  doc["speed_interval"] = speed_interval;
+  doc["speed_interval"] = configTreadmill.speed_interval_step;
   doc["sensor_mode"]    = speedInclineMode;
   doc["distance"]       = total_distance / 1000;
   doc["elevation"]      = elevation_gain;

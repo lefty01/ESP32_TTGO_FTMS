@@ -169,6 +169,16 @@ static MPU6050 mpu(I2C_0);
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
 
+void do_it(void)
+ {
+  btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
+  btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
+  btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
+  btnSpeedDown     .initButtonUL(&tft, btnSpeedDown_X,      btnSpeedDown_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
+  btnInclineUp     .initButtonUL(&tft, btnInclineUp_X,      btnInclineUp_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
+  btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
+}
+
 void btn1TapHandler(Button2 & b)
 {
   unsigned int time = b.wasPressedFor();
@@ -338,7 +348,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 
 void initSensors(void)
 {
-  if (hasMPU6050)
+  if (configTreadmill.hasMPU6050)
   {
     logText("init MPU6050....");
 
@@ -362,7 +372,7 @@ void initSensors(void)
     }
   }
 
-  if (hasVL53L0X) 
+  if (configTreadmill.hasVL53L0X) 
   {
     logText("init VL53L0X\n");
     sensor.setTimeout(500);
@@ -407,7 +417,7 @@ void IRAM_ATTR reedSwitch_ISR()
     longpauseTime = test_elapsed;
 
     revCount++;
-    workoutDistance += belt_distance;
+    workoutDistance += configTreadmill.belt_distance;
     accumulatorInterval += test_elapsed;
   }
 }
@@ -442,13 +452,13 @@ float getIncline(void)
   char yStr[5];
   char inclineStr[6];
 
-  if (hasVL53L0X) 
+  if (configTreadmill.hasVL53L0X) 
   {
     // calc incline/angle from distance
     // depends on sensor placement ... TODO: configure via webinterface
   }
 
-  if (hasMPU6050) 
+  if (configTreadmill.hasMPU6050) 
   {
     // MPU6050 returns a incline/grade in degrees(!)
     // TODO: configure sensor orientation  via webinterface
@@ -471,8 +481,8 @@ float getIncline(void)
     // ******************************************
   }
 
-  if (temp_incline <= min_incline) temp_incline = min_incline;
-  if (temp_incline > max_incline)  temp_incline = max_incline;
+  if (temp_incline <= configTreadmill.min_incline) temp_incline = configTreadmill.min_incline;
+  if (temp_incline > configTreadmill.max_incline)  temp_incline = configTreadmill.max_incline;
 
 #warning cs todo remove this
   DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, temp_incline);
@@ -498,7 +508,7 @@ void loop_handle_hardware(void)
     timer_tick = true;
   } 
 
-  if (hasMPU6050)
+  if (configTreadmill.hasMPU6050)
   {
     mpu.update();
   }  
@@ -506,7 +516,7 @@ void loop_handle_hardware(void)
   t = t2 - t1;
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
-    hasIrSense = true;
+    configTreadmill.hasIrSense = true;
     kmph_sense = (float)(1.0 / t) * c;
     noInterrupts();
     t1_valid = t2_valid = false;
@@ -536,7 +546,7 @@ float calculate_RPM(void)
 {
   float temp_rpm = 0;
 
-  if (hasReed)
+  if (configTreadmill.hasReed)
   {
     if (revCount > 0) 
     { // confirm there was at least one spin in the last second

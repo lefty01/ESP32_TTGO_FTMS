@@ -123,8 +123,8 @@ void speedUp()
     return;
   }
 
-  kmph += speed_interval;
-  if (kmph > max_speed) kmph = max_speed;
+  kmph += configTreadmill.speed_interval_step;
+  if (kmph > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
   DEBUG_PRINT("speed_up, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
@@ -137,8 +137,8 @@ void speedDown()
     return;
   }
 
-  kmph -= speed_interval;
-  if (kmph < min_speed) kmph = min_speed;
+  kmph -= configTreadmill.speed_interval_step;
+  if (kmph < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
   DEBUG_PRINT("speed_down, new speed: ");
   DEBUG_PRINTLN(kmph);
 }
@@ -151,8 +151,8 @@ void inclineUp()
     return;
   }
 
-  incline += incline_interval; // incline in %
-  if (incline > max_incline) incline = max_incline;
+  incline += configTreadmill.incline_interval_step; // incline in %
+  if (incline > configTreadmill.max_incline) incline = configTreadmill.max_incline;
   angle = atan2(incline, 100);
   grade_deg = angle * 57.296;
   DEBUG_PRINT("incline_up, new incline: ");
@@ -167,8 +167,8 @@ void inclineDown()
     return;
   }
 
-  incline -= incline_interval;
-  if (incline <= min_incline) incline = min_incline;
+  incline -= configTreadmill.incline_interval_step;
+  if (incline <= configTreadmill.min_incline) incline = configTreadmill.min_incline;
   angle = atan2(incline, 100);
   grade_deg = angle * 57.296;
   DEBUG_PRINT("incline_down, new incline: ");
@@ -213,8 +213,8 @@ double angleSensorTreadmillConversion(double inAngle) {
 void setSpeed(float speed)
 {
   kmph = speed;
-  if (speed > max_speed) kmph = max_speed;
-  if (speed < min_speed) kmph = min_speed;
+  if (speed > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
+  if (speed < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
 
   DEBUG_PRINT("setSpeed: ");
   DEBUG_PRINTLN(kmph);
@@ -229,7 +229,7 @@ void setSpeedInterval(float interval)
     DEBUG_PRINTLN("INVALID SPEED INTERVAL");
   }
 
-  speed_interval = interval;
+  configTreadmill.speed_interval_step = interval;
 }
 
 // void calculateRPM() {
@@ -269,16 +269,19 @@ void setup()
 
   delay(2000);  
   logText("setup started...\n");
+  initWifi();
   delay(4000);  
 
-  initWifi();
+  do_it();
+
   initLittleFS();
   initButton();
   initBLE();
   initConfig();
   initHardware();
   initDisplay();
-  
+
+
   if (isWifiAvailable) 
   {
     initAsyncWebserver();
@@ -333,7 +336,7 @@ void loop()
     {  // get speed from sensor (no-manual mode)
       // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
       // and calc rpm from reed switch provide same unit
-      if (hasIrSense) {
+      if (configTreadmill.hasIrSense) {
         kmph = kmph_sense;
         mps = kmph / 3.6; // meter per second (EVERY_SECOND)
         total_distance += mps;
@@ -341,7 +344,7 @@ void loop()
       else
       {
         rpm = calculate_RPM();
-        mps = belt_distance * (rpm) / (60 * 1000); // meter per sec
+        mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
         kmph = mps * 3.6;                          // km per hour
         total_distance = workoutDistance / 1000;   // conv mm to meter
       }
