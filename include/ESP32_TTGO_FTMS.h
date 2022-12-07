@@ -44,20 +44,23 @@ enum class EventType {
   TREADMILL_INC_UP,
 };
 
+// TODO clean up speedInclineMode some day, Is it needed outside debugging mode?
+//      Yes maybe a user just want a unconected ESP32, if so should we support it?
+//      Maybe, but maybe in some nicer way?? Code is a bit messy right now and
+//      it's not 100% clear what it means 
 enum SensorModeFlags {
-		      MANUAL  = 0,
-		      SPEED   = 1,
-		      INCLINE = 2,
-		      _NUM_MODES_ = 4
-#warning why 3modes and a define for the fourth?			  
+		      MANUAL  = 0x00,
+		      SPEED   = 0x01, // b'01
+		      INCLINE = 0x02, // b'10
+		      SPEEDINCLINE_BITFIELD = 0x03 // b'11		  
 };
+extern uint8_t speedInclineMode;
 
 extern float  kmph;
 extern float kmph_sense;
 extern float  incline;
 extern double total_distance;
 extern double elevation_gain;
-extern uint8_t speedInclineMode;
 //extern volatile float speed_interval_step;
 extern double grade_deg;
 extern double angle;

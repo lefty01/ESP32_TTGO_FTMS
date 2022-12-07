@@ -204,7 +204,7 @@ void btn1TapHandler(Button2 & b)
   { // button1 short click toggle speed/incline mode
     DEBUG_PRINTLN("Button 1 short click...");
     speedInclineMode += 1;
-    speedInclineMode %= _NUM_MODES_;
+    speedInclineMode &= SPEEDINCLINE_BITFIELD; //wrap around MANUAL,SPEED,INCLINE,SPEED & INCLINE
     DEBUG_PRINT("speedInclineMode=");
     DEBUG_PRINTLN(speedInclineMode);
 #ifndef NO_DISPLAY      

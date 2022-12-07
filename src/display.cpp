@@ -148,54 +148,5 @@ void loop_handle_touch(void) {
     btnInclineDown.drawButton();
   }
 
-  // if (tft.touch() && ((millis() - touch_timer) > 120)) {
-  //   touch_timer = millis();
-
-  //   if (tft.getTouch(&touch_x, &touch_y)) {
-  //     DEBUG_PRINTF("touch: x=%.3d y=%.3d\n", touch_x, touch_y);
-
-  //     if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	  (touch_y >=  50) && (touch_y <= 80)) {
-  // 	touch_b1 = true;
-
-  // 	speedInclineMode += 1;
-  // 	speedInclineMode %= _NUM_MODES_;
-  // 	DEBUG_PRINT("speedInclineMode=");
-  // 	DEBUG_PRINTLN(speedInclineMode);
-  // 	updateHeader();
-  // 	// reset to manual mode on any touch (as for now)
-  //       // if ( speedInclineMode != MANUAL) {
-  //       //   kmph = 0.5;
-  //       //   incline = 0;
-  //       //   grade_deg = 0;
-  //       //   angle = 0;
-  //       //   elevation = 0;
-  //       //   elevation_gain = 0;
-  //       //   speedInclineMode = MANUAL;
-  //       // }
-  //     }
-  //     //tft.fillRect(touch_x-1, touch_y-1, 3, 3, TFT_WHITE);
-  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	       (touch_y >=  90) && (touch_y <= 120)) {
-  // 	DEBUG_PRINTLN("Touch: Button 2 inclineUp()");
-  // 	inclineUp();
-  //     }
-  //     else if ((touch_x >= 250) && (touch_x <= 300) &&
-  // 	       (touch_y >= 130) && (touch_y <= 150)) {
-  // 	DEBUG_PRINTLN("Touch: Button 3 inclineDown()");
-  // 	inclineDown();
-  //     }
-  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
-  // 	       (touch_y >=  90) && (touch_y <= 120)) {
-  // 	DEBUG_PRINTLN("Touch: Button 4 speedUp()");
-  // 	speedUp();
-  //     }
-  //     else if ((touch_x >= 330) && (touch_x <= 380) &&
-  // 	       (touch_y >= 130) && (touch_y <= 150)) {
-  // 	DEBUG_PRINTLN("Touch: Button 5 speedDown()");
-  // 	speedDown();
-  //     }
-  //   }
-  // }
 #endif
 }
