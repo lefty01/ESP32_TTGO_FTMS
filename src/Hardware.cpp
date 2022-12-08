@@ -498,6 +498,11 @@ void loop_handle_hardware(void)
 #warning remove this contsant to some file  
   const unsigned long c = 359712; // d=10cm
 
++ // NOTE/WARNING:
+  // MPU6050 (mpu) and GPIOExtender use twowire i2c driver and LovyanGFX has it's own
++ // This makes the twowire collide in some way and you get a 1s delay after each touch
++ // on the screen. To solve this collition of the i2c HW LovyanGFX code shoule be placed
+  // outside of the I2C_0.begin/end below that surrounds MPU6050 (mpu) and GPIOExtender
   I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
 
   GPIOExtender.loopHandler();
