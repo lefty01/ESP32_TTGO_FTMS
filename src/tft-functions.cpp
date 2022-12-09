@@ -18,8 +18,6 @@
 #define CIRCLE_RADIUS          8
 
 
-
-
 // with tft.setRotation(1); => landscape orientation (usb right side)
 
 #if defined(DRAW_STATS_WIDTH) && defined(DRAW_STATS_HEIGHT)
@@ -39,12 +37,12 @@ const int DRAW_HEIGHT = TFT_WIDTH;
 
 // add support for nextion display ... since I have one I'll give it a try ;)
 
-void updateDisplay(bool clear)
+void gfxUpdateDisplay(bool clear)
 {
-#ifndef NO_DISPLAY      
+#ifndef NO_DISPLAY
   if (clear) {
     tft.fillScreen(TFT_BLACK);
-    updateHeader();
+    gfxUpdateHeader();
   }
 
   tft.setTextColor(TFT_ORANGE);
@@ -122,13 +120,13 @@ void updateDisplay(bool clear)
   tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
-  tft.println(total_distance/1000);
+  tft.println(totalDistance/1000);
 
   // elevation bot right
   tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4 + 10, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
-  tft.println((uint32_t)elevation_gain);
+  tft.println((uint32_t)elevationGain);
 #else
   if (clear) {
     tft.drawRect(1, 1, DRAW_WIDTH - 2, 20, TFT_GREENYELLOW);
@@ -168,18 +166,31 @@ void updateDisplay(bool clear)
   tft.fillRect(0, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
-  tft.println(total_distance/1000);
+  tft.println(totalDistance/1000);
 
   // elevation bot right
   tft.fillRect(DRAW_WIDTH / 2 + 2, DRAW_HEIGHT - 26, DRAW_WIDTH / 4, 40, TFT_BLACK);
   tft.setCursor(DRAW_WIDTH / 2 + 4, DRAW_HEIGHT - 20);
   tft.setTextFont(4);
-  tft.println((uint32_t)elevation_gain);
+  tft.println((uint32_t)elevationGain);
 #endif // display TARGET
-#endif // no_display
+#endif // NO_DISPLAY
 }
 
-void updateBTConnectionStatus(bool connected)
+#ifndef NO_DISPLAY
+
+static void gfxUpdateHeaderWIFIStatus(const unsigned long reconnect_counter, const String &ip) {
+  //tft.fillRect(2, 2, 60, 18, TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextFont(2);
+  tft.setCursor(3, 4);
+  tft.print("Wifi[");
+  tft.print(reconnect_counter);
+  tft.print("]: ");
+  tft.print(ip.c_str());
+}
+
+static void gfxUpdateHeaderBTStatus(bool connected)
 {
   if (connected) {
     tft.fillCircle(CIRCLE_BT_STAT_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_SKYBLUE);
@@ -190,11 +201,12 @@ void updateBTConnectionStatus(bool connected)
   }
 }
 
-
-void showSpeedInclineMode(uint8_t mode)
+static void gfxUpdateHeaderSpeedInclineMode(uint8_t mode)
 {
   // clear upper status line
-  tft.fillRect(2, 2, DRAW_WIDTH-2, 18, TFT_BLACK);
+  // TODO trim this to size
+  //      tft.fillRect(2, 2, DRAW_WIDTH-2, 18, TFT_BLACK);
+
   tft.setTextColor(TFT_ORANGE);
   tft.setTextFont(2);
   // tft.setCursor(170, 4);
@@ -217,38 +229,19 @@ void showSpeedInclineMode(uint8_t mode)
     tft.fillCircle(CIRCLE_INCLINE_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_RED);
   }
 }
+#endif // NO_DISPLAY
 
-
-void show_FPS(int fps){
-  tft.setTextColor(TFT_ORANGE);
-  tft.setTextFont(2);
-  tft.fillRect(DRAW_WIDTH-10*8, DRAW_HEIGHT-18, 10*8, DRAW_HEIGHT, TFT_BLACK);
-  tft.setCursor(DRAW_WIDTH-10*8,DRAW_HEIGHT-18);
-  tft.printf("fps:%03d", fps);
-}
-
-
-void show_WIFI(const unsigned long reconnect_counter, const String &ip) {
-  // show reconnect counter in tft
-  // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
-  tft.fillRect(2, 2, 60, 18, TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextFont(2);
-  tft.setCursor(3, 4);
-  tft.print("Wifi[");
-  tft.print(reconnect_counter);
-  tft.print("]: ");
-  tft.print(ip);
-}
-
-void updateHeader()
+void gfxUpdateHeader()
 {
-  // indicate manual/auto mode (green=auto/sensor, red=manual)
-  showSpeedInclineMode(speedInclineMode);
+#ifndef NO_DISPLAY
+  // clear upper status line
+  tft.fillRect(2, 2, DRAW_WIDTH-2, 18, TFT_BLACK);
 
+  gfxUpdateHeaderWIFIStatus(wifi_reconnect_counter, getWifiIpAddr());
   // indicate bt connection status ... offline
-  updateBTConnectionStatus(bleClientConnected);
-
-  show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+  gfxUpdateHeaderBTStatus(bleClientConnected);
+  // indicate manual/auto mode (green=auto/sensor, red=manual)
+  gfxUpdateHeaderSpeedInclineMode(speedInclineMode);
+#endif // NO_DISPLAY
 }
 #endif

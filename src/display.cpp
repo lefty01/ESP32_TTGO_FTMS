@@ -20,27 +20,26 @@ TFT_eSPI tft = TFT_eSPI();
 
 void initDisplay(void)
 {
+#ifndef NO_DISPLAY
   logText("Init display...");    
-#ifndef NO_DISPLAY  
   tft.init(); // vs begin??
   tft.setRotation(1); // 3
-#endif  
 #ifdef TFT_ROTATE
   tft.setRotation(TFT_ROTATE);
 #endif
 #ifdef TFT_BL
   if (TFT_BL > 0) {
+    // Backlight On
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH);
   }
 #endif
-#ifndef NO_DISPLAY  
+
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
   tft.setCursor(20, 40);
   tft.println("Setup Started");
-#endif
 
 #if defined(HAS_TOUCH_DISPLAY) && defined(TOUCH_CALLIBRATION_AT_STARTUP)
   if (tft.touch()) {
@@ -51,10 +50,11 @@ void initDisplay(void)
     tft.calibrateTouch(nullptr, TFT_WHITE, TFT_BLACK, std::max(tft.width(), tft.height()) >> 3);
   }
 #endif
-#ifndef NO_DISPLAY 
   delay(3000);
-#endif  
   logText("done\n");  
+#else
+  logText("No display build\n");
+#endif  
 }
 
 void showInfo() {
@@ -76,7 +76,8 @@ void showInfo() {
 
 }
 
-void loop_handle_touch(void) {
+void loopHandleTouch(void) {
+#ifndef NO_DISPLAY    
 #if defined (HAS_TOUCH_DISPLAY)
   int32_t touch_x = 0, touch_y = 0;
 
@@ -108,14 +109,14 @@ void loop_handle_touch(void) {
     speedInclineMode ^= SPEED; // b'01 toggle bit
     if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
     else                          btnSpeedToggle.drawButton(true);
-    updateHeader();
+    gfxUpdateHeader();
   }
   if (btnInclineToggle.justPressed()) {
     DEBUG_PRINTLN("incline mode toggle!");
     speedInclineMode ^= INCLINE; // b'10
     if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
     else                            btnInclineToggle.drawButton(true);
-    updateHeader();
+    gfxUpdateHeader();
   }
 
   if (btnSpeedUp.justPressed()) {
@@ -149,4 +150,6 @@ void loop_handle_touch(void) {
   }
 
 #endif
+#endif //#ifndef NO_DISPLAY    
+
 }

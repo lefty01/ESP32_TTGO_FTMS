@@ -169,7 +169,7 @@ static MPU6050 mpu(I2C_0);
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
 
-void do_it(void)
+void initLovyanGFXTouchAreas(void)
  {
   btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
   btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
@@ -197,7 +197,7 @@ void btn1TapHandler(Button2 & b)
     DEBUG_PRINT("speedInclineMode=");
       DEBUG_PRINTLN(speedInclineMode);
 #ifndef NO_DISPLAY
-    updateHeader();
+    gfxUpdateHeader();
 #endif      
   }
   else 
@@ -208,7 +208,7 @@ void btn1TapHandler(Button2 & b)
     DEBUG_PRINT("speedInclineMode=");
     DEBUG_PRINTLN(speedInclineMode);
 #ifndef NO_DISPLAY      
-    updateHeader();
+    gfxUpdateHeader();
 #endif      
   }
 }
@@ -269,7 +269,7 @@ void btn3TapHandler(Button2 & b)
   }
 }
 
-void loop_handle_button()
+void loopHandleButton()
 {
 #ifdef BUTTON_1
   btn1.loop();
@@ -492,12 +492,8 @@ float getIncline(void)
   return temp_incline;
 }
 
-void loop_handle_hardware(void)
+void loopHandleHardware(void)
 {
-  unsigned long t;
-#warning remove this contsant to some file  
-  const unsigned long c = 359712; // d=10cm
-
 + // NOTE/WARNING:
   // MPU6050 (mpu) and GPIOExtender use twowire i2c driver and LovyanGFX has it's own
 + // This makes the twowire collide in some way and you get a 1s delay after each touch
@@ -518,15 +514,20 @@ void loop_handle_hardware(void)
     mpu.update();
   }  
 
+  // IrSensor to check speed
+  // TODO: Only run if configured?
+  unsigned long t;
+#warning remove this constant to some config/file  
+  const unsigned long c = 359712; // d=10cm
   t = t2 - t1;
   // check ir-speed sensor if not manual mode
   if (t2_valid) { // hasIrSense = true
     configTreadmill.hasIrSense = true;
-    kmph_sense = (float)(1.0 / t) * c;
+    kmphIRsense = (float)(1.0 / t) * c;
     noInterrupts();
     t1_valid = t2_valid = false;
     interrupts();
-    DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmph_sense);
+    DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
   }
   I2C_0.end();  
 } 
@@ -535,19 +536,19 @@ void loop_handle_hardware(void)
 // but this solves the problem as a start, not sure it we really have the usecase where
 // we need a queue, lets add it in that case
 
-void handle_event(EventType event)
+void handleEvent(EventType event)
 {
   // Add more event handlers here in prio order, checking if handled before running
   // each handle will return true is event is handled so we can stop the event check
   // in that case.
   // Currently there is no queue so if Events are translated to new events and call
-  // handle_event() to post them take care to not get into loops.
+  // handleEvent() to post them take care to not get into loops.
   if (GPIOExtender.pressEvent(event)) return;
 
-  DEBUG_PRINTF("handle_event() Cant handle Event:0x%x\n",static_cast<uint32_t>(event));
+  DEBUG_PRINTF("handleEvent() Cant handle Event:0x%x\n",static_cast<uint32_t>(event));
   return;
 }
-float calculate_RPM(void)
+float calculateRPM(void)
 {
   float temp_rpm = 0;
 
@@ -615,38 +616,38 @@ void GPIOExtenderAW9523::loopHandler(void)
             if((keys & AW9523_KEY_UP) && AW9523_KEY_UP)
             {
                 DEBUG_PRINTLN("AW9523_KEY_UP");
-                handle_event(EventType::KEY_UP);
-                //handle_event(EventType::TREADMILL_INC_UP);
+                handleEvent(EventType::KEY_UP);
+                //handleEvent(EventType::TREADMILL_INC_UP);
             }
             if((keys & AW9523_KEY_LEFT) && AW9523_KEY_LEFT)
             {
                 DEBUG_PRINTLN("AW9523_KEY_LEFT");
-                handle_event(EventType::KEY_LEFT);
-                //handle_event(EventType::TREADMILL_SPEED_DOWN);
+                handleEvent(EventType::KEY_LEFT);
+                //handleEvent(EventType::TREADMILL_SPEED_DOWN);
             }
             if((keys & AW9523_KEY_DOWV) && AW9523_KEY_DOWV)
             {
                 DEBUG_PRINTLN("AW9523_KEY_DOWV");
-                handle_event(EventType::KEY_DOWN);
-                //handle_event(EventType::TREADMILL_INC_DOWN);
+                handleEvent(EventType::KEY_DOWN);
+                //handleEvent(EventType::TREADMILL_INC_DOWN);
             }
             if((keys & AW9523_KEY_RIGHT) && AW9523_KEY_RIGHT)
             {
                 DEBUG_PRINTLN("AW9523_KEY_RIGHT");
-                handle_event(EventType::KEY_RIGHT);
-                //handle_event(EventType::TREADMILL_SPEED_UP);
+                handleEvent(EventType::KEY_RIGHT);
+                //handleEvent(EventType::TREADMILL_SPEED_UP);
             }
             if((keys & AW9523_KEY_OK) && AW9523_KEY_OK)
             {
                 DEBUG_PRINTLN("AW9523_KEY_OK");
-                handle_event(EventType::KEY_OK);
-                //handle_event(EventType::TREADMILL_START);
+                handleEvent(EventType::KEY_OK);
+                //handleEvent(EventType::TREADMILL_START);
             }
             if((keys & AW9523_KEY_BACK) && AW9523_KEY_BACK)
             {
                 DEBUG_PRINTLN("AW9523_KEY_BACK");
-                handle_event(EventType::KEY_BACK);
-                //handle_event(EventType::TREADMILL_STOP);
+                handleEvent(EventType::KEY_BACK);
+                //handleEvent(EventType::TREADMILL_STOP);
             }
 
             if((keys & 0xffc0)  != 0)  DEBUG_PRINTF("Non key pins: 0x%x\n",keys);

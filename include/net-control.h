@@ -23,11 +23,11 @@ void initWifi(void);
 void initBLE(void);
 bool mqttConnect(void);
 String getWifiIpAddr(void);
-void loop_handle_WIFI(void);
+void loopHandleWIFI(void);
 void initBLE(void);
-void loop_handle_BLE(void); 
+void loopHandleBLE(void); 
 void updateBLEdata(void);
 void resetStopWatch(void);
-void publish_topics(void);
+void publishTopicsMqtt(void);
 
 #endif

@@ -10,7 +10,7 @@
 #endif
 
 void initDisplay(void);
-void loop_handle_touch(void);
+void loopHandleTouch(void);
 void showInfo(void);
 
 #endif

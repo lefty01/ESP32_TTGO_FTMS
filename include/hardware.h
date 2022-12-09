@@ -132,14 +132,14 @@ private:
 void initHardware(void);
 void initSensors(void);
 void initButton(void);
-void loop_handle_hardware(void);
-void loop_handle_button(void);
-void handle_event(EventType event);
-float calculate_RPM(void);
+void loopHandleHardware(void);
+void loopHandleButton(void);
+void handleEvent(EventType event);
+float calculateRPM(void);
 float getIncline(void);
 extern esp_reset_reason_t reset_reason;
 extern const char* getRstReason(esp_reset_reason_t r);
 extern TwoWire I2C_0;
 extern GPIOExtenderAW9523 GPIOExtender;
-void do_it(void);
+void initLovyanGFXTouchAreas(void);
 #endif

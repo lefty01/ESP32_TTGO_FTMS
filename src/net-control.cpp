@@ -1,8 +1,10 @@
+/*
+Handle BT, Wifisetup, webserver and mqtt
 
+TODO: Maybe we want to split this up in different files later? Lets see how it grows
+*/
 #define NIMBLE
 //#include "common.h"
-//#include <SPIFFS.h>
-//#include <FS.h>
 #include <LittleFS.h>
 #include <AsyncElegantOTA.h>
 #include <PubSubClient.h>
@@ -20,15 +22,7 @@
 #include <ESPAsyncWebServer.h>     //Local WebServer used to serve the configuration portal
 #include "ESPAsyncWiFiManager.h"   //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
-#ifndef NIMBLE
-// original
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
-#include <BLE2902.h> // notify
-#else
 #include <NimBLEDevice.h>
-#endif
 #ifdef MQTT_USE_SSL
 #include <WiFiClientSecure.h>
 extern WiFiClientSecure espClient;
@@ -67,7 +61,7 @@ unsigned long wifi_reconnect_timer = 0;
 
 String ipAddr;
 String dnsAddr;
-uint8_t mac_addr[6];
+uint8_t macAddr[6];
 
 String MQTTDEVICEID = "ESP32_FTMS_";
 
@@ -101,8 +95,6 @@ String mqtt_topics[] {
   "home/treadmill/%MQTTDEVICEID%/elegain"
 };
 
-uint16_t    inst_speed;
-
 #ifdef ASYNC_TCP_SSL_ENABLED
 // if using board_build.embed_txtfiles instead of spiffs -> that would not require the callback for:
 // server.onSslFileRequest(&sslFileRequestCallback, NULL);
@@ -126,25 +118,15 @@ BLEAdvertising *pAdvertising;
 
 // {0x2ACD,"Treadmill Data"},
 BLECharacteristic TreadmillDataCharacteristics(BLEUUID((uint16_t)0x2ACD),
-#ifndef NIMBLE
-					       BLECharacteristic::PROPERTY_NOTIFY
-#else
 					       NIMBLE_PROPERTY::NOTIFY
-#endif
 					       );
 
 BLECharacteristic FitnessMachineFeatureCharacteristic(BLEUUID((uint16_t)0x2ACC),
-#ifndef NIMBLE
-						      BLECharacteristic::PROPERTY_READ
-#else
 						      NIMBLE_PROPERTY::READ
-#endif
 						      );
 
 BLEDescriptor TreadmillDescriptor(BLEUUID((uint16_t)0x2901)
-#ifdef NIMBLE
 				  , NIMBLE_PROPERTY::READ,1000
-#endif
 				  );
 
 // seems kind of a standard callback function
@@ -158,27 +140,27 @@ class MyServerCallbacks : public BLEServerCallbacks {
   }
 };
 
-void loop_handle_BLE() 
+void loopHandleBLE()
 {
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
     DEBUG_PRINTLN("BT Client connected!");
 #ifndef NO_DISPLAY
-    updateBTConnectionStatus(bleClientConnectedPrev);
+    gfxUpdateHeader();
 #endif    
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     DEBUG_PRINTLN("BT Client disconnected!");
 #ifndef NO_DISPLAY    
-    updateBTConnectionStatus(bleClientConnectedPrev);
+    gfxUpdateHeader();
 #endif    
   }
 }
 void initBLE() {
   logText("init BLE...");
-#ifndef NO_DISPLAY  
+#ifndef NO_DISPLAY
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_BLUE);
   tft.setTextFont(4);
@@ -201,17 +183,11 @@ void initBLE() {
 
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create a BLE Descriptor
-#ifndef NIMBLE
-  TreadmillDataCharacteristics.addDescriptor(new BLE2902());
-  FitnessMachineFeatureCharacteristic.addDescriptor(new BLE2902());
-  //pFeature->addDescriptor(new BLE2902());
-#else
   /***************************************************
    NOTE: DO NOT create a 2902 descriptor.
    it will be created automatically if notifications
    or indications are enabled on a characteristic.
   ****************************************************/
-#endif
   // start service
   pService->start();
   pAdvertising = pServer->getAdvertising();
@@ -220,7 +196,9 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
 
   pAdvertising->start();
+#ifndef NO_DISPLAY
   delay(2000); // added to keep tft msg a bit longer ...
+#endif
   logText("done\n");  
 }
 
@@ -233,11 +211,12 @@ void updateBLEdata(void)
   uint16_t flags = 0x0018;  // b'000000011000
   //                             119876543210
   //                             20
+
   // get speed and incline ble ready
-  inst_speed   = kmph * 100;    // kilometer per hour with a resolution of 0.01
-  inst_incline = incline * 10;  // percent with a resolution of 0.1
-  inst_grade   = grade_deg * 10;
-  inst_elevation_gain = elevation_gain * 10;
+  uint16_t inst_speed = kmph * 100;    // kilometer per hour with a resolution of 0.01
+  inst_incline = incline * 10;         // percent with a resolution of 0.1
+  inst_grade   = gradeDeg * 10;
+  inst_elevation_gain = elevationGain * 10;
 
   // now data is filled starting at bit0 and appended for the
   // fields we 'enable' via the flags above ...
@@ -311,10 +290,7 @@ void initWifi()
 //cs    WifiAvailable = false;
     isWifiAvailable = false;
 
-//    DEBUG_PRINTF("Failed to connect");
   logText("failed\n");  
-//    Serial.println("Failed to connect"); 
-//    ESP.restart();
   } 
   else 
   {
@@ -334,7 +310,7 @@ void initWifi()
 //cs  return WifiAvailable;
 }
 
-void loop_handle_WIFI() 
+void loopHandleWIFI() 
 {
 //  static unsigned long mqtt_reconnect_counter = 0; 
 //  unsigned long wifi_reconnect_timer = 0;
@@ -361,8 +337,8 @@ void loop_handle_WIFI()
     DEBUG_PRINT("isWifiAvailable="); DEBUG_PRINTLN(isWifiAvailable);
     DEBUG_PRINT("WiFi.status="); DEBUG_PRINTLN(WiFi.status());
 
-#ifndef NO_DISPLAY    
-    show_WIFI(wifi_reconnect_counter, getWifiIpAddr());
+#ifndef NO_DISPLAY
+    gfxUpdateHeader();
 #endif    
   }
 
@@ -378,7 +354,8 @@ void loop_handle_WIFI()
       mqtt_reconnect_counter++;
       isMqttAvailable = mqttConnect();
 #ifndef NO_DISPLAY
-      updateDisplay(true);
+      gfxUpdateDisplay(true); //TODO replace this with gfxUpdateHeader();
+      gfxUpdateHeader();
 #endif      
     }
   }
@@ -389,7 +366,7 @@ const char* getTopic(topics_t topic)
   return mqtt_topics[topic].c_str();
 }
 
-void publish_topics(void)
+void publishTopicsMqtt(void)
 {
   char kmphStr[6];
   snprintf(kmphStr,    6, "%.1f", kmph);
@@ -408,10 +385,10 @@ int initMqtt(void)
 {
   logText("Init Mqtt...");
 
-  esp_efuse_mac_get_default(mac_addr);
+  esp_efuse_mac_get_default(macAddr);
 
-  MQTTDEVICEID += String(mac_addr[4], HEX);
-  MQTTDEVICEID += String(mac_addr[5], HEX);
+  MQTTDEVICEID += String(macAddr[4], HEX);
+  MQTTDEVICEID += String(macAddr[5], HEX);
 
   setupMqttTopic(MQTTDEVICEID);
   isMqttAvailable = mqttConnect();
@@ -594,7 +571,7 @@ void initAsyncWebserver()
 
 // https://arduinojson.org/v6/assistant/
 
-void notifyClients() 
+void notifyClientsWebSockets() 
 {
   StaticJsonDocument<256> doc;
 
@@ -602,8 +579,8 @@ void notifyClients()
   doc["incline"]        = incline;
   doc["speed_interval"] = configTreadmill.speed_interval_step;
   doc["sensor_mode"]    = speedInclineMode;
-  doc["distance"]       = total_distance / 1000;
-  doc["elevation"]      = elevation_gain;
+  doc["distance"]       = totalDistance / 1000;
+  doc["elevation"]      = elevationGain;
   doc["hour"]   = readHour();
   doc["minute"] = readMinute();
   doc["second"] = readSecond();
@@ -643,7 +620,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
         speedInclineMode ^= INCLINE; // b'10
 
 #ifndef NO_DISPLAY
-      updateHeader();
+      gfxUpdateHeader();
 #endif      
     }
     if (strcmp(command, "speed") == 0) {
@@ -666,7 +643,7 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
       if (strcmp(value, "1.0") == 0)
         setSpeedInterval(1.0);
     }
-    notifyClients();
+    notifyClientsWebSockets();
   }
 }
 
@@ -703,7 +680,7 @@ String readSpeed()
 
 String readDist()
 {
-  return String(total_distance / 1000);
+  return String(totalDistance / 1000);
 }
 
 String readIncline()
@@ -713,7 +690,7 @@ String readIncline()
 
 String readElevation()
 {
-  return String(elevation_gain);
+  return String(elevationGain);
 }
 
 String readHour() {

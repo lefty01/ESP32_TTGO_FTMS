@@ -56,28 +56,25 @@ enum SensorModeFlags {
 };
 extern uint8_t speedInclineMode;
 
-extern float  kmph;
-extern float kmph_sense;
-extern float  incline;
-extern double total_distance;
-extern double elevation_gain;
+extern float kmph;
+extern float kmphIRsense;
+extern float incline;
+extern double totalDistance;
+extern double elevationGain;
 //extern volatile float speed_interval_step;
-extern double grade_deg;
+extern double gradeDeg;
 extern double angle;
 
 void logText(const char *text);
 void logText(String text);
 
-void updateDisplay(bool clear);
-void updateHeader();
+void gfxUpdateDisplay(bool clear);
+void gfxUpdateHeader();
+
 void initAsyncWebserver();
 void initWebSocket();
 
-void show_FPS(int fps);
-void showSpeedInclineMode(uint8_t mode);
-void updateBTConnectionStatus(bool connected);
-void show_WIFI(const unsigned long reconnect_counter, const String &ip);
-void notifyClients();
+void notifyClientsWebSockets();
 void doReset(void);
 
 double angleSensorTreadmillConversion(double inAngle);

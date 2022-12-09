@@ -1,8 +1,5 @@
-//#include <Arduino.h>  // for string type
 #include <string.h> 
 #include "debug_print.h"
-//#include <sd.h> 
-//#include "SPIFFS.h"
 #include <LittleFS.h>
 
 #include "config.h"
@@ -146,12 +143,9 @@ int LittleFS_findKey(const __FlashStringHelper * key, char * value)
   int value_length = 0;
   File configFile;
 
-//  File configFile = SPIFFS.open(FILE_NAME);
   configFile = LittleFS.open(FILE_NAME, "r");  
 
-
   if (!configFile) {
-//    logText("SPIFFS: error on opening file ");
     logText("LittleFS: error on opening file ");    
     logText(FILE_NAME);
     return 0;
@@ -215,7 +209,7 @@ String LittleFS_findString(const __FlashStringHelper * key) {
 void initConfig(void)
 {
   logText("initConfig...");
-
+  // Get Treadmill config
   configTreadmill.treadmill_name = LittleFS_findString(F("treadmillname"));
   configTreadmill.max_speed  = LittleFS_findFloat(F("max_speed"));
   configTreadmill.min_speed  = LittleFS_findFloat(F("min_speed"));
@@ -224,6 +218,7 @@ void initConfig(void)
   configTreadmill.speed_interval_step  = LittleFS_findFloat(F("speed_interval_step"));
   configTreadmill.incline_interval_step  = LittleFS_findFloat(F("incline_interval_step"));
   configTreadmill.belt_distance  = LittleFS_findFloat(F("belt_distance"));  
+  // Get Your HW config, e.g. interface to Treadmill and other added HW
   configTreadmill.hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
   configTreadmill.hasVL53L0X    = LittleFS_findInt(F("hasVL53L0X"));
   configTreadmill.hasIrSense    = LittleFS_findInt(F("hasIrSense"));

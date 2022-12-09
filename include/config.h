@@ -2,7 +2,7 @@
 #define _CONFIG_H_
 
 #include <Arduino.h>   //  for string type
-#warning fix include error for string type remove arduino
+#warning fix include error for string type remove arduino (use std:string?? it might be faster)
 //#include <string.h> 
 
 extern const char* VERSION;

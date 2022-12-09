@@ -26,7 +26,6 @@
 // FIXME: incline manual/auto toggle -> not same for incline and speed!!
 // FIXME: if manual incline round up/down to integer
 // FIXME: elevation gain
-// FIXME: once and for good ... camle vs. underscore case
 // TODO:  web config menu (+https, +setup initial user password)
 
 //#include "common.h"
@@ -53,16 +52,16 @@
 //unsigned long sw_timer_clock = 0;
 
 float  kmph=0;
-float kmph_sense=0;
+float  kmphIRsense=0;
 float  incline=0;
-double total_distance=0;
-double elevation_gain=0;
+double totalDistance=0;
+double elevationGain=0;
 //uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
 //uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
 double      elevation;
 float mps;  // meter per second
 double angle = 0;
-double grade_deg = 0;
+double gradeDeg = 0;
 Preferences prefs;
 
 uint8_t speedInclineMode = SPEED;
@@ -91,26 +90,16 @@ void initLittleFS()
   if(!LittleFS.begin(true))  // true = formatOnFail
   {
     logText("Failed, Cannot mount LittkeFS volume\n");
-//    Serial.println("LITTLEFS Mount Failed");
-
-//        return;
+    return;
   }
-//  LittleFS.begin();
-  
-//  if (!SPIFFS.begin(true)) { // true = formatOnFail
-//    logText("Failed, Cannot mount SPIFFS volume\n");
-//  }  
-//  else {
-    logText("done\n");
-//  }
+  logText("done\n");
 }
-
 
 void doReset()
 {
   resetStopWatch();
-  total_distance = 0;
-  elevation_gain = 0;
+  totalDistance = 0;
+  elevationGain = 0;
   kmph = 0.5;
   incline = 0;
 }
@@ -119,7 +108,7 @@ void doReset()
 void speedUp()
 {
   if (speedInclineMode & SPEED) {
-    handle_event(EventType::TREADMILL_SPEED_UP);
+    handleEvent(EventType::TREADMILL_SPEED_UP);
     return;
   }
 
@@ -133,7 +122,7 @@ void speedUp()
 void speedDown()
 {
   if (speedInclineMode & SPEED) {
-    handle_event(EventType::TREADMILL_SPEED_DOWN);
+    handleEvent(EventType::TREADMILL_SPEED_DOWN);
     return;
   }
 
@@ -147,14 +136,14 @@ void speedDown()
 void inclineUp()
 {
   if (speedInclineMode & INCLINE) {
-    handle_event(EventType::TREADMILL_INC_UP);
+    handleEvent(EventType::TREADMILL_INC_UP);
     return;
   }
 
   incline += configTreadmill.incline_interval_step; // incline in %
   if (incline > configTreadmill.max_incline) incline = configTreadmill.max_incline;
   angle = atan2(incline, 100);
-  grade_deg = angle * 57.296;
+  gradeDeg = angle * 57.296;
   DEBUG_PRINT("incline_up, new incline: ");
   DEBUG_PRINTLN(incline);
 }
@@ -163,14 +152,14 @@ void inclineUp()
 void inclineDown()
 {
   if (speedInclineMode & INCLINE) {
-    handle_event(EventType::TREADMILL_INC_DOWN);
+    handleEvent(EventType::TREADMILL_INC_DOWN);
     return;
   }
 
   incline -= configTreadmill.incline_interval_step;
   if (incline <= configTreadmill.min_incline) incline = configTreadmill.min_incline;
   angle = atan2(incline, 100);
-  grade_deg = angle * 57.296;
+  gradeDeg = angle * 57.296;
   DEBUG_PRINT("incline_down, new incline: ");
   DEBUG_PRINTLN(incline);
 }
@@ -182,7 +171,7 @@ void inclineDown()
 double angleSensorTreadmillConversion(double inAngle) {
   double convertedAngle = inAngle;
 
-#warning todo remove this   
+#warning TODO make this a configurable depending on where on the threadmill you place the MPU6050   
 //#if TREADMILL_MODEL == NORDICTRACK_12SI
   // TODO: Maybe this should be a config somewhere together with sensor orientation
 
@@ -232,38 +221,15 @@ void setSpeedInterval(float interval)
   configTreadmill.speed_interval_step = interval;
 }
 
-// void calculateRPM() {
-//   // divide number of microseconds in a minute, by the average interval.
-//   if (revCount > 0) { // confirm there was at least one spin in the last second
-//     hasReed = true;
-//     DEBUG_PRINT("revCount="); DEBUG_PRINTLN(revCount);
-//     // rpmaccumulatorInterval = 60000000/(accumulatorInterval/revCount);
-//     rpm = 60000000 / (accumulatorInterval / revCount);
-//     //accumulatorInterval = 0;
-//     //Test = Calculate average from last 4 rpms - response too slow
-//     accumulator4 -= (accumulator4 >> 2);
-//     accumulator4 += rpm;
-//     mps = belt_distance * (rpm) / (60 * 1000);
-//   }
-//   else {
-//     rpm = 0;
-//     //rpmaccumulatorInterval = 0;
-//     accumulator4 = 0;  // average rpm of last 4 samples
-//   }
-//   revCount = 0;
-//   accumulatorInterval = 0;
-//   //mps = belt_distance * (rpm) / (60 * 1000);
-// }
-
 void setup() 
 {
   // initial min treadmill speed
   kmph = 0.5;
   incline = 0;
-  grade_deg = 0;
+  gradeDeg = 0;
   angle = 0;
   elevation = 0;
-  elevation_gain = 0;
+  elevationGain = 0;
 
   DEBUG_BEGIN(115200);
 
@@ -272,7 +238,7 @@ void setup()
   initWifi();
   delay(4000);  
 
-  do_it();
+  initLovyanGFXTouchAreas();
 
   initLittleFS();
   initButton();
@@ -291,7 +257,7 @@ void setup()
 
   initSensors();
   showInfo();
-  updateDisplay(true);
+  gfxUpdateDisplay(true);
   resetStopWatch();
 
   logText("setup done\n");
@@ -301,26 +267,16 @@ void loop()
 {
   float rpm = 0;  
 
-#ifdef SHOW_FPS
-  static int fps;
-  ++fps;
-#endif
-
-  loop_handle_hardware();
-  loop_handle_button();
-  loop_handle_touch();
-  loop_handle_WIFI();
-  loop_handle_BLE();
+  loopHandleHardware();
+  loopHandleButton();
+  loopHandleTouch();
+  loopHandleWIFI();
+  loopHandleBLE();
 
  // timertick... every second
   if (timer_tick == true)
   {
     timer_tick = false;
-
-#ifdef SHOW_FPS
-    show_FPS(fps);
-    fps = 0;
-#endif
 
     if (speedInclineMode & INCLINE) 
     {
@@ -331,48 +287,46 @@ void loop()
     //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     }
 
-    // total_distance = ... v = d/t -> d = v*t -> use v[m/s]
+    // totalDistance = ... v = d/t -> d = v*t -> use v[m/s]
     if (speedInclineMode & SPEED) 
     {  // get speed from sensor (no-manual mode)
       // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
       // and calc rpm from reed switch provide same unit
       if (configTreadmill.hasIrSense) {
-        kmph = kmph_sense;
+        kmph = kmphIRsense;
         mps = kmph / 3.6; // meter per second (EVERY_SECOND)
-        total_distance += mps;
+        totalDistance += mps;
       }
       else
       {
-        rpm = calculate_RPM();
+        rpm = calculateRPM();
         mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
         kmph = mps * 3.6;                          // km per hour
-        total_distance = workoutDistance / 1000;   // conv mm to meter
+        totalDistance = workoutDistance / 1000;   // conv mm to meter
       }
     }
     else
     {
       mps = kmph / 3.6;
-      total_distance += mps;
+      totalDistance += mps;
     }
-    //elevation_gain += (double)(sin(angle) * mps);
-    elevation_gain += incline / 100 * mps;
+    //elevationGain += (double)(sin(angle) * mps);
+    elevationGain += incline / 100 * mps;
 
  #if 0
     DEBUG_PRINT("mps = d: ");       DEBUG_PRINT(mps);
     DEBUG_PRINT("   angle: ");      DEBUG_PRINT(angle);
     DEBUG_PRINT("   h (m): ");      DEBUG_PRINT(sin(angle) * mps);
-    DEBUG_PRINT("   h gain (m): "); DEBUG_PRINT(elevation_gain);
+    DEBUG_PRINT("   h gain (m): "); DEBUG_PRINT(elevationGain);
     DEBUG_PRINT("   kmph: ");       DEBUG_PRINT(kmph);
     DEBUG_PRINT("   incline: ");    DEBUG_PRINT(incline);
-    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(grade_deg);
-    DEBUG_PRINT("   dist km: ");    DEBUG_PRINTLN(total_distance/1000);
+    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(gradeDeg);
+    DEBUG_PRINT("   dist km: ");    DEBUG_PRINTLN(totalDistance/1000);
 #endif
-    publish_topics();
+    publishTopicsMqtt();
     
-#ifndef SHOW_FPS
-    updateDisplay(false);
-#endif
-    notifyClients();
-    updateBLEdata();
+    gfxUpdateDisplay(false);
+    notifyClientsWebSockets();
+    updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain 
   }
 }
