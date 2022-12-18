@@ -358,7 +358,9 @@ void initSensors(void)
 
     if (status != 0) 
     {
-      logText(" failed\n");
+      logText(" failed (DISABLED)\n");
+      configTreadmill.hasMPU6050 = false;
+      // TODO Would we want to retry, now, later, by config or is power off/on good enough
     }
     else
     {
@@ -380,7 +382,8 @@ void initSensors(void)
     if (!sensor.init()) 
     {
       DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
-      logText("VL53L0X setup failed!\n");    
+      logText("VL53L0X setup failed! (DISABLED)\n");
+      configTreadmill.hasVL53L0X = false;
     }
     else 
     {
@@ -499,6 +502,7 @@ void loopHandleHardware(void)
 + // This makes the twowire collide in some way and you get a 1s delay after each touch
 + // on the screen. To solve this collition of the i2c HW LovyanGFX code shoule be placed
   // outside of the I2C_0.begin/end below that surrounds MPU6050 (mpu) and GPIOExtender
+
   I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
 
   GPIOExtender.loopHandler();
@@ -513,6 +517,7 @@ void loopHandleHardware(void)
   {
     mpu.update();
   }  
+  I2C_0.end();
 
   // IrSensor to check speed
   // TODO: Only run if configured?
@@ -529,7 +534,6 @@ void loopHandleHardware(void)
     interrupts();
     DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
   }
-  I2C_0.end();  
 } 
 
 // A simple event handler, currenly just a call stack, an event queue would be smarter
@@ -599,7 +603,6 @@ void GPIOExtenderAW9523::loopHandler(void)
 {
     if (enabled)
     {
-
 #ifdef AW9523_IRQ_MODE
         if (GPIOExtender.checkInterrupt())
 #endif
@@ -625,9 +628,9 @@ void GPIOExtenderAW9523::loopHandler(void)
                 handleEvent(EventType::KEY_LEFT);
                 //handleEvent(EventType::TREADMILL_SPEED_DOWN);
             }
-            if((keys & AW9523_KEY_DOWV) && AW9523_KEY_DOWV)
+            if((keys & AW9523_KEY_DOWN) && AW9523_KEY_DOWN)
             {
-                DEBUG_PRINTLN("AW9523_KEY_DOWV");
+                DEBUG_PRINTLN("AW9523_KEY_DOWN");
                 handleEvent(EventType::KEY_DOWN);
                 //handleEvent(EventType::TREADMILL_INC_DOWN);
             }
@@ -692,7 +695,11 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n",static_cast<uint32_t>(eventButton));
             return false;
         }
-        DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x\n",static_cast<uint32_t>(eventButton),line);
+        DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n",static_cast<uint32_t>(eventButton),line);
+
+        // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
+        // around the I2C calls
+        I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
 
         if (line & 0xff)
         {
@@ -704,6 +711,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             // digitalWrite(pin, LOW);
             if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
 
+#warning Remove delay and schedule last part later in sow way going back to "main" loop mode. 
             delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
             // digitalWrite(pin, HIGH);
@@ -719,7 +727,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             if (!write(CONFIG_PORT1,~port1Bit)) return false; //0-output 1-input
             // digitalWrite(pin, LOW);
             if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
-
+#warning Remove delay and schedule last part later in sow way going back to "main" loop mode. 
             delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
             // digitalWrite(pin, HIGH);
@@ -728,6 +736,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
 
         }
+        I2C_0.end();
         return true;
     }
     return false;
@@ -852,6 +861,8 @@ void initHardware(void)
   I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
   
   initGPIOExtender();
+  initSensors();
+  I2C_0.end();
   logText("done\n");
 }
 

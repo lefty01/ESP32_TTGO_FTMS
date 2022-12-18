@@ -22,10 +22,11 @@ void initDisplay(void)
 {
 #ifndef NO_DISPLAY
   logText("Init display...");    
-  tft.init(); // vs begin??
-  tft.setRotation(1); // 3
+  tft.init();
 #ifdef TFT_ROTATE
   tft.setRotation(TFT_ROTATE);
+#else
+  tft.setRotation(1);
 #endif
 #ifdef TFT_BL
   if (TFT_BL > 0) {
@@ -82,7 +83,16 @@ void loopHandleTouch(void) {
   int32_t touch_x = 0, touch_y = 0;
 
   //DEBUG_PRINTLN("loop handle touch..");
+
+  // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
+  // around the tft.getTouch() call
+  lgfx::i2c::init(I2C_NUM_1, GPIO_NUM_18, GPIO_NUM_19);
+
   tft.getTouch(&touch_x, &touch_y);
+
+  lgfx::i2c::release(I2C_NUM_1);
+
+  //DEBUG_PRINTF("loopHandleTouch() -> %d,%d\n",touch_x,touch_y);
 
   // FIXME: switch to button array (touchButtons[]) and cycle through buttons here
   if (btnSpeedToggle.contains(touch_x, touch_y)) btnSpeedToggle.press(true);
@@ -105,14 +115,14 @@ void loopHandleTouch(void) {
 
 
   if (btnSpeedToggle.justPressed()) {
-    DEBUG_PRINTLN("speed mode toggle!");
+    DEBUG_PRINTLN("loopHandleTouch() speed mode toggle!");
     speedInclineMode ^= SPEED; // b'01 toggle bit
     if (speedInclineMode & SPEED) btnSpeedToggle.drawButton();
     else                          btnSpeedToggle.drawButton(true);
     gfxUpdateHeader();
   }
   if (btnInclineToggle.justPressed()) {
-    DEBUG_PRINTLN("incline mode toggle!");
+    DEBUG_PRINTLN("loopHandleTouch() incline mode toggle!");
     speedInclineMode ^= INCLINE; // b'10
     if (speedInclineMode & INCLINE) btnInclineToggle.drawButton();
     else                            btnInclineToggle.drawButton(true);

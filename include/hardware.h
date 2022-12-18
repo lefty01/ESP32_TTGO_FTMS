@@ -112,7 +112,7 @@ private:
   static constexpr uint8_t ID_AW9523 = 0x23;
   static constexpr uint16_t AW9523_KEY_UP    = 0x0001;
   static constexpr uint16_t AW9523_KEY_LEFT  = 0x0002;
-  static constexpr uint16_t AW9523_KEY_DOWV  = 0x0004;
+  static constexpr uint16_t AW9523_KEY_DOWN  = 0x0004;
   static constexpr uint16_t AW9523_KEY_RIGHT = 0x0008;
   static constexpr uint16_t AW9523_KEY_OK    = 0x0010;
   static constexpr uint16_t AW9523_KEY_BACK  = 0x0020;

@@ -255,7 +255,6 @@ void setup()
     initMqtt();
   }
 
-  initSensors();
   showInfo();
   gfxUpdateDisplay(true);
   resetStopWatch();
