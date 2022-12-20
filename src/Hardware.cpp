@@ -24,8 +24,6 @@
 #include <Button2.h>
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
-#include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
-
 
 #include "ESP32_TTGO_FTMS.h"
 #include "net-control.h"

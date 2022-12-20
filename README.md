@@ -79,9 +79,6 @@ If you go with the infrared sensor the this is the most treadmill-model-independ
 * 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050 [3]
   https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
 
-* Time-of-Flight Laser Ranging Sensor GY-530 VL53L0X (ToF) [4]
-  https://de.aliexpress.com/item/32738458924.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
-
 * WT32-SC01 [5]
   https://tinyurl.com/4kbp8fkf
 
