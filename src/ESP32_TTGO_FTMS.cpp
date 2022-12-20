@@ -238,7 +238,9 @@ void setup()
   initWifi();
   delay(4000);  
 
+#ifdef TARGET_WT32_SC01
   initLovyanGFXTouchAreas();
+#endif
 
   initLittleFS();
   initButton();
