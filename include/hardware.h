@@ -70,11 +70,12 @@ public:
 #ifdef AW9523_IRQ_MODE
   void IRAM_ATTR gotInterrupt(void);
 #endif
-  void loopHandler(void);
+  void scanButtons(void);
   void logPins(void);
   bool pressEvent(EventType eventButton);
 private:
   uint8_t read(uint8_t reg);
+  uint8_t read(uint8_t reg, bool i2cHandled);
   bool write(uint8_t reg, uint8_t data);
   bool enabled = false;
   bool isInterrupted = false;

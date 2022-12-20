@@ -22,13 +22,9 @@
 
 #include <Arduino.h>
 #include <Button2.h>
-//#ifndef NO_MPU6050
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
-//#endif
-//#ifndef NO_VL53L0X
 #include <VL53L0X.h>       // time-of-flight sensor -> get incline % from distance to ground
-//#endif
 
 
 #include "ESP32_TTGO_FTMS.h"
@@ -37,27 +33,22 @@
 #include "debug_print.h"
 #include "config.h"
 
-
-
 esp_reset_reason_t reset_reason;
 unsigned long sw_timer_clock = 0;
 
-
-
 unsigned long wifi_reconnect_counter = 0;
 
-//#define SPEED_IR_SENSOR1   15
-//#define SPEED_IR_SENSOR2   13
-
-bool timer_tick;
-static constexpr int AW9523_INTERRUPT_PIN  = 25; // GPIO Extender interrupt
-static constexpr int SPEED_REED_SWITCH_PIN = 26; // REED-Contact
-
-float rpm = 0;
+// IRSensor - interrupt sensors to measure speed on GPIO:
+#define SPEED_IR_SENSOR1   15
+#define SPEED_IR_SENSOR2   13
 volatile unsigned long t1;
 volatile unsigned long t2;
 volatile bool t1_valid = false;
 volatile bool t2_valid = false;
+
+bool timer_tick; // Every second
+static constexpr int AW9523_INTERRUPT_PIN  = 25; // GPIO Extender interrupt
+static constexpr int SPEED_REED_SWITCH_PIN = 26; // REED-Contact
 
 volatile unsigned long startTime = 0;     // start of revolution in microseconds
 volatile unsigned long longpauseTime = 0; // revolution time with no reed-switch interrupt
@@ -65,9 +56,6 @@ volatile long accumulatorInterval = 0;    // time sum between display during int
 volatile unsigned int revCount = 0;       // number of revolutions since last display update
 volatile long accumulator4 = 0;           // sum of last 4 rpm times over 4 seconds
 volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either reed/ir/manual
-
-//csstatic TwoWire I2C_0 = TwoWire(0);
-TwoWire I2C_0 = TwoWire(0);
 
 // PINS
 // NOTE TTGO T-DISPAY GPIO 36,37,38,39 can only be input pins https://github.com/Xinyuan-LilyGO/TTGO-T-Display/issues/10
@@ -157,14 +145,11 @@ static const uint32_t I2C_FREQ = 400000;
 #error Unknown HW Platform
 #endif
 
-//#ifndef NO_VL53L0X
-VL53L0X sensor;
-const unsigned long MAX_DISTANCE = 1000;  // Maximum distance in mm
-//#endif
+//csstatic TwoWire I2C_0 = TwoWire(0);
+TwoWire I2C_0 = TwoWire(0);
 
-//#ifndef NO_MPU6050
-static MPU6050 mpu(I2C_0);
-//#endif
+static VL53L0X VL53L0Xsensor;
+static MPU6050 mpu6050(I2C_0);
 
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
@@ -350,9 +335,11 @@ void initSensors(void)
 {
   if (configTreadmill.hasMPU6050)
   {
+    // Mesure incline using angle "detector" MPU6050
     logText("init MPU6050....");
 
-    byte status = mpu.begin();
+    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+    byte status = mpu6050.begin();
     DEBUG_PRINT("status: ");
     DEBUG_PRINT(status);
 
@@ -366,20 +353,23 @@ void initSensors(void)
     {
       logText("Calc offsets, do not move MPU6050 (3sec)");
 
-      mpu.calcOffsets(); // gyro and accel.
+      mpu6050.calcOffsets(); // gyro and accel.
       delayWithDisplayUpdate(2000);
       speedInclineMode |= INCLINE;
 
       logText(" done\n");
     }
+    I2C_0.end();
   }
 
   if (configTreadmill.hasVL53L0X) 
   {
+    // Mesure incline by measuring distance to ground below treadmil at some point
     logText("init VL53L0X\n");
-    sensor.setTimeout(500);
+    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+    VL53L0Xsensor.setTimeout(500);
 
-    if (!sensor.init()) 
+    if (!VL53L0Xsensor.init()) 
     {
       DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
       logText("VL53L0X setup failed! (DISABLED)\n");
@@ -390,9 +380,12 @@ void initSensors(void)
       DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
       logText("VL53L0X initialized!\n");
     }
+    I2C_0.end();
   }
 }
-
+// ------------------ Mesure speed with something triggering a GPIO pin periodicle
+// Triggered periodiacly according to speed, could be a HAL sensor on the front roller of the treadmill
+// Might be a signal found in your treadmill cable harnest
 void IRAM_ATTR reedSwitch_ISR()
 {
   // calculate the microseconds since the last interrupt.
@@ -425,8 +418,9 @@ void IRAM_ATTR reedSwitch_ISR()
   }
 }
 
-// two IR-Sensors
-void IRAM_ATTR speedSensor1_ISR(void)
+// ------------------ Mesure speed with something 2 triggers on GPIO pin periodicle like a marker on the loop?
+// Messure two IR-Sensors
+static void IRAM_ATTR speedSensor1_ISR(void)
 {
   if (! t1_valid) {
     t1 = micros();
@@ -434,7 +428,7 @@ void IRAM_ATTR speedSensor1_ISR(void)
   }
 }
 
-void IRAM_ATTR speedSensor2_ISR(void)
+static void IRAM_ATTR speedSensor2_ISR(void)
 {
   if (t1_valid && !t2_valid) {
     t2 = micros();
@@ -451,15 +445,9 @@ void IRAM_ATTR speedSensor2_ISR(void)
 float getIncline(void) 
 {
   double sensorAngle = 0.0;
-  float temp_incline;
+  float temp_incline = 0.0;
   char yStr[5];
   char inclineStr[6];
-
-  if (configTreadmill.hasVL53L0X) 
-  {
-    // calc incline/angle from distance
-    // depends on sensor placement ... TODO: configure via webinterface
-  }
 
   if (configTreadmill.hasMPU6050) 
   {
@@ -467,8 +455,9 @@ float getIncline(void)
     // TODO: configure sensor orientation  via webinterface
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
-    sensorAngle = mpu.getAngleY();
-    angle = angleSensorTreadmillConversion(sensorAngle);
+    sensorAngle = mpu6050.getAngleY(); //This does not use I2C no need to I2C begin/end
+
+    angle = angleSensorTreadmillConversion(sensorAngle); // convert angle depending on treadmill placment of mpu6050
 
     if (angle < 0) angle = 0;  // TODO We might allow running downhill
 
@@ -483,6 +472,16 @@ float getIncline(void)
     //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     // ******************************************
   }
+  if (configTreadmill.hasVL53L0X)
+  {
+    // calc incline/angle from distance
+    // depends on sensor placement ... TODO: configure via webinterface
+    //I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+    // TODO add code here or remove VL53L0X code??
+    // VL53L0Xsensor.something() ???
+    angle = 0.0;
+    //I2C_0.end();
+  }
 
   if (temp_incline <= configTreadmill.min_incline) temp_incline = configTreadmill.min_incline;
   if (temp_incline > configTreadmill.max_incline)  temp_incline = configTreadmill.max_incline;
@@ -490,22 +489,20 @@ float getIncline(void)
 #warning cs todo remove this
   DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, temp_incline);
 
-  // probably need some more smoothing here ...
-  // ...
+  // TODO probably need some more smoothing here ...
   return temp_incline;
 }
 
 void loopHandleHardware(void)
 {
-+ // NOTE/WARNING:
+  // NOTE/WARNING:
   // MPU6050 (mpu) and GPIOExtender use twowire i2c driver and LovyanGFX has it's own
-+ // This makes the twowire collide in some way and you get a 1s delay after each touch
-+ // on the screen. To solve this collition of the i2c HW LovyanGFX code shoule be placed
-  // outside of the I2C_0.begin/end below that surrounds MPU6050 (mpu) and GPIOExtender
+  // This makes the twowire collide in some way and you get a 1s delay after each touch
+  // on the screen. To solve this collition of the i2c HW LovyanGFX code shoule be placed
+  // outside of the I2C_0.begin/end below that surrounds MPU6050 (mpu), GPIOExtender class
+  // is part of our code hand has it's own I2C_0.begin() and I2C_0.end() when using I2C
 
-  I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
-
-  GPIOExtender.loopHandler();
+  GPIOExtender.scanButtons();
 
   if ((millis() - sw_timer_clock) > EVERY_SECOND) 
   {
@@ -515,24 +512,28 @@ void loopHandleHardware(void)
 
   if (configTreadmill.hasMPU6050)
   {
-    mpu.update();
+    I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
+    mpu6050.update();  // read out data from the sensor
+    I2C_0.end();
   }  
-  I2C_0.end();
 
   // IrSensor to check speed
-  // TODO: Only run if configured?
-  unsigned long t;
+  if (configTreadmill.hasIrSense)
+  {
+    unsigned long t;
 #warning remove this constant to some config/file  
-  const unsigned long c = 359712; // d=10cm
-  t = t2 - t1;
-  // check ir-speed sensor if not manual mode
-  if (t2_valid) { // hasIrSense = true
-    configTreadmill.hasIrSense = true;
-    kmphIRsense = (float)(1.0 / t) * c;
-    noInterrupts();
-    t1_valid = t2_valid = false;
-    interrupts();
-    DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
+    const unsigned long c = 359712; // d=10cm
+    t = t2 - t1;
+    // check ir-speed sensor if not manual mode
+    if (t2_valid) 
+    { // hasIrSense = detected
+      kmphIRsense = (float)(1.0 / t) * c;
+      noInterrupts();
+      t1_valid = t2_valid = false;
+      interrupts();
+      DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
+    }
+
   }
 } 
 
@@ -599,7 +600,7 @@ static void IRAM_ATTR GPIOExtenderInterrupt(void) {
 }
 #endif
 
-void GPIOExtenderAW9523::loopHandler(void)
+void GPIOExtenderAW9523::scanButtons(void)
 {
     if (enabled)
     {
@@ -697,10 +698,6 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
         }
         DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n",static_cast<uint32_t>(eventButton),line);
 
-        // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
-        // around the I2C calls
-        I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
-
         if (line & 0xff)
         {
             uint8_t port0Bit = line & 0xff;
@@ -711,7 +708,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             // digitalWrite(pin, LOW);
             if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
 
-#warning Remove delay and schedule last part later in sow way going back to "main" loop mode. 
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
             delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
             // digitalWrite(pin, HIGH);
@@ -727,36 +724,56 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
             if (!write(CONFIG_PORT1,~port1Bit)) return false; //0-output 1-input
             // digitalWrite(pin, LOW);
             if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
-#warning Remove delay and schedule last part later in sow way going back to "main" loop mode. 
+
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
             delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
             // digitalWrite(pin, HIGH);
             if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
             // pinMode(pin, INPUT);
             if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
-
         }
-        I2C_0.end();
         return true;
     }
     return false;
 }
 
+uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
+{
+  if(!i2cHandled)
+  {
+    // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
+    // around the I2C calls
+    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+  }
+  wire->beginTransmission(AW9523_ADDR);
+  wire->write(reg);
+  wire->endTransmission(true);
+  wire->requestFrom(AW9523_ADDR, static_cast<uint8_t>(1));
+  uint8_t ret = wire->read();
+  if(!i2cHandled)
+  {
+    I2C_0.end();    
+  }
+  return ret;
+
+}
+
 uint8_t GPIOExtenderAW9523::read(uint8_t reg)
 {
-    wire->beginTransmission(AW9523_ADDR);
-    wire->write(reg);
-    wire->endTransmission(true);
-    wire->requestFrom(AW9523_ADDR, static_cast<uint8_t>(1));
-    return wire->read();
+    return read(reg,false);
 }
 
 bool GPIOExtenderAW9523::write(uint8_t reg, uint8_t data)
 {
+    // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
+    // around the I2C calls
+    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
     wire->beginTransmission(AW9523_ADDR);
     wire->write(reg);
     wire->write(data);
     uint8_t ret = wire->endTransmission();  // 0 if OK
+    I2C_0.end();
     if (ret != 0)
     {
         DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n",reg, data, ret);
@@ -807,20 +824,25 @@ bool GPIOExtenderAW9523::isAvailable()
 
 uint16_t GPIOExtenderAW9523::getPins(void)
 {
-    if (enabled)
-    {
-      isInterrupted = false;
-      uint8_t port0 = read(INPUT_PORT0);
-      uint8_t port1 = read(INPUT_PORT1);
+  if (enabled)
+  {
+    isInterrupted = false;
+    // As this is part of main loop lets read both ports with one I2C begin/end
+    // to speed thing up.
+    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+
+    uint8_t port0 = read(INPUT_PORT0,true);
+    uint8_t port1 = read(INPUT_PORT1,true);
 
 #ifdef AW9523_IRQ_MODE
-      uint8_t int0 = read(INT_PORT0);
-      uint8_t int1 = read(INT_PORT0);
-      DEBUG_PRINTF("GPIOExtenderAW9523 Read port:0x%x%x  interrupt:0x%x%x \n",port1,port0,int0,int1);
+    uint8_t int0 = read(INT_PORT0,true);
+    uint8_t int1 = read(INT_PORT0,true);
+    DEBUG_PRINTF("GPIOExtenderAW9523 Read port:0x%x%x  interrupt:0x%x%x \n",port1,port0,int0,int1);
 #endif
-      return ((port1 << 8) | port0);
-    }
-    return 0;
+    I2C_0.end();
+    return ((port1 << 8) | port0);
+  }
+  return 0;
 }  
 
 bool GPIOExtenderAW9523::checkInterrupt(void)
@@ -858,11 +880,8 @@ void initHardware(void)
   pinMode(SPEED_REED_SWITCH_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(SPEED_REED_SWITCH_PIN), reedSwitch_ISR, FALLING);
 
-  I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
-  
   initGPIOExtender();
   initSensors();
-  I2C_0.end();
   logText("done\n");
 }
 
