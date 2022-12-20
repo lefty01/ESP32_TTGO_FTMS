@@ -1,0 +1,12 @@
+treadmillname=Northtrack12_2_Si
+max_speed=20.0
+min_speed=0.5
+max_incline=12.0
+min_incline=0.0
+speed_interval_step=0.1
+incline_interval_step=0.5
+belt_distance=153.3
+hasMPU6050=0
+hasVL53L0X=0
+hasIrSense=0
+hasReed=0
