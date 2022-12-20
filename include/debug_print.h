@@ -2,6 +2,8 @@
 #define _debug_print_h_
 
 
+#define DEBUG 1
+
 #ifdef DEBUG
 
 #ifdef DEBUG_MQTT
@@ -55,5 +57,6 @@ const char* mqttDbg = MQTTDEVICEID "/debug";
 #define DEBUG_PRINTF(x_, ...)
 #define DEBUG_PRINTMQTT(x)
 #endif
+
 
 #endif
