@@ -64,16 +64,16 @@ void showInfo() {
   tft.setTextColor(TFT_GREEN);
   tft.setTextFont(2);
   tft.setCursor(5, 5);
-  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
+  tft.printf("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,configTreadmill.treadmill_name,
               configTreadmill.min_speed,configTreadmill.max_speed,configTreadmill.min_incline,configTreadmill.max_incline,configTreadmill.belt_distance,
-              configTreadmill.hasReed,configTreadmill.hasMPU6050, configTreadmill.hasVL53L0X, configTreadmill.hasIrSense, GPIOExtender.isAvailable());
+              configTreadmill.hasReed,configTreadmill.hasMPU6050, configTreadmill.hasIrSense, GPIOExtender.isAvailable());
   delay(4000);              
 #endif
-  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d VL53L0X:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
+  DEBUG_PRINTF("ESP32 FTMS - %s - %s\nSpeed[%.2f-%.2f] Incline[%.2f-%.2f]\nDist/REED:%limm\nREED:%d MPU6050:%d IrSense:%d\nGPIOExtender(AW9523):%d\n",
               VERSION,configTreadmill.treadmill_name,
               configTreadmill.min_speed,configTreadmill.max_speed,configTreadmill.min_incline,configTreadmill.max_incline,configTreadmill.belt_distance,
-              configTreadmill.hasReed,configTreadmill.hasMPU6050, configTreadmill.hasVL53L0X, configTreadmill.hasIrSense, GPIOExtender.isAvailable());
+              configTreadmill.hasReed,configTreadmill.hasMPU6050, configTreadmill.hasIrSense, GPIOExtender.isAvailable());
 
 }
 

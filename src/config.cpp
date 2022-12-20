@@ -19,7 +19,6 @@
 #define default_incline_interval_step 1.0
 #define default_belt_distance 250
 #define default_hasMPU6050 false
-#define default_hasVL53L0X false
 #define default_hasIrSense false
 #define default_hasReed false
 
@@ -42,7 +41,6 @@ struct TreadmillConfiguration configTreadmill;
 //float incline_interval_step=0;
 //volatile float speed_interval_step=0;
 //bool hasMPU6050;
-//bool hasVL53L0X;
 //bool hasIrSense;
 //bool hasReed;
 const char* VERSION = "0.0.22";
@@ -68,8 +66,6 @@ void dump_settings(void)
   DEBUG_PRINTLN(configTreadmill.belt_distance);
   DEBUG_PRINT("hasMPU6050: "); 
   DEBUG_PRINTLN(configTreadmill.hasMPU6050);
-  DEBUG_PRINT("hasVL53L0X: "); 
-  DEBUG_PRINTLN(configTreadmill.hasVL53L0X);
   DEBUG_PRINT("hasIrSense: "); 
   DEBUG_PRINTLN(configTreadmill.hasIrSense);
   DEBUG_PRINT("hasReed: "); 
@@ -220,7 +216,6 @@ void initConfig(void)
   configTreadmill.belt_distance  = LittleFS_findFloat(F("belt_distance"));  
   // Get Your HW config, e.g. interface to Treadmill and other added HW
   configTreadmill.hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
-  configTreadmill.hasVL53L0X    = LittleFS_findInt(F("hasVL53L0X"));
   configTreadmill.hasIrSense    = LittleFS_findInt(F("hasIrSense"));
   configTreadmill.hasReed    = LittleFS_findInt(F("hasReed"));
 
@@ -278,12 +273,6 @@ void initConfig(void)
     configTreadmill.hasMPU6050 = default_hasMPU6050;
     logText("invalid MPU6050 setting, using default (false)\n");
 
-  }
-
-  if ((configTreadmill.hasVL53L0X < 0) || (configTreadmill.hasVL53L0X >1))
-  {
-    configTreadmill.hasVL53L0X = default_hasVL53L0X;
-    logText("invalid VL53L0X setting, using default (false)\n");
   }
 
   if ((configTreadmill.hasIrSense < 0) || (configTreadmill.hasIrSense > 1))

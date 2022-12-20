@@ -16,7 +16,6 @@ extern const char* VERSION;
 //extern float incline_interval_step;
 //extern volatile float speed_interval_step;
 //extern bool hasMPU6050;
-//extern bool hasVL53L0X;
 //extern bool hasIrSense;
 //extern bool hasReed;
 
@@ -32,7 +31,6 @@ struct TreadmillConfiguration
     float speed_interval_step;
     long  belt_distance; // mm ... actually circumfence of motor wheel!
     bool  hasMPU6050;
-    bool  hasVL53L0X;
     bool  hasIrSense;
     bool  hasReed;
 };

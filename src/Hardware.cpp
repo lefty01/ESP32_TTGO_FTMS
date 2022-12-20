@@ -148,7 +148,6 @@ static const uint32_t I2C_FREQ = 400000;
 //csstatic TwoWire I2C_0 = TwoWire(0);
 TwoWire I2C_0 = TwoWire(0);
 
-static VL53L0X VL53L0Xsensor;
 static MPU6050 mpu6050(I2C_0);
 
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
@@ -354,27 +353,6 @@ void initSensors(void)
     }
     I2C_0.end();
   }
-
-  if (configTreadmill.hasVL53L0X) 
-  {
-    // Mesure incline by measuring distance to ground below treadmil at some point
-    logText("init VL53L0X\n");
-    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
-    VL53L0Xsensor.setTimeout(500);
-
-    if (!VL53L0Xsensor.init()) 
-    {
-      DEBUG_PRINTLN("Failed to detect and initialize VL53L0X sensor!");
-      logText("VL53L0X setup failed! (DISABLED)\n");
-      configTreadmill.hasVL53L0X = false;
-    }
-    else 
-    {
-      DEBUG_PRINTLN("VL53L0X sensor detected and initialized!");
-      logText("VL53L0X initialized!\n");
-    }
-    I2C_0.end();
-  }
 }
 // ------------------ Mesure speed with something triggering a GPIO pin periodicle
 // Triggered periodiacly according to speed, could be a HAL sensor on the front roller of the treadmill
@@ -464,16 +442,6 @@ float getIncline(void)
     // CS WHY IS THIS HERE
     //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     // ******************************************
-  }
-  if (configTreadmill.hasVL53L0X)
-  {
-    // calc incline/angle from distance
-    // depends on sensor placement ... TODO: configure via webinterface
-    //I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
-    // TODO add code here or remove VL53L0X code??
-    // VL53L0Xsensor.something() ???
-    angle = 0.0;
-    //I2C_0.end();
   }
 
   if (temp_incline <= configTreadmill.min_incline) temp_incline = configTreadmill.min_incline;
