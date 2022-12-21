@@ -143,7 +143,7 @@ extern const char* getRstReason(esp_reset_reason_t r);
 extern TwoWire I2C_0;
 extern GPIOExtenderAW9523 GPIOExtender;
 
-#ifdef TARGET_WT32_SC01
+#ifdef HAS_TOUCH_DISPLAY
 void initLovyanGFXTouchAreas(void);
 #endif
 #endif

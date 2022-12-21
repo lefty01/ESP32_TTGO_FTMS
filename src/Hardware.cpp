@@ -151,7 +151,7 @@ static MPU6050 mpu6050(I2C_0);
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
 
-#ifdef TARGET_WT32_SC01
+#ifdef HAS_TOUCH_DISPLAY
 void initLovyanGFXTouchAreas(void)
  {
   // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {

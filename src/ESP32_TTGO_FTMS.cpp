@@ -238,7 +238,7 @@ void setup()
   initWifi();
   delay(4000);  
 
-#ifdef TARGET_WT32_SC01
+#ifdef HAS_TOUCH_DISPLAY
   initLovyanGFXTouchAreas();
 #endif
 
