@@ -3,17 +3,16 @@
 [![Join the chat at https://gitter.im/lefty01/ESP32_TTGO_FTMS](https://badges.gitter.im/lefty01/ESP32_TTGO_FTMS.svg)](https://gitter.im/lefty01/ESP32_TTGO_FTMS?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/donate/?hosted_button_id=TQGGMQ45T4QKJ)
 
-
 # ESP32_TTGO_FTMS
 ESP32 based treadmill speed and incline sensor and BLE Server exposed as FTMS Service
 
 Based/Inspired on/by this project:
 
-* https://hackaday.io/project/175237-add-bluetooth-to-treadmill
+  * https://hackaday.io/project/175237-add-bluetooth-to-treadmill
 
 and info and thoughts from this zwift forum post:
 
-* https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19
+  * https://forums.zwift.com/t/show-us-your-zwift-setup/59647/19
 
 ## some random info (moved from code comments into Readme)
 
@@ -68,22 +67,20 @@ For example if we get the incline values while running on Zwift (ocr capture, sn
 If you go with the infrared sensor the this is the most treadmill-model-independant solution. Check the code at the moment the sensors need to be roughly 100mm apart.
 
 
-
 ## Parts Used
-* Treadmill Speed Sensor (Reed-Switch) [1]
+  * Treadmill Speed Sensor (Reed-Switch) [1]
   https://de.aliexpress.com/item/4000023371194.html?spm=a2g0s.9042311.0.0.556d4c4d8wMaUG
 
-* Infrared-Sensor (Obstacle Avoidance Sensor) [2]
+  * Infrared-Sensor (Obstacle Avoidance Sensor) [2]
   https://de.aliexpress.com/item/1005001285654366.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
 
-* 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050 [3]
+  * 3 Axis analog gyro sensors+ 3 Axis Accelerometer GY-521 MPU-6050 MPU6050 [3]
   https://de.aliexpress.com/item/32340949017.html?spm=a2g0s.9042311.0.0.27424c4dPrwkYp
 
-* WT32-SC01 [5]
+  * WT32-SC01 [5]
   https://tinyurl.com/4kbp8fkf
 
-* Lilygo TTGO-T4 (ESP32 with 240x320 Display and SD-card slot, also feat. 5-pin JST con. for I2C) [6]
-
+  * Lilygo TTGO-T4 (ESP32 with 240x320 Display and SD-card slot, also feat. 5-pin JST con. for I2C) [6]
 
 Reed switch is installed next to the original treadmill reed contact and connected via external pull-up.
 
@@ -109,21 +106,19 @@ include/client.key.sample
 At this point the filesystem (files within the data folder) contain the files for the webinterface:
 index.html  index.js  style.css
 
+and config files
 
-To build the spiffs filesystem run:
+To build the LittleFS filesystem run:
 ```
-$ pio run  -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs 
+$ pio run  -e ESP32_TTGO_DISPLAY -t buildfs 
 ```
 You can then flash it over-the-air as well.
 
 Also check the PlatformIO section below.
 
-If you are using Arduino-IDE, then follow instructions about SPIFFS filesystem upload tools here:
-https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
-
 ## arduino IDE settings
-* Board: ESP32 Dev Module
-* Partition: Huge App (no OTA 3MB/1MB SPIFFS)
+  * Board: ESP32 Dev Module
+  * Partition: Huge App (no OTA 3MB/1MB SPIFFS)
 
 # JSON serialize / deserialize
 ## calculate memory requirement
@@ -153,13 +148,10 @@ Manual mode means you override sensor readings by clicking the UP/DOWN buttons o
 
 ![Main Website](doc/web-main.png)
 
-
 ### OTA
 Under the /update URL you can upload a new firmware image or spiffs filesystem image over-the-air.
 
 ![OTA](doc/ota-update.png)
-
-
 
 # measurements via oscilloscope
 ```
@@ -179,7 +171,6 @@ km/h 	 P ms
 
 From this we can also calculate an average distance the magnet travels on the motor wheel of 0.25088m -> 250mm (the circumference).
 
-
 # Issues
 IR-Sensor (here Sensor 1) is connected to GPIO12
 
@@ -190,8 +181,6 @@ https://github.com/espressif/esp-idf/issues/4585
 # Treadmill models
 
 we will switch to use the [wiki](https://github.com/lefty01/ESP32_TTGO_FTMS/wiki) to document treadmill models (specifications, features, how to connect to the ESP32 controller, ...)
-
-
 
 ## TAURUS 9.5
 Define as **TAURUS_9_5**
@@ -236,7 +225,6 @@ Define as **NORDICTRACK_12SI**
 ```
 
 
-
 # PlatformIO
 ## TFT_eSPI config
 Check:
@@ -246,41 +234,40 @@ and/or
 
 https://blog.emtwo.ch/2020/05/using-bodmer-tftespi-library-with.html
 
-
 ```
-$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI --list-targets
+$ pio run -e ESP32_TTGO_DISPLAY --list-targets
 Environment                  Group     Name         Title                        Description
 ---------------------------  --------  -----------  ---------------------------  ------------------------------------------------------------
-ESP32_TTGO_DISPLAY_TFT_eSPI  Advanced  compiledb    Compilation Database         Generate compilation database `compile_commands.json`
-ESP32_TTGO_DISPLAY_TFT_eSPI  General   clean        Clean
-ESP32_TTGO_DISPLAY_TFT_eSPI  General   cleanall     Clean All                    Clean a build environment and installed library dependencies
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  buildfs      Build Filesystem Image
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  erase        Erase Flash
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  size         Program Size                 Calculate program size
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  upload       Upload
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  uploadfs     Upload Filesystem Image
-ESP32_TTGO_DISPLAY_TFT_eSPI  Platform  uploadfsota  Upload Filesystem Image OTA
+ESP32_TTGO_DISPLAY  Advanced  compiledb    Compilation Database         Generate compilation database `compile_commands.json`
+ESP32_TTGO_DISPLAY  General   clean        Clean
+ESP32_TTGO_DISPLAY  General   cleanall     Clean All                    Clean a build environment and installed library dependencies
+ESP32_TTGO_DISPLAY  Platform  buildfs      Build Filesystem Image
+ESP32_TTGO_DISPLAY  Platform  erase        Erase Flash
+ESP32_TTGO_DISPLAY  Platform  size         Program Size                 Calculate program size
+ESP32_TTGO_DISPLAY  Platform  upload       Upload
+ESP32_TTGO_DISPLAY  Platform  uploadfs     Upload Filesystem Image
+ESP32_TTGO_DISPLAY  Platform  uploadfsota  Upload Filesystem Image OTA
 ```
 
 ```
-$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI
+$ pio run -e ESP32_TTGO_DISPLAY
 ```
 
 ```
-$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t buildfs
+$ pio run -e ESP32_TTGO_DISPLAY -t buildfs
 ```
 
 ```
-$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t uploadfs
+$ pio run -e ESP32_TTGO_DISPLAY -t uploadfs
 ```
 
 ```
-$ pio run -e ESP32_TTGO_DISPLAY_TFT_eSPI -t upload
+$ pio run -e ESP32_TTGO_DISPLAY -t upload
 ```
 
 ## Flash Files
-* firmware:   .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/firmware.bin
-* filesystem: .pio/build/ESP32_TTGO_DISPLAY_TFT_eSPI/spiffs.bin
+* firmware:   .pio/build/ESP32_TTGO_DISPLAY/firmware.bin
+* filesystem: .pio/build/ESP32_TTGO_DISPLAY/spiffs.bin
 
 
 ## Partition Table
@@ -319,7 +306,7 @@ app1,app,ota_1,0x150000,1280K,
 spiffs,data,spiffs,0x290000,1472K,
 ```
 
-### New partition table used for ESP32_TTGO_DISPLAY_TFT_eSPI_SSL
+### New partition table used for ESP32_TTGO_DISPLAY_SSL
 Modified table by increasing app partition(s) and decrease data (spiffs) partition.
 Currently data contains roughly 10k website data (html + js + css). New spiffs data partition has size of 448kB.
 At time of this commit size of 'standard' (non-ssl) app is 1196070 bytes and ssl version is 1352014 bytes.
@@ -337,14 +324,14 @@ spiffs,   data, spiffs,  0x390000,  0x070000,
 # SSL
 mqtt via ssl/tls does work.
 
-The ESP32_TTGO_DISPLAY_TFT_eSPI_SSL environment now has added the ASYNC_TCP_SSL_ENABLED flag that would compile
+The ESP32_TTGO_DISPLAY_SSL environment now has added the ASYNC_TCP_SSL_ENABLED flag that would compile
 AsyncTLS_SSL version in order to provide a https server. However I fear that the ESP32 cannot handle all of that
 encryption.
 
 So if you only want mqtt/ssl then unset/undefine or remove this -DASYNC_TCP_SSL_ENABLED from the platform.io section.
 
-
 # Thanks / Credits
 ... for providing inputs / thoughts / pull-requests
-* Zingo Andersen
-* Reiner Ziegler
+  * Zingo Andersen
+  * Reiner Ziegler
+  * Chris Smith
