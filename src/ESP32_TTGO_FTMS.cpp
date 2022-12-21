@@ -258,7 +258,9 @@ void setup()
   }
 
   showInfo();
+#ifndef NO_DISPLAY
   gfxUpdateDisplay(true);
+#endif
   resetStopWatch();
 
   logText("setup done\n");
@@ -325,8 +327,9 @@ void loop()
     DEBUG_PRINT("   dist km: ");    DEBUG_PRINTLN(totalDistance/1000);
 #endif
     publishTopicsMqtt();
-    
+#ifndef NO_DISPLAY
     gfxUpdateDisplay(false);
+#endif
     notifyClientsWebSockets();
     updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain 
   }
