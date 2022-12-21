@@ -415,8 +415,6 @@ float getIncline(void)
 {
   double sensorAngle = 0.0;
   float temp_incline = 0.0;
-  char yStr[5];
-  char inclineStr[6];
 
   if (configTreadmill.hasMPU6050) 
   {
@@ -430,9 +428,11 @@ float getIncline(void)
 
     if (angle < 0) angle = 0;  // TODO We might allow running downhill
 
+    char yStr[5];
     snprintf(yStr, 5, "%.2f", angle);
 
     temp_incline = tan(angle * DEG_TO_RAD) * 100;
+    char inclineStr[6];
     snprintf(inclineStr, 6, "%.1f", temp_incline);
 
     //client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);

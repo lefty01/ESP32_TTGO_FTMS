@@ -409,18 +409,17 @@ int initMqtt(void)
 
 bool mqttConnect(void) 
 {
-  bool rc = false;
   bool result = false;
 
-  logText("Attempting MQTT connection...\n");  
- #ifndef NO_DISPLAY
+  logText("Attempting MQTT connection...\n");
+#ifndef NO_DISPLAY
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
   tft.setCursor(20, 40);
   tft.print("Connecting to MQTT server: ");
   tft.println(mqtt_host);
-#endif  
+#endif
 
   // Attempt to connect
 #ifdef MQTT_USE_SSL
@@ -435,10 +434,10 @@ bool mqttConnect(void)
   {
     // Once connected, publish an announcement...
     DEBUG_PRINTLN("publish connected...");
-#ifndef NO_DISPLAY    
+#ifndef NO_DISPLAY
     tft.println("publish connected...");
-#endif    
-    rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
+#endif
+    bool rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
 
     if (rc) DEBUG_PRINTLN("OK");
     else    DEBUG_PRINTLN("ERROR");

@@ -267,9 +267,7 @@ void setup()
 }
 
 void loop() 
-{
-  float rpm = 0;  
-
+{  
   loopHandleHardware();
   loopHandleButton();
   loopHandleTouch();
@@ -302,7 +300,7 @@ void loop()
       }
       else
       {
-        rpm = calculateRPM();
+        float rpm = calculateRPM();
         mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
         kmph = mps * 3.6;                          // km per hour
         totalDistance = workoutDistance / 1000;   // conv mm to meter
