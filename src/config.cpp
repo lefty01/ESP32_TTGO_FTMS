@@ -3,7 +3,7 @@
 #include <LittleFS.h>
 
 #include "config.h"
-#include "ESP32_TTGO_FTMS.h"
+#include "common.h"
 
 #define FILE_NAME "/treadmill.txt"
 

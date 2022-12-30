@@ -4,14 +4,14 @@ Handle BT, Wifisetup, webserver and mqtt
 TODO: Maybe we want to split this up in different files later? Lets see how it grows
 */
 #define NIMBLE
-//#include "common.h"
 #include <LittleFS.h>
 #include <AsyncElegantOTA.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
 
-#include "ESP32_TTGO_FTMS.h"
+#include "common.h"
+#include "display.h"
 #include "net-control.h" 
 #include "config.h"
 #include "debug_print.h"
@@ -55,6 +55,7 @@ AsyncWiFiManager wifiManager(&server,&dns);
 //cs bool WifiAvailable = false;
 bool isMqttAvailable = false;
 bool isWifiAvailable = false;
+unsigned long wifiReconnectCounter = 0;
 
 static unsigned long mqtt_reconnect_counter = 0; 
 unsigned long wifi_reconnect_timer = 0;
@@ -145,14 +146,14 @@ void loopHandleBLE()
   // if changed to connected ...
   if (bleClientConnected && !bleClientConnectedPrev) {
     bleClientConnectedPrev = true;
-    DEBUG_PRINTLN("BT Client connected!");
+    logText("BT Client connected!\n");
 #ifndef NO_DISPLAY
     gfxUpdateHeader();
 #endif    
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
-    DEBUG_PRINTLN("BT Client disconnected!");
+    logText("BT Client disconnected!\n");
 #ifndef NO_DISPLAY    
     gfxUpdateHeader();
 #endif    
@@ -160,13 +161,7 @@ void loopHandleBLE()
 }
 void initBLE() {
   logText("init BLE...");
-#ifndef NO_DISPLAY
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_BLUE);
-  tft.setTextFont(4);
-  tft.setCursor(20, 40);
-  tft.println("initBLE");
-#endif
+
   BLEDevice::init(MQTTDEVICEID.c_str());  // set server name (here: MQTTDEVICEID)
 
   // create BLE Server, set callback for connect/disconnect
@@ -196,9 +191,6 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
 
   pAdvertising->start();
-#ifndef NO_DISPLAY
-  delay(2000); // added to keep tft msg a bit longer ...
-#endif
   logText("done\n");  
 }
 
@@ -250,7 +242,7 @@ String getWifiIpAddr() {
 void resetWifiConnection(AsyncWebServerRequest *request)
 {
   wifiManager.resetSettings();
-  DEBUG_PRINTLN("Wifi connection reset");
+  logText("Wifi connection reset\n");
   while(1)
   {
     // hangup for reset by wdt
@@ -299,13 +291,12 @@ void initWifi()
     ipAddr  = WiFi.localIP().toString();
     dnsAddr = WiFi.dnsIP().toString();
 
-    logText("done\n");  
-    DEBUG_PRINTLN("");
-    DEBUG_PRINTLN("WiFi connected");
-    DEBUG_PRINT("IP address: ");
-    DEBUG_PRINTLN(ipAddr);
-    DEBUG_PRINT("DNS address: ");
-    DEBUG_PRINTLN(dnsAddr);
+    logText(" OK\n");  
+    logText("IP address: ");
+    logText(ipAddr.c_str());
+    logText("DNS address: ");
+    logText(dnsAddr.c_str());
+    logText("\n");
   }
 //cs  return WifiAvailable;
 }
@@ -323,7 +314,7 @@ void loopHandleWIFI()
     isMqttAvailable = false;
     mqtt_reconnect_counter = 0;
 
-    DEBUG_PRINTLN("Disconnect and Reconnecting to WiFi...");
+    logText("Disconnect and Reconnecting to WiFi...\n");
     WiFi.disconnect();
     WiFi.reconnect();
   }
@@ -332,10 +323,13 @@ void loopHandleWIFI()
   {
     // connection was lost and now got reconnected ...
     isWifiAvailable = true;
-    wifi_reconnect_counter++;
-    DEBUG_PRINTLN("Reconnecting to wifi...");
-    DEBUG_PRINT("isWifiAvailable="); DEBUG_PRINTLN(isWifiAvailable);
-    DEBUG_PRINT("WiFi.status="); DEBUG_PRINTLN(WiFi.status());
+    wifiReconnectCounter++;
+    logText("Reconnecting to wifi...\n");
+    logText("isWifiAvailable=");
+    logText(isWifiAvailable?"Yes":"No");
+    logText(" WiFi.status=");
+    logText(WiFi.status()== WL_CONNECTED?"Connected":"Not Connected");
+    logText("\n");
 
 #ifndef NO_DISPLAY
     gfxUpdateHeader();
@@ -350,7 +344,7 @@ void loopHandleWIFI()
     // Limit this to 2 retrys to not bug down a system forever if not availible
     if (mqtt_reconnect_counter < 2)
     {
-      DEBUG_PRINTLN("Reconnecting to mqtt...");
+      logText("Reconnecting to mqtt...\n");
       mqtt_reconnect_counter++;
       isMqttAvailable = mqttConnect();
 #ifndef NO_DISPLAY
@@ -392,17 +386,9 @@ int initMqtt(void)
 
   setupMqttTopic(MQTTDEVICEID);
   isMqttAvailable = mqttConnect();
-  delay(2000);
+  delay(2000);  // TODO why 2s delay?
 
-#ifndef NO_DISPLAY  
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_BLUE);
-    tft.setTextFont(4);
-    tft.setCursor(20, 40);
-    tft.println("mqtt setup done!");
-    delay(2000);
-#endif  
-
+  logText("mqtt setup done!\n");
 
   return isMqttAvailable;
 }
@@ -411,76 +397,43 @@ bool mqttConnect(void)
 {
   bool result = false;
 
-  logText("Attempting MQTT connection...\n");
-#ifndef NO_DISPLAY
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextFont(2);
-  tft.setCursor(20, 40);
-  tft.print("Connecting to MQTT server: ");
-  tft.println(mqtt_host);
-#endif
+  logText("Attempting MQTT connection to server: ");
+  logText(mqtt_host);
 
   // Attempt to connect
 #ifdef MQTT_USE_SSL
+  logText(" [SSL]");
   espClient.setCACert(server_crt_str);
   espClient.setCertificate(client_crt_str);
   espClient.setPrivateKey(client_key_str);
 #endif
+  logText("\n");
 
   client.setServer(mqtt_host, mqtt_port);
   if (client.connect(MQTTDEVICEID.c_str(), mqtt_user, mqtt_pass,
 	    getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) 
   {
     // Once connected, publish an announcement...
-    DEBUG_PRINTLN("publish connected...");
-#ifndef NO_DISPLAY
-    tft.println("publish connected...");
-#endif
+    logText("publish connected...");
     bool rc = client.publish(getTopic(MQTT_TOPIC_STATE),  "CONNECTED", true);
+    if (rc) logText("OK\n");
+    else    logText("ERROR\n");
 
-    if (rc) DEBUG_PRINTLN("OK");
-    else    DEBUG_PRINTLN("ERROR");
-    DEBUG_PRINTLN("publish version & IP");
-
-#ifndef NO_DISPLAY
-    if (rc) tft.println("OK");
-    else    tft.println("ERROR");
-    delay(1500);
-    tft.println("publish version & IP");
-#endif    
-
+    logText("publish version & IP...");
     rc |= client.publish(getTopic(MQTT_TOPIC_RST), getRstReason(reset_reason), true);
     rc |= client.publish(getTopic(MQTT_TOPIC_VERSION), VERSION, true);
     rc |= client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
-
-    if (rc) DEBUG_PRINTLN("OK");
-      else  DEBUG_PRINTLN("ERROR");
-
-#ifndef NO_DISPLAY
-    if (rc) tft.println("OK");
-    else    tft.println("ERROR");
+    if (rc) logText("OK\n");
+      else  logText("ERROR\n");
   
-    delay(1500);
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN);
-    tft.setCursor(20, 60);
-    tft.println("MQTT CONNECTED");
-#endif    
-    DEBUG_PRINTLN("MQTT CONNECTED");
+    logText("MQTT CONNECTED\n");
     result = true;
   } 
   else
   {
-    DEBUG_PRINT("failed, rc=");
-    DEBUG_PRINTLN(client.state());
-#ifndef NO_DISPLAY    
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_RED);
-    tft.setCursor(20, 60);
-    tft.println("MQTT FAILED");
-    delay(1000);
-#endif    
+    logText("MQTT FAILED, rc=");
+    logText(std::to_string(client.state()));
+    logText("\n");
     result= false;
   }
 return result;
@@ -510,7 +463,6 @@ String processor(const String& var)
 
   return String();
 }
-
 
 void onNotFound(AsyncWebServerRequest* request) 
 {
@@ -548,7 +500,6 @@ int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf)
 void initAsyncWebserver()
 {
   logText("init webserver...");
-  DEBUG_PRINTLN("Init Webserver");
   server.on("/", HTTP_GET, onRootRequest);
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
   server.serveStatic("/", LittleFS, "/");
@@ -586,8 +537,6 @@ void notifyClientsWebSockets()
 
   char buffer[192];
   size_t len = serializeJson(doc, buffer);
-  //DEBUG_PRINT("serialize json len: ");
-  //DEBUG_PRINTLN(len);
   ws.textAll(buffer, len);
 }
 
@@ -603,8 +552,9 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
     DeserializationError err = deserializeJson(doc, data, len);
 
     if (err) {
-      DEBUG_PRINT(F("deserializeJson() failed with code "));
-      DEBUG_PRINTLN(err.f_str());
+      logText("deserializeJson() failed with code: ");
+      logText(err.f_str());
+      logText("\n");
       return;
     }
 

@@ -25,7 +25,8 @@
 #include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
 
-#include "ESP32_TTGO_FTMS.h"
+#include "common.h"
+#include "display.h"
 #include "net-control.h"
 #include "hardware.h"
 #include "debug_print.h"
@@ -33,8 +34,6 @@
 
 esp_reset_reason_t reset_reason;
 unsigned long sw_timer_clock = 0;
-
-unsigned long wifi_reconnect_counter = 0;
 
 // IRSensor - interrupt sensors to measure speed on GPIO:
 #define SPEED_IR_SENSOR1   15
@@ -69,35 +68,6 @@ volatile long workoutDistance = 0; // FIXME: vs. total_dist ... select either re
 // This is a touch screen so there is no buttons
 // IO_21 and IO_22 are routed out and use used for SPI to the screen
 // Pins with names that start with J seems to be connected so screen, take care to avoid.
-#ifndef NUM_TOUCH_BUTTONS
-#define NUM_TOUCH_BUTTONS 6
-#endif
-//LGFX_Button touchButtons[NUM_TOUCH_BUTTONS];
-LGFX_Button btnSpeedToggle    = LGFX_Button();
-LGFX_Button btnInclineToggle  = LGFX_Button();
-LGFX_Button btnSpeedUp        = LGFX_Button();
-LGFX_Button btnSpeedDown      = LGFX_Button();
-LGFX_Button btnInclineUp      = LGFX_Button();
-LGFX_Button btnInclineDown    = LGFX_Button();
-// 480 x 320, use full-top-half to show speed, incline, total_dist, and acc. elevation gain
-// maybe draw some nice gauges for speed/incline and odometers for dist and elevation
-// in addition might want to have an elevation profile being displayed
-// 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
-#define btnToggle_W           100
-#define btnToggle_H            50
-
-#define btnSpeedToggle_X       250
-#define btnSpeedToggle_Y         5
-#define btnInclineToggle_X     360
-#define btnInclineToggle_Y       5
-#define btnSpeedUp_X           250
-#define btnSpeedUp_Y           100
-#define btnSpeedDown_X         250
-#define btnSpeedDown_Y         170
-#define btnInclineUp_X         360
-#define btnInclineUp_Y         100
-#define btnInclineDown_X       360
-#define btnInclineDown_Y       170
 #elif TARGET_TTGO_T4
 // no-touch screen with three buttons
 #define BUTTON_1 38  // LEFT
@@ -150,25 +120,6 @@ static MPU6050 mpu6050(I2C_0);
 
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
-
-#ifdef HAS_TOUCH_DISPLAY
-void initLovyanGFXTouchAreas(void)
- {
-  // for (unsigned n = 0; n < NUM_TOUCH_BUTTONS; ++n) {
-  //     touchButtons[n] = LGFX_Button();
-  // }
-  // fixme: ...
-  logText("initLovyanGFXTouchAreas\n");  
-  btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
-  btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
-  btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
-  btnSpeedDown     .initButtonUL(&tft, btnSpeedDown_X,      btnSpeedDown_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
-  btnInclineUp     .initButtonUL(&tft, btnInclineUp_X,      btnInclineUp_Y,     100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
-  btnInclineDown   .initButtonUL(&tft, btnInclineDown_X,    btnInclineDown_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "DOWN");
-  //modeButton.initButtonUL(&tft, 260, 5, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "MODE");
-  //modeButton.drawButton();
-}
-#endif
 
 void btn1TapHandler(Button2 & b)
 {
@@ -537,7 +488,7 @@ float calculateRPM(void)
 }
 
 static void initGPIOExtender(void) {
-  logText("initGPIOExtender...\n");  
+  logText("initGPIOExtender...");  
   while (!GPIOExtender.begin())
   {
     DEBUG_PRINTLN("GPIOExtender not found");
@@ -841,7 +792,6 @@ void initHardware(void)
 
   initGPIOExtender();
   initSensors();
-  logText("done\n");
 }
 
 const char* getRstReason(esp_reset_reason_t r) {

@@ -4,6 +4,7 @@
 //extern PubSubClient client;
 
 extern bool isWifiAvailable;
+extern unsigned long wifiReconnectCounter;
 extern String MQTTDEVICEID;
 extern String mqtt_topics[];
 extern bool bleClientConnected;
@@ -16,7 +17,6 @@ String readDist();
 String readIncline();
 String readElevation();
 
-void initDisplay(void);
 int initMqtt(void);
 //int initWifi(void);
 void initWifi(void);

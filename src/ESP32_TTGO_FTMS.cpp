@@ -28,7 +28,6 @@
 // FIXME: elevation gain
 // TODO:  web config menu (+https, +setup initial user password)
 
-//#include "common.h"
 #include <math.h>
 #include <SPI.h>
 //#include <FS.h>
@@ -36,7 +35,7 @@
 #include <Preferences.h>
 #include <unity.h>
 
-#include "ESP32_TTGO_FTMS.h"
+#include "common.h"
 #include "debug_print.h"
 #include "hardware.h"
 #include "net-control.h"
@@ -64,6 +63,8 @@ double angle = 0;
 double gradeDeg = 0;
 Preferences prefs;
 
+bool setupDone = false;
+
 uint8_t speedInclineMode = SPEED;
 static unsigned long touch_timer = 0;
 
@@ -73,11 +74,22 @@ void logText(const char *text)
   DEBUG_PRINTF(text);
 #warning todo cs:putback gfxlogtext
 #ifndef NO_DISPLAY 
-//  gfxLogText(text);
+  gfxLogText(text);
 #endif
 }
 
+void logText(uint32_t text)
+{
+  logText(std::to_string(text));
+}
+
+
 void logText(String text)
+{
+  logText(text.c_str());
+}
+
+void logText(std::string text)
 {
   logText(text.c_str());
 }
@@ -114,8 +126,9 @@ void speedUp()
 
   kmph += configTreadmill.speed_interval_step;
   if (kmph > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
-  DEBUG_PRINT("speed_up, new speed: ");
-  DEBUG_PRINTLN(kmph);
+  logText("speed_up,   new speed: ");
+  logText(kmph);
+  logText("\n");
 }
 
 // UI controlled (web or button on esp32) speedDown
@@ -128,8 +141,9 @@ void speedDown()
 
   kmph -= configTreadmill.speed_interval_step;
   if (kmph < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
-  DEBUG_PRINT("speed_down, new speed: ");
-  DEBUG_PRINTLN(kmph);
+  logText("speed_down, new speed: ");
+  logText(kmph);
+  logText("\n");
 }
 
 // UI controlled (web or button on esp32) inclineUp
@@ -144,8 +158,9 @@ void inclineUp()
   if (incline > configTreadmill.max_incline) incline = configTreadmill.max_incline;
   angle = atan2(incline, 100);
   gradeDeg = angle * 57.296;
-  DEBUG_PRINT("incline_up, new incline: ");
-  DEBUG_PRINTLN(incline);
+  logText("incline_up, new incline: ");
+  logText(incline);
+  logText("\n");
 }
 
 // UI controlled (web or button on esp32) inclineDown
@@ -160,8 +175,9 @@ void inclineDown()
   if (incline <= configTreadmill.min_incline) incline = configTreadmill.min_incline;
   angle = atan2(incline, 100);
   gradeDeg = angle * 57.296;
-  DEBUG_PRINT("incline_down, new incline: ");
-  DEBUG_PRINTLN(incline);
+  logText("incline_down, new incline: ");
+  logText(incline);
+  logText("\n");
 }
 
 // angleSensorTreadmillConversion()
@@ -205,20 +221,41 @@ void setSpeed(float speed)
   if (speed > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
   if (speed < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
 
-  DEBUG_PRINT("setSpeed: ");
-  DEBUG_PRINTLN(kmph);
+  logText("setSpeed: ");
+  logText(kmph);
+  logText("\n");
 }
 
 void setSpeedInterval(float interval)
 {
-  DEBUG_PRINT("set_speed_interval: ");
-  DEBUG_PRINTLN(interval);
+  logText("set_speed_interval: ");
+  logText(interval);
 
   if ((interval < 0.1) || (interval > 2.0)) {
-    DEBUG_PRINTLN("INVALID SPEED INTERVAL");
+    logText(" INVALID SPEED INTERVAL");
   }
+  logText("\n");
 
   configTreadmill.speed_interval_step = interval;
+}
+
+static void showInfo()
+{
+  String intoText = String("----------------------------------------------\n");
+  logText(intoText.c_str());
+  intoText = String("ESP32 FTMS - ") + VERSION + String("\n");
+  logText(intoText.c_str());
+  logText(configTreadmill.treadmill_name.c_str());
+  intoText = String("\nSpeed[") + configTreadmill.min_speed + String(", ") + configTreadmill.max_speed +
+             String(" Incline[") + configTreadmill.min_incline + String(", ") + configTreadmill.max_incline + String("]\n");
+  logText(intoText.c_str());
+  intoText = String("Dist/REED: ") + configTreadmill.belt_distance + String("mm\n");
+  logText(intoText.c_str());
+  intoText = String("HW: REED: ") + configTreadmill.hasReed +
+             String(" MPU6050: ") + configTreadmill.hasMPU6050 +
+             String(" IrSense: ") + configTreadmill.hasIrSense +
+             String(" GPIOExtender(AW9523): ") + GPIOExtender.isAvailable() + String("\n");
+  logText(intoText.c_str());
 }
 
 void setup() 
@@ -232,23 +269,15 @@ void setup()
   elevationGain = 0;
 
   DEBUG_BEGIN(115200);
+  initDisplay();
 
-  delay(2000);  
-  logText("setup started...\n");
+  logText("Setup started:\n");
   initWifi();
-  delay(4000);  
-
-#ifdef HAS_TOUCH_DISPLAY
-  initLovyanGFXTouchAreas();
-#endif
-
   initLittleFS();
   initButton();
   initBLE();
   initConfig();
   initHardware();
-  initDisplay();
-
 
   if (isWifiAvailable) 
   {
@@ -258,19 +287,21 @@ void setup()
   }
 
   showInfo();
-#ifndef NO_DISPLAY
-  gfxUpdateDisplay(true);
-#endif
+  delay(4000); //allow showInfo() to display for a short while
   resetStopWatch();
 
   logText("setup done\n");
+  setupDone = true;
+#ifndef NO_DISPLAY
+  gfxUpdateDisplay(true);
+#endif
 }
 
 void loop() 
 {  
   loopHandleHardware();
   loopHandleButton();
-  loopHandleTouch();
+  loopHandleGfx();
   loopHandleWIFI();
   loopHandleBLE();
 
@@ -315,14 +346,15 @@ void loop()
     elevationGain += incline / 100 * mps;
 
  #if 0
-    DEBUG_PRINT("mps = d: ");       DEBUG_PRINT(mps);
-    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(angle);
-    DEBUG_PRINT("   h (m): ");      DEBUG_PRINT(sin(angle) * mps);
-    DEBUG_PRINT("   h gain (m): "); DEBUG_PRINT(elevationGain);
-    DEBUG_PRINT("   kmph: ");       DEBUG_PRINT(kmph);
-    DEBUG_PRINT("   incline: ");    DEBUG_PRINT(incline);
-    DEBUG_PRINT("   angle: ");      DEBUG_PRINT(gradeDeg);
-    DEBUG_PRINT("   dist km: ");    DEBUG_PRINTLN(totalDistance/1000);
+    logText("mps = d: ");       logText(mps);
+    logText("   angle: ");      logText(angle);
+    logText("   h (m): ");      logText(sin(angle) * mps);
+    logText("   h gain (m): "); logText(elevationGain);
+    logText("   kmph: ");       logText(kmph);
+    logText("   incline: ");    logText(incline);
+    logText("   angle: ");      logText(gradeDeg);
+    logText("   dist km: ");    logText(totalDistance/1000);
+    logText("\n");
 #endif
     publishTopicsMqtt();
 #ifndef NO_DISPLAY

@@ -30,28 +30,8 @@
 //#define AW9523_IRQ_MODE  //TODO see if we can get this to work or remove the code
 static constexpr int TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS = 250;
 extern volatile long workoutDistance;
-extern unsigned long wifi_reconnect_counter;
 extern bool timer_tick;
 
-#ifndef NO_DISPLAY
-#ifdef LGFX_USE_V1
-#include <LovyanGFX.hpp>
-#include <LGFX_AUTODETECT.hpp>
-extern LGFX tft;
-#ifdef HAS_TOUCH_DISPLAY
-extern LGFX_Button touchButtons[];
-extern LGFX_Button btnSpeedToggle;
-extern LGFX_Button btnInclineToggle;
-extern LGFX_Button btnSpeedUp;
-extern LGFX_Button btnSpeedDown;
-extern LGFX_Button btnInclineUp;
-extern LGFX_Button btnInclineDown;
-#endif
-#else
-#include <TFT_eSPI.h>
-extern TFT_eSPI tft;
-#endif
-#endif
 
 class GPIOExtenderAW9523
 {
@@ -143,7 +123,5 @@ extern const char* getRstReason(esp_reset_reason_t r);
 extern TwoWire I2C_0;
 extern GPIOExtenderAW9523 GPIOExtender;
 
-#ifdef HAS_TOUCH_DISPLAY
-void initLovyanGFXTouchAreas(void);
-#endif
+
 #endif

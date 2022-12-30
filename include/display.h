@@ -9,8 +9,47 @@
 #define TFT_HEIGHT 240
 #endif
 
+#ifndef NO_DISPLAY
+#ifdef LGFX_USE_V1
+#include <LovyanGFX.hpp>
+#include <LGFX_AUTODETECT.hpp>
+extern LGFX tft;
+#ifdef HAS_TOUCH_DISPLAY
+extern LGFX_Button touchButtons[];
+extern LGFX_Button btnSpeedToggle;
+extern LGFX_Button btnInclineToggle;
+extern LGFX_Button btnSpeedUp;
+extern LGFX_Button btnSpeedDown;
+extern LGFX_Button btnInclineUp;
+extern LGFX_Button btnInclineDown;
+#endif
+#else
+#include <TFT_eSPI.h>
+extern TFT_eSPI tft;
+#endif
+#endif
+
 void initDisplay(void);
-void loopHandleTouch(void);
-void showInfo(void);
+void loopHandleGfx(void);
+
+void gfxLogText(const char *text);
+void gfxUpdateDisplay(bool clear);
+void gfxUpdateHeader();
+
+//TODO make this some sort of class? LVGL or tft?  or maybe we can remove tft
+#ifdef GUI_LVGL
+void lvgl_initDisplay(void);
+void lvgl_loopHandleGfx(void);
+void lvgl_gfxLogText(const char *text);
+void lvgl_gfxUpdateDisplay(bool clear);
+void lvgl_gfxUpdateHeader(void);
+#else
+void tft_initDisplay(void);
+void tft_loopHandleGfx(void);
+void tft_gfxLogText(const char *text);
+void tft_gfxUpdateDisplay(bool clear);
+void tft_gfxUpdateHeader(void);
+#endif
+
 
 #endif

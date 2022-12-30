@@ -54,6 +54,9 @@ enum SensorModeFlags {
 		      INCLINE = 0x02, // b'10
 		      SPEEDINCLINE_BITFIELD = 0x03 // b'11		  
 };
+
+extern bool setupDone;
+
 extern uint8_t speedInclineMode;
 
 extern float kmph;
@@ -67,9 +70,7 @@ extern double angle;
 
 void logText(const char *text);
 void logText(String text);
-
-void gfxUpdateDisplay(bool clear);
-void gfxUpdateHeader();
+void logText(std::string text);
 
 void initAsyncWebserver();
 void initWebSocket();
