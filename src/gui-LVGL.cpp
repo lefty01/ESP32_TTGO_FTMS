@@ -1,3 +1,5 @@
+#if !defined(NO_DISPLAY) && defined(GUI_LVGL)
+
 #include "common.h"
 #include "display.h"
 #include "config.h"
@@ -430,6 +432,7 @@ static void lvgl_displayFlushCallBack(lv_disp_drv_t * disp, const lv_area_t *are
   lv_disp_flush_ready(disp);
 }
 
+#ifdef HAS_TOUCH_DISPLAY
 /*** Touchpad callback to read the touchpad ***/
 static void lvgl_touchPadReadCallback(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
 {
@@ -451,6 +454,7 @@ static void lvgl_touchPadReadCallback(lv_indev_drv_t * indev_driver, lv_indev_da
     // Serial.printf("Touch (x,y): (%03d,%03d)\n",touchX,touchY );
   }
 }
+#endif
 
 void lvgl_initDisplay()
 {
@@ -469,12 +473,15 @@ void lvgl_initDisplay()
   disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register(&disp_drv);
 
+
+#ifdef HAS_TOUCH_DISPLAY
   /*** LVGL : Setup & Initialize the input device driver ***/
   static lv_indev_drv_t indev_drv;
   lv_indev_drv_init(&indev_drv);
   indev_drv.type = LV_INDEV_TYPE_POINTER;
   indev_drv.read_cb = lvgl_touchPadReadCallback;
   lv_indev_drv_register(&indev_drv);
+#endif
 
   //delayWithDisplayUpdate(3000);
 
@@ -619,3 +626,5 @@ void lvgl_gfxUpdateHeader()
 
   lvgl_gfxUpdateWIFI(wifiReconnectCounter, getWifiIpAddr());
 }
+
+#endif //#if !defined(NO_DISPLAY) && defined(GUI_LVGL)

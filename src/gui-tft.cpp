@@ -1,4 +1,5 @@
 #ifndef NO_DISPLAY
+
 #include "common.h"
 #include "hardware.h"
 #include "net-control.h"
@@ -360,8 +361,7 @@ static void tft_gfxUpdateHeaderWIFIStatus(const unsigned long reconnect_counter,
   //tft.fillRect(2, 2, 60, 18, TFT_BLACK);
   int32_t cursorX = tft.getCursorX();
   int32_t cursorY = tft.getCursorY();
-  int32_t font = tft.getTextFont();
-  //int32_t font = tft.getBaseColor();
+  //int32_t font = tft.getTextFont();
   tft.setTextColor(TFT_WHITE);
   tft.setTextFont(2);
   tft.setCursor(3, 4);
@@ -371,7 +371,7 @@ static void tft_gfxUpdateHeaderWIFIStatus(const unsigned long reconnect_counter,
   tft.print(ip.c_str());
 
   tft.setCursor(cursorX, cursorY);
-  tft.setTextFont(font);
+  //tft.setTextFont(font);
 }
 
 static void tft_gfxUpdateHeaderBTStatus(bool connected)
