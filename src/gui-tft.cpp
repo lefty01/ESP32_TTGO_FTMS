@@ -1,4 +1,4 @@
-#ifndef NO_DISPLAY
+#if !defined(NO_DISPLAY) && !defined(GUI_LVGL)
 
 #include "common.h"
 #include "hardware.h"
@@ -431,4 +431,4 @@ void tft_gfxUpdateHeader()
   tft.endWrite();
 #endif // NO_DISPLAY
 }
-#endif
+#endif // #if !defined(NO_DISPLAY) && !defined(GUI_LVGL)
