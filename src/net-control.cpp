@@ -277,15 +277,11 @@ void initWifi()
   // res = wm.autoConnect("AutoConnectAP"); // anonymous ap
   res = wifiManager.autoConnect("FTMS Threadmill AP");
     
-  if(!res) 
-  {
-//cs    WifiAvailable = false;
+  if (!res) {
     isWifiAvailable = false;
-
-  logText("failed\n");  
+    logText("failed\n");
   } 
-  else 
-  {
+  else {
     isWifiAvailable = true;
     //if you get here you have connected to the WiFi    
     ipAddr  = WiFi.localIP().toString();
@@ -298,7 +294,6 @@ void initWifi()
     logText(dnsAddr.c_str());
     logText("\n");
   }
-//cs  return WifiAvailable;
 }
 
 void loopHandleWIFI() 

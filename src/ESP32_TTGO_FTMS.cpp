@@ -50,11 +50,11 @@
 
 //unsigned long sw_timer_clock = 0;
 
-float  kmph=0;
-float  kmphIRsense=0;
-float  incline=0;
-double totalDistance=0;
-double elevationGain=0;
+float  kmph = 0;
+float  kmphIRsense = 0;
+float  incline = 0;
+double totalDistance = 0;
+double elevationGain = 0;
 //uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
 //uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
 double      elevation;
@@ -99,8 +99,7 @@ void initLittleFS()
   logText("initLittleFS...");
 
   // begin, format if failed
-  if(!LittleFS.begin(true))  // true = formatOnFail
-  {
+  if (!LittleFS.begin(true)) { // true = formatOnFail
     logText("Failed, Cannot mount LittkeFS volume\n");
     return;
   }
@@ -279,8 +278,7 @@ void setup()
   initConfig();
   initHardware();
 
-  if (isWifiAvailable) 
-  {
+  if (isWifiAvailable) {
     initAsyncWebserver();
     initWebSocket();
     initMqtt();
@@ -306,12 +304,10 @@ void loop()
   loopHandleBLE();
 
  // timertick... every second
-  if (timer_tick == true)
-  {
+  if (timer_tick == true) {
     timer_tick = false;
 
-    if (speedInclineMode & INCLINE) 
-    {
+    if (speedInclineMode & INCLINE) {
       char inclineStr[6];
 
       incline = getIncline(); // sets global 'angle' and 'incline' variable
@@ -320,8 +316,7 @@ void loop()
     }
 
     // totalDistance = ... v = d/t -> d = v*t -> use v[m/s]
-    if (speedInclineMode & SPEED) 
-    {  // get speed from sensor (no-manual mode)
+    if (speedInclineMode & SPEED) {  // get speed from sensor (no-manual mode)
       // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
       // and calc rpm from reed switch provide same unit
       if (configTreadmill.hasIrSense) {
@@ -329,16 +324,14 @@ void loop()
         mps = kmph / 3.6; // meter per second (EVERY_SECOND)
         totalDistance += mps;
       }
-      else
-      {
+      else {
         float rpm = calculateRPM();
         mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
         kmph = mps * 3.6;                          // km per hour
         totalDistance = workoutDistance / 1000;   // conv mm to meter
       }
     }
-    else
-    {
+    else {
       mps = kmph / 3.6;
       totalDistance += mps;
     }

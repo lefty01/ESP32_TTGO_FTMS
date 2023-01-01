@@ -158,37 +158,31 @@ void btn1TapHandler(Button2 & b)
 void btn2TapHandler(Button2 & b)
 {
   unsigned int time = b.wasPressedFor();
-    DEBUG_PRINTLN("Button 2 TapHandler");
-  
-  if (time > 3000) 
-  { // > 3sec enters config menu
+  DEBUG_PRINTLN("Button 2 TapHandler");
+
+  if (time > 3000) { // > 3sec enters config menu
     //DEBUG_PRINTLN("very long (>3s) click ... do nothing");
   }
-  else if (time > 500) 
-  {
+  else if (time > 500) {
     DEBUG_PRINTLN("long (>500ms) click...");
-    if ((speedInclineMode & SPEED) == 0)
-	  {
+    if ((speedInclineMode & SPEED) == 0) {
       speedDown();
-    }  
-    if ((speedInclineMode & INCLINE) == 0)
-	  {  
+    }
+    if ((speedInclineMode & INCLINE) == 0) {
       inclineDown();
     }
-    else 
-    {
-      DEBUG_PRINTLN("short click...");
-      if ((speedInclineMode & SPEED) == 0)
-      {
-	      speedUp();
-      }  
-      if ((speedInclineMode & INCLINE) == 0)
-	    {
-        inclineUp();
-      }  
+  }
+  else {
+    DEBUG_PRINTLN("short click...");
+    if ((speedInclineMode & SPEED) == 0) {
+      speedUp();
+    }
+    if ((speedInclineMode & INCLINE) == 0) {
+      inclineUp();
     }
   }
 }
+
 
 void btn3TapHandler(Button2 & b)
 {
@@ -197,17 +191,14 @@ void btn3TapHandler(Button2 & b)
   if (time > 3000) {
     // DEBUG_PRINTLN("very long (>3s) click ... do nothing");
   }
-  else 
-  {
+  else {
     DEBUG_PRINTLN("short click...");
-    if ((speedInclineMode & SPEED) == 0)
-    {
+    if ((speedInclineMode & SPEED) == 0) {
       speedDown();
-    }  
-    if ((speedInclineMode & INCLINE) == 0)
-    {
+    }
+    if ((speedInclineMode & INCLINE) == 0) {
       inclineDown();
-    }  
+    }
   }
 }
 
@@ -255,17 +246,14 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 {
   unsigned long timeStartMilli = millis();
   unsigned long currentMilli = timeStartMilli;
-  while((currentMilli - timeStartMilli) < delayMilli)
-  {
+  while((currentMilli - timeStartMilli) < delayMilli) {
 #warning todo cs: add gxloop handler again.
 //    gfxUpdateLoopHandler();
     unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ; 
-    if (timeLeftMilli >= 5 )
-    {
+    if (timeLeftMilli >= 5 ) {
       delay(5);
     }
-    else
-    {
+    else {
       delay(timeLeftMilli);
     }
     currentMilli = millis();
@@ -389,6 +377,7 @@ float getIncline(void)
     //client.publish(getTopic(MQTT_TOPIC_Y_ANGLE), yStr);
 #warning check out if this must be here ******************
     // CS WHY IS THIS HERE
+    // AL: my idea was to eventually visualize data somewhere else if it is received by mqtt
     //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     // ******************************************
   }
@@ -397,7 +386,7 @@ float getIncline(void)
   if (temp_incline > configTreadmill.max_incline)  temp_incline = configTreadmill.max_incline;
 
 #warning cs todo remove this
-  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n",sensorAngle, angle, temp_incline);
+  DEBUG_PRINTF("sensor angle (%.2f): used angle: %.2f: -> incline: %f%%\n", sensorAngle, angle, temp_incline);
 
   // TODO probably need some more smoothing here ...
   return temp_incline;

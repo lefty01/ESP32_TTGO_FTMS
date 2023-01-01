@@ -206,18 +206,18 @@ void initConfig(void)
 {
   logText("initConfig...");
   // Get Treadmill config
-  configTreadmill.treadmill_name = LittleFS_findString(F("treadmillname"));
-  configTreadmill.max_speed  = LittleFS_findFloat(F("max_speed"));
-  configTreadmill.min_speed  = LittleFS_findFloat(F("min_speed"));
-  configTreadmill.max_incline  = LittleFS_findFloat(F("max_incline"));
-  configTreadmill.min_incline  = LittleFS_findFloat(F("min_incline"));
-  configTreadmill.speed_interval_step  = LittleFS_findFloat(F("speed_interval_step"));
+  configTreadmill.treadmill_name         = LittleFS_findString(F("treadmillname"));
+  configTreadmill.max_speed              = LittleFS_findFloat(F("max_speed"));
+  configTreadmill.min_speed              = LittleFS_findFloat(F("min_speed"));
+  configTreadmill.max_incline            = LittleFS_findFloat(F("max_incline"));
+  configTreadmill.min_incline            = LittleFS_findFloat(F("min_incline"));
+  configTreadmill.speed_interval_step    = LittleFS_findFloat(F("speed_interval_step"));
   configTreadmill.incline_interval_step  = LittleFS_findFloat(F("incline_interval_step"));
-  configTreadmill.belt_distance  = LittleFS_findFloat(F("belt_distance"));  
+  configTreadmill.belt_distance          = LittleFS_findFloat(F("belt_distance"));
   // Get Your HW config, e.g. interface to Treadmill and other added HW
-  configTreadmill.hasMPU6050    = LittleFS_findInt(F("hasMPU6050"));
-  configTreadmill.hasIrSense    = LittleFS_findInt(F("hasIrSense"));
-  configTreadmill.hasReed    = LittleFS_findInt(F("hasReed"));
+  configTreadmill.hasMPU6050             = LittleFS_findInt(F("hasMPU6050"));
+  configTreadmill.hasIrSense             = LittleFS_findInt(F("hasIrSense"));
+  configTreadmill.hasReed                = LittleFS_findInt(F("hasReed"));
 
   // check if values were valid, else set to safe defaults
   if (configTreadmill.treadmill_name.length() == 0)
