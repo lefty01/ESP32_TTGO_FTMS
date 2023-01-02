@@ -268,6 +268,9 @@ void setup()
   elevationGain = 0;
 
   DEBUG_BEGIN(115200);
+  delay(3000);
+
+  DEBUG_PRINTLN("setup, starting display init");
   initDisplay();
 
   logText("Setup started:\n");
