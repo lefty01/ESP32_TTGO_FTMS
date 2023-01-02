@@ -253,7 +253,6 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_style_pad_all(gfxLvMainTopBarPlaceholder,0,0);
   lv_obj_set_scrollbar_mode(gfxLvMainTopBarPlaceholder, LV_SCROLLBAR_MODE_OFF);
 
-
   lv_obj_t * obj;
   lv_obj_t * label;
   lv_obj_t * objRow;
@@ -406,6 +405,9 @@ static lv_obj_t * createScreenMain()
 
 
 void lvgl_gfxShowScreenBoot() {
+  if (gfxLvScreenBoot==nullptr) {
+    gfxLvScreenBoot = createScreenBoot();
+  }
   if (gfxLvScreenCurrent != gfxLvScreenBoot) {
     lv_scr_load(gfxLvScreenBoot);
     showGfxTopBar(gfxLvBootTopBarPlaceholder);
@@ -415,6 +417,9 @@ void lvgl_gfxShowScreenBoot() {
 }
 
 void lvgl_gfxShowScreenMain() {
+  if (gfxLvScreenMain==nullptr) {
+    gfxLvScreenMain = createScreenMain();
+  }
   if (gfxLvScreenCurrent != gfxLvScreenMain) {
     lv_scr_load(gfxLvScreenMain);
     showGfxTopBar(gfxLvMainTopBarPlaceholder);
@@ -486,13 +491,6 @@ void lvgl_initDisplay()
   lv_indev_drv_register(&indev_drv);
 #endif
 
-  //delayWithDisplayUpdate(3000);
-
-  // Create all global gfxLv objects here
-  // Could be moved to first use, and it would be nice but then it could be
-  // easy to miss creating some if they are used on different places.
-  gfxLvScreenBoot = createScreenBoot();
-  gfxLvScreenMain = createScreenMain();
   lvgl_gfxShowScreenBoot();
 }
 
