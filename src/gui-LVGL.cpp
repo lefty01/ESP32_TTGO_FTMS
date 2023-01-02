@@ -41,8 +41,10 @@ static lv_obj_t * lvLabelDistance = nullptr;
 static lv_obj_t * lvLabelElevation = nullptr;
 static lv_obj_t * gfxLvSpeedMeter = nullptr;  // Show speed
 static lv_obj_t * gfxLvInclineMeter = nullptr;  // Show Incline
+#ifdef HAS_TOUCH_DISPLAY
 static lv_obj_t * gfxLvSwitchSpeedControlMode = nullptr;
 static lv_obj_t * gfxLvSwitchInclineControlMode = nullptr;
+#endif
 static lv_meter_indicator_t *gfxLvSpeedMeterIndicator = nullptr;
 static lv_meter_indicator_t *gfxLvInclineMeterIndicator = nullptr;
 
@@ -156,6 +158,8 @@ static lv_meter_indicator_t * setupMeter(lv_obj_t * meter, uint32_t minVal, uint
   return indic;
 }
 
+#ifdef HAS_TOUCH_DISPLAY
+
 static void gfxLvSwitchSpeedEventhandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
@@ -234,6 +238,8 @@ static void gfxLvInclineDownEventHandler(lv_event_t * e)
   }
 }
 
+#endif
+
 static lv_obj_t * createScreenMain()
 {
   lv_obj_t * screenMain = lv_obj_create(NULL);
@@ -274,16 +280,21 @@ static lv_obj_t * createScreenMain()
   lv_obj_align(gfxLvSpeedMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
   gfxLvSpeedMeterIndicator = setupMeter(gfxLvSpeedMeter, configTreadmill.min_speed, configTreadmill.max_speed, 6, 16);
 
+#ifdef HAS_TOUCH_DISPLAY
   gfxLvSwitchSpeedControlMode = lv_switch_create(obj);
   //lv_obj_align_to(gfxLvSwitchSpeedControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_size(gfxLvSwitchSpeedControlMode, 40, 30);
   lv_obj_add_event_cb(gfxLvSwitchSpeedControlMode, gfxLvSwitchSpeedEventhandler, LV_EVENT_ALL, NULL);
+#endif
 
   lvLabelSpeed = lv_label_create(obj);
+#ifdef HAS_TOUCH_DISPLAY
   lv_obj_align_to(lvLabelSpeed, gfxLvSwitchSpeedControlMode, LV_ALIGN_TOP_RIGHT, 30, 0);
+#endif
   lv_label_set_text(lvLabelSpeed, "Speed: --.-- km/h");
 
   
+#ifdef HAS_TOUCH_DISPLAY
   lv_obj_t * buttonObj = lv_obj_create(obj);
   //lv_obj_align_to(buttonObj, obj, LV_ALIGN_TOP_RIGHT, -50, 40);
   lv_obj_align(buttonObj, LV_ALIGN_TOP_RIGHT, 0, 40);
@@ -306,6 +317,7 @@ static lv_obj_t * createScreenMain()
   label = lv_label_create(btn1);
   lv_label_set_text(label, "-");
   lv_obj_center(label);
+#endif
 
   // -------------------
   /* Cell to 0;1 */
@@ -323,15 +335,20 @@ static lv_obj_t * createScreenMain()
   lv_obj_align(gfxLvInclineMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
   gfxLvInclineMeterIndicator = setupMeter(gfxLvInclineMeter, configTreadmill.min_incline, configTreadmill.max_incline, 2, 7);
 
+#ifdef HAS_TOUCH_DISPLAY
   gfxLvSwitchInclineControlMode = lv_switch_create(obj);
 //  lv_obj_align_to(gfxLvSwitchInclineControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_size(gfxLvSwitchInclineControlMode, 40, 30);
   lv_obj_add_event_cb(gfxLvSwitchInclineControlMode, gfxLvSwitchInclineEventhandler, LV_EVENT_ALL, NULL);
+#endif
 
   lvLabelIncline = lv_label_create(obj);
+#ifdef HAS_TOUCH_DISPLAY
   lv_obj_align_to(lvLabelIncline, gfxLvSwitchInclineControlMode, LV_ALIGN_TOP_RIGHT, 30, 0);
+#endif
   lv_label_set_text(lvLabelIncline, "Incline: --.- %");
 
+#ifdef HAS_TOUCH_DISPLAY
   buttonObj = lv_obj_create(obj);
   lv_obj_align(buttonObj, LV_ALIGN_TOP_RIGHT, 0, 40);
   lv_obj_set_size(buttonObj, 50, 100);
@@ -352,7 +369,7 @@ static lv_obj_t * createScreenMain()
   label = lv_label_create(btn1);
   lv_label_set_text(label, "-");
   lv_obj_center(label);
-
+#endif
 
   // -------------------
   /*Create a chart*/
@@ -563,23 +580,31 @@ static void lvgl_gfxUpdateSpeedInclineMode(uint8_t mode)
   if (mode & SPEED) {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedSpeed);
+#ifdef HAS_TOUCH_DISPLAY
       lv_obj_clear_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
+#endif
   }
   else if ((mode & SPEED) == 0) {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_RED));
       lv_led_on(gfxLvLedSpeed);
+#ifdef HAS_TOUCH_DISPLAY
       lv_obj_add_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
+#endif
   }
 
   if (mode & INCLINE) {
       lv_led_set_color(gfxLvLedIncline, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedIncline);
+#ifdef HAS_TOUCH_DISPLAY
       lv_obj_clear_state(gfxLvSwitchInclineControlMode, LV_STATE_CHECKED);
+#endif
   }
   else if ((mode & INCLINE) == 0) {
       lv_led_set_color(gfxLvLedIncline, lv_palette_main(LV_PALETTE_RED));
       lv_led_on(gfxLvLedIncline);
+#ifdef HAS_TOUCH_DISPLAY
       lv_obj_add_state(gfxLvSwitchInclineControlMode, LV_STATE_CHECKED);
+#endif
   }
 }
 
