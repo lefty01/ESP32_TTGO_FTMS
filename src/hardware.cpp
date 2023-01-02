@@ -126,13 +126,12 @@ void btn1TapHandler(Button2 & b)
   unsigned int time = b.wasPressedFor();
   DEBUG_PRINTLN("Button 1 TapHandler");
 
-  if (time > 3000) 
-  { // > 3sec enters config menu
+  if (time > 3000) {
+   // > 3sec enters config menu
     DEBUG_PRINTLN("RESET timer/counter!");
     doReset();
   }
-  else if (time > 600) 
-  {
+  else if (time > 600) {
     DEBUG_PRINTLN("Button 1 long click...");
     // reset to manual mode
     speedInclineMode = MANUAL;
@@ -142,8 +141,8 @@ void btn1TapHandler(Button2 & b)
     gfxUpdateHeader();
 #endif      
   }
-  else 
-  { // button1 short click toggle speed/incline mode
+  else {
+    // button1 short click toggle speed/incline mode
     DEBUG_PRINTLN("Button 1 short click...");
     speedInclineMode += 1;
     speedInclineMode &= SPEEDINCLINE_BITFIELD; //wrap around MANUAL,SPEED,INCLINE,SPEED & INCLINE
@@ -262,8 +261,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
 
 void initSensors(void)
 {
-  if (configTreadmill.hasMPU6050)
-  {
+  if (configTreadmill.hasMPU6050) {
     // Mesure incline using angle "detector" MPU6050
     logText("init MPU6050....");
 
@@ -272,14 +270,12 @@ void initSensors(void)
     DEBUG_PRINT("status: ");
     DEBUG_PRINT(status);
 
-    if (status != 0) 
-    {
+    if (status != 0) {
       logText(" failed (DISABLED)\n");
       configTreadmill.hasMPU6050 = false;
       // TODO Would we want to retry, now, later, by config or is power off/on good enough
     }
-    else
-    {
+    else {
       logText("Calc offsets, do not move MPU6050 (3sec)");
 
       mpu6050.calcOffsets(); // gyro and accel.
@@ -355,8 +351,7 @@ float getIncline(void)
   double sensorAngle = 0.0;
   float temp_incline = 0.0;
 
-  if (configTreadmill.hasMPU6050) 
-  {
+  if (configTreadmill.hasMPU6050) {
     // MPU6050 returns a incline/grade in degrees(!)
     // TODO: configure sensor orientation  via webinterface
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
@@ -403,36 +398,32 @@ void loopHandleHardware(void)
 
   GPIOExtender.scanButtons();
 
-  if ((millis() - sw_timer_clock) > EVERY_SECOND) 
-  {
+  if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
     timer_tick = true;
   } 
 
-  if (configTreadmill.hasMPU6050)
-  {
+  if (configTreadmill.hasMPU6050) {
     I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
     mpu6050.update();  // read out data from the sensor
     I2C_0.end();
   }  
 
   // IrSensor to check speed
-  if (configTreadmill.hasIrSense)
-  {
+  if (configTreadmill.hasIrSense) {
     unsigned long t;
 #warning remove this constant to some config/file  
     const unsigned long c = 359712; // d=10cm
     t = t2 - t1;
     // check ir-speed sensor if not manual mode
-    if (t2_valid) 
-    { // hasIrSense = detected
+    if (t2_valid) {
+     // hasIrSense = detected
       kmphIRsense = (float)(1.0 / t) * c;
       noInterrupts();
       t1_valid = t2_valid = false;
       interrupts();
       DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
     }
-
   }
 } 
 
@@ -456,10 +447,9 @@ float calculateRPM(void)
 {
   float temp_rpm = 0;
 
-  if (configTreadmill.hasReed)
-  {
-    if (revCount > 0) 
-    { // confirm there was at least one spin in the last second
+  if (configTreadmill.hasReed) {
+    if (revCount > 0) {
+     // confirm there was at least one spin in the last second
       noInterrupts();
       temp_rpm = 60000000 / (accumulatorInterval / revCount);
       revCount = 0;
@@ -467,8 +457,7 @@ float calculateRPM(void)
       interrupts();
     } 
   }
-  else 
-  {
+  else {
     temp_rpm = 0;
     //rpmaccumulatorInterval = 0;
     //accumulator4 = 0;  // average rpm of last 4 samples
@@ -484,163 +473,133 @@ static void initGPIOExtender(void) {
     return;
   }
 
-#ifdef AW9523_IRQ_MODE
-  pinMode(AW9523_INTERRUPT_PIN, INPUT_PULLUP); 
-  //pinMode(AW9523_INTERRUPT_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(AW9523_INTERRUPT_PIN), GPIOExtenderInterrupt, CHANGE);
-  GPIOExtender.getPins(); // Get pins one to clear intrrupts
-#endif
    logText("done\n");  
 }
 
-#ifdef AW9523_IRQ_MODE
-static void IRAM_ATTR GPIOExtenderInterrupt(void) {
-  GPIOExtender.gotInterrupt();
-}
-#endif
-
 void GPIOExtenderAW9523::scanButtons(void)
 {
-    if (enabled)
-    {
-#ifdef AW9523_IRQ_MODE
-        if (GPIOExtender.checkInterrupt())
-#endif
-        {
-            static uint16_t prevKeys = 0;
-            uint16_t pins = getPins();
-            uint16_t keys = ((~pins) & 0x3f );
+  if (enabled) {
+    static uint16_t prevKeys = 0;
+    uint16_t pins = getPins();
+    uint16_t keys = ((~pins) & 0x3f );
 
-            if ( keys != prevKeys)
-            {
-            // New key status
-            //DEBUG_PRINTF("GPIOExtender KEY IN:0x%x (0x%x)\n",keys,pins);
+    if ( keys != prevKeys) {
+    // New key status
+    //DEBUG_PRINTF("GPIOExtender KEY IN:0x%x (0x%x)\n",keys,pins);
 
-            if((keys & AW9523_KEY_UP) && AW9523_KEY_UP)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_UP");
-                handleEvent(EventType::KEY_UP);
-                //handleEvent(EventType::TREADMILL_INC_UP);
-            }
-            if((keys & AW9523_KEY_LEFT) && AW9523_KEY_LEFT)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_LEFT");
-                handleEvent(EventType::KEY_LEFT);
-                //handleEvent(EventType::TREADMILL_SPEED_DOWN);
-            }
-            if((keys & AW9523_KEY_DOWN) && AW9523_KEY_DOWN)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_DOWN");
-                handleEvent(EventType::KEY_DOWN);
-                //handleEvent(EventType::TREADMILL_INC_DOWN);
-            }
-            if((keys & AW9523_KEY_RIGHT) && AW9523_KEY_RIGHT)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_RIGHT");
-                handleEvent(EventType::KEY_RIGHT);
-                //handleEvent(EventType::TREADMILL_SPEED_UP);
-            }
-            if((keys & AW9523_KEY_OK) && AW9523_KEY_OK)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_OK");
-                handleEvent(EventType::KEY_OK);
-                //handleEvent(EventType::TREADMILL_START);
-            }
-            if((keys & AW9523_KEY_BACK) && AW9523_KEY_BACK)
-            {
-                DEBUG_PRINTLN("AW9523_KEY_BACK");
-                handleEvent(EventType::KEY_BACK);
-                //handleEvent(EventType::TREADMILL_STOP);
-            }
-
-            if((keys & 0xffc0)  != 0)  DEBUG_PRINTF("Non key pins: 0x%x\n",keys);
-            prevKeys = keys;
-            }
-        }
+    if ((keys & AW9523_KEY_UP) && AW9523_KEY_UP) {
+        DEBUG_PRINTLN("AW9523_KEY_UP");
+        handleEvent(EventType::KEY_UP);
+        //handleEvent(EventType::TREADMILL_INC_UP);
     }
+    if ((keys & AW9523_KEY_LEFT) && AW9523_KEY_LEFT) {
+        DEBUG_PRINTLN("AW9523_KEY_LEFT");
+        handleEvent(EventType::KEY_LEFT);
+        //handleEvent(EventType::TREADMILL_SPEED_DOWN);
+    }
+    if ((keys & AW9523_KEY_DOWN) && AW9523_KEY_DOWN) {
+        DEBUG_PRINTLN("AW9523_KEY_DOWN");
+        handleEvent(EventType::KEY_DOWN);
+        //handleEvent(EventType::TREADMILL_INC_DOWN);
+    }
+    if ((keys & AW9523_KEY_RIGHT) && AW9523_KEY_RIGHT) {
+        DEBUG_PRINTLN("AW9523_KEY_RIGHT");
+        handleEvent(EventType::KEY_RIGHT);
+        //handleEvent(EventType::TREADMILL_SPEED_UP);
+    }
+    if ((keys & AW9523_KEY_OK) && AW9523_KEY_OK) {
+        DEBUG_PRINTLN("AW9523_KEY_OK");
+        handleEvent(EventType::KEY_OK);
+        //handleEvent(EventType::TREADMILL_START);
+    }
+    if ((keys & AW9523_KEY_BACK) && AW9523_KEY_BACK) {
+        DEBUG_PRINTLN("AW9523_KEY_BACK");
+        handleEvent(EventType::KEY_BACK);
+        //handleEvent(EventType::TREADMILL_STOP);
+    }
+
+    if ((keys & 0xffc0)  != 0)  DEBUG_PRINTF("Non key pins: 0x%x\n",keys);
+    prevKeys = keys;
+    }
+  }
 }
 
 void GPIOExtenderAW9523::logPins(void)
 {
-    if (enabled) {
-        uint8_t port0 = read(INPUT_PORT0);
-        uint8_t port1 = read(INPUT_PORT1);
-        DEBUG_PRINTF("GPIOExtenderAW9523 Read port:0x%x%x\n",port1,port0);
-    }
+  if (enabled) {
+      uint8_t port0 = read(INPUT_PORT0);
+      uint8_t port1 = read(INPUT_PORT1);
+      DEBUG_PRINTF("GPIOExtenderAW9523 Read port:0x%x%x\n",port1,port0);
+  }
 }
 
 // Currently only support one button at time
 bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
 {
-    DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x)\n",static_cast<uint32_t>(eventButton));
-    if (enabled)
+  DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x)\n",static_cast<uint32_t>(eventButton));
+  if (enabled) {
+    // convert event to HW line
+    uint16_t line=-1;
+    switch(eventButton)
     {
-        // convert event to HW line
-        uint16_t line=-1;
-        switch(eventButton)
-        {
-            case EventType::TREADMILL_START:      line = AW9523_TREADMILL_START; break;
-            case EventType::TREADMILL_SPEED_DOWN: line = AW9523_TREADMILL_SPEED_DOWN; break;
-            case EventType::TREADMILL_INC_DOWN:   line = AW9523_TREADMILL_INC_DOWN; break;
-            case EventType::TREADMILL_STOP:       line = AW9523_TREADMILL_STOP; break;
-            case EventType::TREADMILL_SPEED_UP:   line = AW9523_TREADMILL_SPEED_UP; break;
-            case EventType::TREADMILL_INC_UP:     line = AW9523_TREADMILL_INC_UP; break;
-            default:
-                // Cant handle Event
-                DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n",static_cast<uint32_t>(eventButton));
-                return false;
-        }
-        if (line ==-1)
-        {
-            DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n",static_cast<uint32_t>(eventButton));
-            return false;
-        }
-        DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n",static_cast<uint32_t>(eventButton),line);
-
-        if (line & 0xff)
-        {
-            uint8_t port0Bit = line & 0xff;
-            DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port0=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port0Bit,~port0Bit);
-
-            // pinMode(pin, OUTPUT);
-            if (!write(CONFIG_PORT0,~port0Bit)) return false; //0-output 1-input
-            // digitalWrite(pin, LOW);
-            if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
-
-#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
-            delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-
-            // digitalWrite(pin, HIGH);
-            if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
-            // pinMode(pin, INPUT);
-            if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
-        }
-        else
-        {
-            uint8_t port1Bit = (line & 0xff00) >> 8;
-            DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port1=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port1Bit,~port1Bit);
-            // pinMode(pin, OUTPUT);
-            if (!write(CONFIG_PORT1,~port1Bit)) return false; //0-output 1-input
-            // digitalWrite(pin, LOW);
-            if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
-
-#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
-            delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
-
-            // digitalWrite(pin, HIGH);
-            if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
-            // pinMode(pin, INPUT);
-            if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
-        }
-        return true;
+      case EventType::TREADMILL_START:      line = AW9523_TREADMILL_START; break;
+      case EventType::TREADMILL_SPEED_DOWN: line = AW9523_TREADMILL_SPEED_DOWN; break;
+      case EventType::TREADMILL_INC_DOWN:   line = AW9523_TREADMILL_INC_DOWN; break;
+      case EventType::TREADMILL_STOP:       line = AW9523_TREADMILL_STOP; break;
+      case EventType::TREADMILL_SPEED_UP:   line = AW9523_TREADMILL_SPEED_UP; break;
+      case EventType::TREADMILL_INC_UP:     line = AW9523_TREADMILL_INC_UP; break;
+      default:
+        // Cant handle Event
+        DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n",static_cast<uint32_t>(eventButton));
+        return false;
     }
-    return false;
+    if (line ==-1) {
+      DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n",static_cast<uint32_t>(eventButton));
+      return false;
+    }
+    DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n",static_cast<uint32_t>(eventButton),line);
+
+    if (line & 0xff) {
+      uint8_t port0Bit = line & 0xff;
+      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port0=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port0Bit,~port0Bit);
+
+      // pinMode(pin, OUTPUT);
+      if (!write(CONFIG_PORT0,~port0Bit)) return false; //0-output 1-input
+      // digitalWrite(pin, LOW);
+      if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
+
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
+      delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+
+      // digitalWrite(pin, HIGH);
+      if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
+      // pinMode(pin, INPUT);
+      if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
+    }
+    else {
+      uint8_t port1Bit = (line & 0xff00) >> 8;
+      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port1=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port1Bit,~port1Bit);
+      // pinMode(pin, OUTPUT);
+      if (!write(CONFIG_PORT1,~port1Bit)) return false; //0-output 1-input
+      // digitalWrite(pin, LOW);
+      if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
+
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
+      delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
+
+      // digitalWrite(pin, HIGH);
+      if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
+      // pinMode(pin, INPUT);
+      if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
+    }
+    return true;
+  }
+  return false;
 }
 
 uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
 {
-  if(!i2cHandled)
-  {
+  if (!i2cHandled) {
     // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
     // around the I2C calls
     I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
@@ -650,8 +609,7 @@ uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
   wire->endTransmission(true);
   wire->requestFrom(AW9523_ADDR, static_cast<uint8_t>(1));
   uint8_t ret = wire->read();
-  if(!i2cHandled)
-  {
+  if (!i2cHandled) {
     I2C_0.end();    
   }
   return ret;
@@ -660,71 +618,64 @@ uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
 
 uint8_t GPIOExtenderAW9523::read(uint8_t reg)
 {
-    return read(reg,false);
+  return read(reg,false);
 }
 
 bool GPIOExtenderAW9523::write(uint8_t reg, uint8_t data)
 {
-    // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
-    // around the I2C calls
-    I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
-    wire->beginTransmission(AW9523_ADDR);
-    wire->write(reg);
-    wire->write(data);
-    uint8_t ret = wire->endTransmission();  // 0 if OK
-    I2C_0.end();
-    if (ret != 0)
-    {
-        DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n",reg, data, ret);
-        return false;
-    }
-    return true;
+  // Warning/Info to avoid TwoWire and LovyanGFX I2C collition make sure to fullt init/deinit I2C driver states
+  // around the I2C calls
+  I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
+  wire->beginTransmission(AW9523_ADDR);
+  wire->write(reg);
+  wire->write(data);
+  uint8_t ret = wire->endTransmission();  // 0 if OK
+  I2C_0.end();
+  if (ret != 0) {
+      DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n",reg, data, ret);
+      return false;
+  }
+  return true;
 }
 
 bool GPIOExtenderAW9523::begin()
 {
-    enabled = false;
-    isInterrupted = false;
-    uint8_t id = read(ID);
-    DEBUG_PRINTF("GPIOExtenderAW9523: Read ID: 0x%x = 0x%x\n",ID,id);
+  enabled = false;
+  isInterrupted = false;
+  uint8_t id = read(ID);
+  DEBUG_PRINTF("GPIOExtenderAW9523: Read ID: 0x%x = 0x%x\n",ID,id);
 
-    if (id != ID_AW9523)
-    {
-      return false;
-    }
+  if (id != ID_AW9523) {
+    return false;
+  }
 
-    if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
-    if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
+  if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
+  if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
 
-    // All input
-    if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
-    if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
+  // All input
+  if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
+  if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
 
-    if (!write(CTL,0x08)) return false; //0000x000  0-Open Drain 1-Push-Pull
+  if (!write(CTL,0x08)) return false; //0000x000  0-Open Drain 1-Push-Pull
 
-#ifdef AW9523_IRQ_MODE
-    if (!write(INT_PORT0,0x00)) return false; //0-enable 1-disable
-    if (!write(INT_PORT1,0x00)) return false; //0-enable 1-disable
-#else
-    if (!write(INT_PORT0,0xff)) return false; //0-enable 1-disable
-    if (!write(INT_PORT1,0xff)) return false; //0-enable 1-disable
-#endif
-    if (!write(LED_MODE_SWITCH0,0xff)) return false; //0-LED mode 1-GPIO mode
-    if (!write(LED_MODE_SWITCH1,0xff)) return false; //0-LED mode 1-GPIO mode
-    enabled = true;
-    getPins();
-    return true;
+  if (!write(INT_PORT0,0xff)) return false; //0-enable 1-disable
+  if (!write(INT_PORT1,0xff)) return false; //0-enable 1-disable
+
+  if (!write(LED_MODE_SWITCH0,0xff)) return false; //0-LED mode 1-GPIO mode
+  if (!write(LED_MODE_SWITCH1,0xff)) return false; //0-LED mode 1-GPIO mode
+  enabled = true;
+  getPins();
+  return true;
 }
 
 bool GPIOExtenderAW9523::isAvailable()
 {
-    return enabled;
+  return enabled;
 }
 
 uint16_t GPIOExtenderAW9523::getPins(void)
 {
-  if (enabled)
-  {
+  if (enabled) {
     isInterrupted = false;
     // As this is part of main loop lets read both ports with one I2C begin/end
     // to speed thing up.
@@ -733,11 +684,6 @@ uint16_t GPIOExtenderAW9523::getPins(void)
     uint8_t port0 = read(INPUT_PORT0,true);
     uint8_t port1 = read(INPUT_PORT1,true);
 
-#ifdef AW9523_IRQ_MODE
-    uint8_t int0 = read(INT_PORT0,true);
-    uint8_t int1 = read(INT_PORT0,true);
-    DEBUG_PRINTF("GPIOExtenderAW9523 Read port:0x%x%x  interrupt:0x%x%x \n",port1,port0,int0,int1);
-#endif
     I2C_0.end();
     return ((port1 << 8) | port0);
   }
@@ -746,23 +692,8 @@ uint16_t GPIOExtenderAW9523::getPins(void)
 
 bool GPIOExtenderAW9523::checkInterrupt(void)
 {
-    return (enabled && isInterrupted);
+  return (enabled && isInterrupted);
 }
-
-#ifdef AW9523_IRQ_MODE
-void IRAM_ATTR GPIOExtenderAW9523::gotInterrupt(void)
-{
-    DEBUG_PRINTLN("AW9523 Interrupt");
-
-    if (enabled)
-    {
-      // let set this and poll this bit later to avoid I2C reads in the interrupt routine
-      isInterrupted = true;
-      // TODO Is it ok to read I2C here? If so we can rework this for simpler code
-      //      to maybe avoid the poll in loop()
-    }
-}
-#endif
 
 void initHardware(void)
 {
@@ -785,17 +716,17 @@ void initHardware(void)
 
 const char* getRstReason(esp_reset_reason_t r) {
   switch(r) {
-  case ESP_RST_UNKNOWN:    return "ESP_RST_UNKNOWN";   //!< Reset reason can not be determined
-  case ESP_RST_POWERON:    return "ESP_RST_POWERON";   //!< Reset due to power-on event
-  case ESP_RST_EXT:        return "ESP_RST_EXT";       //!< Reset by external pin (not applicable for ESP32)
-  case ESP_RST_SW:         return "ESP_RST_SW";        //!< Software reset via esp_restart
-  case ESP_RST_PANIC:      return "ESP_RST_PANIC";     //!< Software reset due to exception/panic
-  case ESP_RST_INT_WDT:    return "ESP_RST_INT_WDT";   //!< Reset (software or hardware) due to interrupt watchdog
-  case ESP_RST_TASK_WDT:   return "ESP_RST_TASK_WDT";  //!< Reset due to task watchdog
-  case ESP_RST_WDT:        return "ESP_RST_WDT";       //!< Reset due to other watchdogs
-  case ESP_RST_DEEPSLEEP:  return "ESP_RST_DEEPSLEEP"; //!< Reset after exiting deep sleep mode
-  case ESP_RST_BROWNOUT:   return "ESP_RST_BROWNOUT";  //!< Brownout reset (software or hardware)
-  case ESP_RST_SDIO:       return "ESP_RST_SDIO";      //!< Reset over SDIO
+    case ESP_RST_UNKNOWN:    return "ESP_RST_UNKNOWN";   //!< Reset reason can not be determined
+    case ESP_RST_POWERON:    return "ESP_RST_POWERON";   //!< Reset due to power-on event
+    case ESP_RST_EXT:        return "ESP_RST_EXT";       //!< Reset by external pin (not applicable for ESP32)
+    case ESP_RST_SW:         return "ESP_RST_SW";        //!< Software reset via esp_restart
+    case ESP_RST_PANIC:      return "ESP_RST_PANIC";     //!< Software reset due to exception/panic
+    case ESP_RST_INT_WDT:    return "ESP_RST_INT_WDT";   //!< Reset (software or hardware) due to interrupt watchdog
+    case ESP_RST_TASK_WDT:   return "ESP_RST_TASK_WDT";  //!< Reset due to task watchdog
+    case ESP_RST_WDT:        return "ESP_RST_WDT";       //!< Reset due to other watchdogs
+    case ESP_RST_DEEPSLEEP:  return "ESP_RST_DEEPSLEEP"; //!< Reset after exiting deep sleep mode
+    case ESP_RST_BROWNOUT:   return "ESP_RST_BROWNOUT";  //!< Brownout reset (software or hardware)
+    case ESP_RST_SDIO:       return "ESP_RST_SDIO";      //!< Reset over SDIO
   }
   return "INVALID";
 }

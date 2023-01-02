@@ -59,8 +59,7 @@ void lvgl_gfxUpdateHeader();
 static void showGfxTopBar(lv_obj_t *parent)
 {
   static lv_obj_t * gfxLvTopBar = nullptr;
-  if (!gfxLvTopBar)
-  {
+  if (!gfxLvTopBar) {
 
     gfxLvTopBar = lv_obj_create(parent);
     lv_obj_set_size(gfxLvTopBar, lv_pct(100), 25); //TODO 25 should be LV_SIZE_CONTENT but got problem when reusing this
@@ -90,8 +89,7 @@ static void showGfxTopBar(lv_obj_t *parent)
     lv_led_off(gfxLvLedBT);
 
   }
-  else
-  {
+  else {
     lv_obj_set_parent(gfxLvTopBar, parent);
   }
 }
@@ -162,15 +160,13 @@ static void gfxLvSwitchSpeedEventhandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * obj = lv_event_get_target(e);
-  if(code == LV_EVENT_VALUE_CHANGED) {
-    if(lv_obj_has_state(obj, LV_STATE_CHECKED))
-    {
+  if (code == LV_EVENT_VALUE_CHANGED) {
+    if (lv_obj_has_state(obj, LV_STATE_CHECKED)) {
       //On
       speedInclineMode &= ~SPEED;
       logText("speedInclineMode &= ~SPEED\n");
     }
-    else
-    {
+    else {
       //Off
       speedInclineMode |= SPEED;
       logText("speedInclineMode |= SPEED\n");
@@ -183,15 +179,13 @@ static void gfxLvSwitchInclineEventhandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
   lv_obj_t * obj = lv_event_get_target(e);
-  if(code == LV_EVENT_VALUE_CHANGED) {
-    if(lv_obj_has_state(obj, LV_STATE_CHECKED))
-    {
+  if (code == LV_EVENT_VALUE_CHANGED) {
+    if (lv_obj_has_state(obj, LV_STATE_CHECKED)) {
       //On
       speedInclineMode &= ~INCLINE;
       logText("speedInclineMode &= ~INCLINE\n");
     }
-    else
-    {
+    else {
       //Off
       speedInclineMode |= INCLINE;
       logText("speedInclineMode |= INCLINE\n");
@@ -204,8 +198,7 @@ static void gfxLvSpeedUpEventHandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
 
-  if(code == LV_EVENT_CLICKED)
-  {
+  if (code == LV_EVENT_CLICKED) {
     logText("gfxLvSpeedUpEventHandler: LV_EVENT_CLICKED\n");
     speedUp();
   }
@@ -215,8 +208,7 @@ static void gfxLvSpeedDownEventHandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
 
-  if(code == LV_EVENT_CLICKED)
-  {
+  if (code == LV_EVENT_CLICKED) {
     logText("gfxLvSpeedDownEventHandler: LV_EVENT_CLICKED\n");
     speedDown();
   }
@@ -226,8 +218,7 @@ static void gfxLvInclineUpEventHandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
 
-  if(code == LV_EVENT_CLICKED)
-  {
+  if (code == LV_EVENT_CLICKED) {
     logText("gfxLvInclineUpEventHandler: LV_EVENT_CLICKED\n");
     inclineUp();
   }
@@ -237,8 +228,7 @@ static void gfxLvInclineDownEventHandler(lv_event_t * e)
 {
   lv_event_code_t code = lv_event_get_code(e);
 
-  if(code == LV_EVENT_CLICKED)
-  {
+  if (code == LV_EVENT_CLICKED) {
     logText("gfxLvInclineDownEventHandler: LV_EVENT_CLICKED\n");
     inclineDown();
   }
@@ -399,8 +389,7 @@ static lv_obj_t * createScreenMain()
 
 
 void lvgl_gfxShowScreenBoot() {
-  if (gfxLvScreenCurrent != gfxLvScreenBoot)
-  {
+  if (gfxLvScreenCurrent != gfxLvScreenBoot) {
     lv_scr_load(gfxLvScreenBoot);
     showGfxTopBar(gfxLvBootTopBarPlaceholder);
 
@@ -409,8 +398,7 @@ void lvgl_gfxShowScreenBoot() {
 }
 
 void lvgl_gfxShowScreenMain() {
-  if (gfxLvScreenCurrent != gfxLvScreenMain)
-  {
+  if (gfxLvScreenCurrent != gfxLvScreenMain) {
     lv_scr_load(gfxLvScreenMain);
     showGfxTopBar(gfxLvMainTopBarPlaceholder);
     lv_obj_set_size(gfxLvMainTopBarPlaceholder, lv_pct(100), LV_SIZE_CONTENT);
@@ -439,12 +427,10 @@ static void lvgl_touchPadReadCallback(lv_indev_drv_t * indev_driver, lv_indev_da
   uint16_t touchX, touchY;
   bool touched = tft.getTouch(&touchX, &touchY);
 
-  if (!touched)
-  {
+  if (!touched) {
     data->state = LV_INDEV_STATE_REL;
   }
-  else
-  {
+  else {
     data->state = LV_INDEV_STATE_PR;
 
     /*Set the coordinates*/
@@ -500,14 +486,12 @@ void lvgl_loopHandleGfx()
 
 void lvgl_gfxLogText(const char *text)
 {
-  if (gfxLvLogTextArea)
-  {
+  if (gfxLvLogTextArea) {
     // On screen console
     lv_textarea_add_text(gfxLvLogTextArea, text);
 
     // Trigger a GFX update if visible
-    if (!setupDone && gfxLvScreenCurrent == gfxLvScreenBoot)
-    {
+    if (!setupDone && gfxLvScreenCurrent == gfxLvScreenBoot) {
       // gfxLvScreenBoot is shown before the main loop and gfx is not updated periodically
       lvgl_loopHandleGfx();
     }
@@ -517,8 +501,7 @@ void lvgl_gfxLogText(const char *text)
 // Called each second
 void lvgl_gfxUpdateDisplay(bool clean)
 {
-  if (clean)
-  {
+  if (clean) {
     lvgl_gfxShowScreenMain();
     lvgl_gfxUpdateHeader();
   }
@@ -527,8 +510,7 @@ void lvgl_gfxUpdateDisplay(bool clean)
   count++;
 
   // Update if changed
-  //if (kmphCopy != kmph)
-  //{
+  //if (kmphCopy != kmph) {
     lv_label_set_text_fmt(lvLabelSpeed, "Speed: %2.2f km/h",kmph);
     lv_meter_set_indicator_value(gfxLvSpeedMeter, gfxLvSpeedMeterIndicator, kmph);
     //kmphCopy = kmph;
@@ -541,11 +523,9 @@ void lvgl_gfxUpdateDisplay(bool clean)
   lv_meter_set_indicator_value(gfxLvInclineMeter, gfxLvInclineMeterIndicator, incline);
 
   // Update graph
-  if (count >= graphDataPointAdvanceTime)
-  {
+  if (count >= graphDataPointAdvanceTime) {
     // scroll
-    if (kmph > 0)
-    {
+    if (kmph > 0) {
       lv_chart_set_next_value(lvGraph, lvGraphSpeedSerie, kmph);
       lv_chart_set_next_value(lvGraph, lvGraphInclineSerie, incline);
         uint16_t nextPointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
@@ -565,12 +545,10 @@ void lvgl_gfxUpdateDisplay(bool clean)
 
 void lvgl_gfxUpdateBTConnectionStatus(bool connected)
 {
-  if (connected)
-  {
+  if (connected) {
     lv_led_on(gfxLvLedBT);
   }
-  else
-  {
+  else {
     lv_led_off(gfxLvLedBT);
   }
 }
@@ -582,20 +560,18 @@ static void lvgl_gfxUpdateSpeedInclineMode(uint8_t mode)
   // via sensor or controlled via website
   // green: sensor/auto mode
   // red  : manual mode (via website, or buttons)
-  if (mode & SPEED)
-  {
+  if (mode & SPEED) {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedSpeed);
       lv_obj_clear_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
   }
-  else if((mode & SPEED) == 0)
-  {
+  else if ((mode & SPEED) == 0) {
       lv_led_set_color(gfxLvLedSpeed, lv_palette_main(LV_PALETTE_RED));
       lv_led_on(gfxLvLedSpeed);
       lv_obj_add_state(gfxLvSwitchSpeedControlMode, LV_STATE_CHECKED);
   }
-  if (mode & INCLINE)
-  {
+
+  if (mode & INCLINE) {
       lv_led_set_color(gfxLvLedIncline, lv_palette_main(LV_PALETTE_GREEN));
       lv_led_on(gfxLvLedIncline);
       lv_obj_clear_state(gfxLvSwitchInclineControlMode, LV_STATE_CHECKED);

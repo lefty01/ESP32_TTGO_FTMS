@@ -116,8 +116,7 @@ void tft_initDisplay(void)
 
 void tft_gfxLogText(const char *text)
 {
-  if(!setupDone)
-  {
+  if (!setupDone) {
     tft.print(text);
   }
 }
@@ -403,9 +402,10 @@ static void tft_gfxUpdateHeaderSpeedInclineMode(uint8_t mode)
   if (mode & SPEED) {
       tft.fillCircle(CIRCLE_SPEED_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_GREEN);
   }
-  else if((mode & SPEED) == 0) {
+  else if ((mode & SPEED) == 0) {
     tft.fillCircle(CIRCLE_SPEED_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_RED);
   }
+
   if (mode & INCLINE) {
       tft.fillCircle(CIRCLE_INCLINE_X_POS, CIRCLE_Y_POS, CIRCLE_RADIUS, TFT_GREEN);
   }

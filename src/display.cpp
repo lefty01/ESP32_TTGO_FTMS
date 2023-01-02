@@ -5,10 +5,6 @@
 #include "display.h"
 #include "config.h"
 
-volatile bool touch_b1 = false;
-volatile bool touch_b2 = false;
-volatile bool touch_b3 = false;
-
 #ifndef NO_DISPLAY
 #if LGFX_USE_V1
 LGFX tft;
