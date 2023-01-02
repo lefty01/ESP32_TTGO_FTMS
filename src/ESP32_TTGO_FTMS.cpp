@@ -30,7 +30,6 @@
 
 #include <math.h>
 #include <SPI.h>
-//#include <FS.h>
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <unity.h>
@@ -41,14 +40,6 @@
 #include "net-control.h"
 #include "display.h"
 #include "config.h"
-
-// Select and uncomment one of the Treadmills below
-//#define TREADMILL_MODEL TAURUS_9_5
-//#define TREADMILL_MODEL NORDICTRACK_12SI
-// or via platformio.ini:
-// -DTREADMILL_MODEL="TAURUS_9_5"
-
-//unsigned long sw_timer_clock = 0;
 
 float  kmph = 0;
 float  kmphIRsense = 0;
