@@ -272,11 +272,14 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
 
   gfxLvSpeedMeter = lv_meter_create(obj);
-  lv_obj_set_size(gfxLvSpeedMeter, 200, 200); //TODO would be good if this was not hardcoded, BUT make sure its square if not, rendering gets messed up if not (at least in lvgl 8.3)
-  // TODO ?? make it square by first let i span 100% then use the smalest number
-  //uint32_t size = std::min(lv_obj_get_width(gfxLvSpeedMeter),lv_obj_get_height(gfxLvSpeedMeter));
-  //lv_obj_set_size(gfxLvSpeedMeter, size, size);
-  lv_obj_align(gfxLvSpeedMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
+  uint32_t meterSize = (screenWidth/2.4); //480 -> 200,  320 -> 133  // TODO something more clever?
+  int32_t meterPosX = -15;
+  int32_t meterPosY = -5;
+  if (screenHeight > 135 ) { // TODO something more clever?
+    meterPosY = 18;
+  }
+  lv_obj_set_size(gfxLvSpeedMeter, meterSize, meterSize);
+  lv_obj_align(gfxLvSpeedMeter, LV_ALIGN_OUT_TOP_LEFT, meterPosX, meterPosY);
   gfxLvSpeedMeterIndicator = setupMeter(gfxLvSpeedMeter, configTreadmill.min_speed, configTreadmill.max_speed, 6, 16);
 
 #ifdef HAS_TOUCH_DISPLAY
@@ -327,11 +330,8 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
 
   gfxLvInclineMeter = lv_meter_create(obj);
-  lv_obj_set_size(gfxLvInclineMeter, 200, 200); //TODO would be good if this was not hardcoded, BUT make sure its square if not, rendering gets messed up if not (at least in lvgl 8.3)
-  // TODO ?? make it square by first let i span 100% then use the smalest number
-  //uint32_t size = std::min(lv_obj_get_width(gfxLvInclineMeter),lv_obj_get_height(gfxLvInclineMeter));
-  //lv_obj_set_size(gfxLvInclineMeter, size, size);
-  lv_obj_align(gfxLvInclineMeter, LV_ALIGN_OUT_TOP_LEFT, -15, 18);
+  lv_obj_set_size(gfxLvInclineMeter, meterSize, meterSize);
+  lv_obj_align(gfxLvInclineMeter, LV_ALIGN_OUT_TOP_LEFT, meterPosX, meterPosY);
   gfxLvInclineMeterIndicator = setupMeter(gfxLvInclineMeter, configTreadmill.min_incline, configTreadmill.max_incline, 2, 7);
 
 #ifdef HAS_TOUCH_DISPLAY
@@ -376,7 +376,7 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_width(lvGraph, lv_pct(100));
   lv_obj_set_flex_grow(lvGraph, 1);
   lv_chart_set_type(lvGraph, LV_CHART_TYPE_LINE);   /*Show lines and points too*/
-  lv_obj_set_style_pad_all(lvGraph,1,1);
+  lv_obj_set_style_pad_all(lvGraph,0,0);
   lv_chart_set_update_mode(lvGraph, graphCircular ? LV_CHART_UPDATE_MODE_CIRCULAR : LV_CHART_UPDATE_MODE_SHIFT);
 
   /*Add two data series*/
