@@ -42,5 +42,5 @@ jobs:
         pio run -e ESP32_TTGO_DISPLAY \
                 -e ESP32_TTGO_DISPLAY_SSL \
                 -e ESP32_WT32-SC01 \
-                -e ESP32_TTGO_T4_TFT_eSPI \
+                -e ESP32_TTGO_T4 \
                 -e ESP32_WROOMD_HEADLESS

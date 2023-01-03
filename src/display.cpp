@@ -5,16 +5,10 @@
 #include "display.h"
 #include "config.h"
 
-volatile bool touch_b1 = false;
-volatile bool touch_b2 = false;
-volatile bool touch_b3 = false;
-
 #ifndef NO_DISPLAY
 #if LGFX_USE_V1
 LGFX tft;
 LGFX_Sprite sprite(&tft);
-#elif USE_TFT_ESPI
-TFT_eSPI tft = TFT_eSPI();
 #endif
 #endif
 
@@ -35,7 +29,6 @@ void initDisplay(void)
     digitalWrite(TFT_BL, HIGH);
   }
 #endif
-
 #ifdef GUI_LVGL
   logText("Init LVGL display\n");
   lvgl_initDisplay();

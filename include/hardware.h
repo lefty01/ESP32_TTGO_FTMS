@@ -27,7 +27,6 @@
 
 #include <Wire.h>
 
-//#define AW9523_IRQ_MODE  //TODO see if we can get this to work or remove the code
 static constexpr int TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS = 250;
 extern volatile long workoutDistance;
 extern bool timer_tick;
@@ -47,9 +46,6 @@ public:
   bool isAvailable();
   uint16_t getPins(void);
   bool checkInterrupt(void);
-#ifdef AW9523_IRQ_MODE
-  void IRAM_ATTR gotInterrupt(void);
-#endif
   void scanButtons(void);
   void logPins(void);
   bool pressEvent(EventType eventButton);

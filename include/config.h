@@ -7,18 +7,6 @@
 
 extern const char* VERSION;
 
-//extern String treadmill_name;
-//extern float max_speed;
-//extern float min_speed;
-//extern float max_incline; // incline/grade in percent(!)
-//extern float min_incline;
-//extern long  belt_distance; // mm ... actually circumfence of motor wheel!
-//extern float incline_interval_step;
-//extern volatile float speed_interval_step;
-//extern bool hasMPU6050;
-//extern bool hasIrSense;
-//extern bool hasReed;
-
 struct TreadmillConfiguration
 {
     public:
