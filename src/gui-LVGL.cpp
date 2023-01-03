@@ -243,7 +243,8 @@ static void gfxLvInclineDownEventHandler(lv_event_t * e)
 static lv_obj_t * createScreenMain()
 {
   lv_obj_t * screenMain = lv_obj_create(NULL);
-  lv_obj_set_style_pad_all(screenMain,0,0);
+  lv_obj_set_style_pad_column(screenMain,0,0);
+  lv_obj_set_style_pad_row(screenMain,0,0);
   lv_obj_set_layout(screenMain, LV_LAYOUT_FLEX);
   lv_obj_set_flex_flow(screenMain, LV_FLEX_FLOW_COLUMN);
 
