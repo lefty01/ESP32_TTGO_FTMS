@@ -32,7 +32,7 @@
 
 struct TreadmillConfiguration configTreadmill;
 
-const char* VERSION = "0.2.0";
+const char* VERSION = "0.3.1";
 
 
 void dump_settings(void)
@@ -132,6 +132,7 @@ int LittleFS_findKey(const __FlashStringHelper * key, char * value)
   if (!configFile) {
     logText("LittleFS: error on opening file ");    
     logText(FILE_NAME);
+    logText("\n");
     return 0;
   }
 

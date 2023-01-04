@@ -18,7 +18,7 @@ String readIncline();
 String readElevation();
 
 int initMqtt(void);
-//int initWifi(void);
+void setupDeviceID();
 void initWifi(void);
 void initBLE(void);
 bool mqttConnect(void);

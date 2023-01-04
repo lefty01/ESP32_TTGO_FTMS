@@ -11,6 +11,8 @@ client.crt.h
 client.key.h
 server_mqtt.crt.h
 
+# copied from conf dir
+data/treadmill.txt
 
 # Prerequisites
 *.d
