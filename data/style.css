@@ -29,6 +29,29 @@ div { font-size: 2.0rem; }
     cursor: pointer;
 }
 
+.toggle_switch {
+    text-align: center;
+    margin: 0 auto;
+    /* padding: 2rem; */
+    /* cursor: pointer; */
+    color: #cc0000;
+}
+.active {
+    color: green;
+}
+
+
+.speed-dist, .incline-elevation {
+    display: flex;
+    column-count: 3;
+    column-fill: auto;
+    align-self: center;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+}
+
+
 .button_start        { background-color: #4CAF50; } /* Green */
 .button_stop         { background-color: #cc0000; } /* Red   */
 .button_reset        { background-color: #008CBA; } /* Blue  */

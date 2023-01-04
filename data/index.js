@@ -2,46 +2,21 @@
 
 var gateway = `ws://${window.location.hostname}/ws`;
 var websocket;
-var manualSpeed = true;
-var manualIncline = true;
+var manualSpeed   = false;
+var manualIncline = false;
+var sensorMode    = 0;
 
 window.addEventListener('load', onLoad);
 
 function onLoad(event) {
   initWebSocket();
   initButtons();
-  manualAutoToggle();
 }
 
 
 function toggleStopwatch() {
-
   document.getElementById('stopwatch').style.visibility = 'visible';
   document.getElementById('stopwatch').style.visibility = 'hidden';
-
-}
-
-function manualAutoToggle() {
-  var speedStyle   = document.getElementById('toggle_manual_speed').style,
-      speedToggle = false,
-      speedC1 = '#059e8a',
-      speedC2 = '#24ffe2';
-
-  var inclineStyle = document.getElementById('toggle_manual_incline').style,
-      inclineToggle = false,
-      inclineC1 = '#00add6',
-      inclineC2 = '#24ffe2';
-
-  setInterval(function() {
-    if (!manualSpeed) { // toggle icon color in "manual mode"
-      speedStyle.color = speedToggle ? speedC1 : speedC2;
-      speedToggle = !speedToggle;
-    }
-    if (!manualIncline) {
-      inclineStyle.color = inclineToggle ? inclineC1 : inclineC2;
-      inclineToggle = !inclineToggle;
-    }
-  }, 1000);
 }
 
 // style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
@@ -80,10 +55,34 @@ function onMessage(event) {
   document.getElementById('incline')  .innerHTML = data.incline.toFixed(1);
   document.getElementById('elevation').innerHTML = data.elevation.toFixed(1);
   document.getElementById('hour')     .innerHTML = data.hour;
-	document.getElementById('minute')   .innerHTML = data.minute;
+  document.getElementById('minute')   .innerHTML = data.minute;
   document.getElementById('second')   .innerHTML = data.second;
 
-	data.sensor_mode
+  //manualIncline = 0 === (data.sensor_mode & 1);
+  //manualSpeed   = 0 === (data.sensor_mode & 2);
+  if (data.sensor_mode === 0) {
+    manualSpeed   = true;
+    manualIncline = true;
+  }
+  else if (data.sensor_mode === 1) {
+    manualSpeed   = false;
+    manualIncline = true;
+  }
+  else if (data.sensor_mode === 2) {
+    manualSpeed   = true;
+    manualIncline = false;
+  }
+  else if (data.sensor_mode === 3) {
+    manualSpeed   = false;
+    manualIncline = false;
+  }
+
+  if (sensorMode != data.sensor_mode) {
+    console.log("mode changed: sensorMode: " + sensorMode + ", date.sensor_mode: " + data.sensor_mode + ", manualSpeed=" + manualSpeed + ", manualIncline=" + manualIncline);
+
+    sensorMode = data.sensor_mode;
+    setManualButtonState();
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -101,9 +100,11 @@ function initButtons() {
   document.getElementById('incline_down').addEventListener('click', onInclineDown);
 
   // add handler to toggle manual speed/incline by clicking on the runner (kmh) or incline (%) icon
-  document.getElementById('toggle_manual_speed').addEventListener('click', onSensorModeChange.bind(this, 'speed'));
-  document.getElementById('toggle_manual_incline').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
-  
+//  document.getElementById('toggle_manual_speed').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
+//  document.getElementById('toggle_manual_incline').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
+
+  document.getElementById('manual_speed_button').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
+  document.getElementById('manual_incline_button').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
 }
 
 function onInterval(e, arg) {
@@ -148,17 +149,48 @@ function onInclineDown(e) {
 				 'value': 'down'}));
 }
 
-function onSensorModeChange(e, arg) {
+function setManualButtonState() {
+  if (manualSpeed === false) {
+    document.getElementById('manual_speed_button').classList.remove('fa-toggle-off');
+    document.getElementById('manual_speed_button').classList.remove('inactive');
+    document.getElementById('manual_speed_button').classList.add('fa-toggle-on');
+    document.getElementById('manual_speed_button').classList.add('active');
+  }
+  else {  // manual mode, set inactive
+    document.getElementById('manual_speed_button').classList.remove('fa-toggle-on');
+    document.getElementById('manual_speed_button').classList.remove('active');
+    document.getElementById('manual_speed_button').classList.add('fa-toggle-off');
+    document.getElementById('manual_speed_button').classList.add('inactive');
+  }
 
+  if (manualIncline === false) {
+    document.getElementById('manual_incline_button').classList.remove('fa-toggle-off');
+    document.getElementById('manual_incline_button').classList.remove('inactive');
+    document.getElementById('manual_incline_button').classList.add('fa-toggle-on');
+    document.getElementById('manual_incline_button').classList.add('active');
+  }
+  else {
+    document.getElementById('manual_incline_button').classList.remove('fa-toggle-on');
+    document.getElementById('manual_incline_button').classList.remove('active');
+    document.getElementById('manual_incline_button').classList.add('fa-toggle-off');
+    document.getElementById('manual_incline_button').classList.add('inactive');
+  }
+}
+
+function onSensorModeChange(e, arg) {
   if (e === 'speed') {
     manualSpeed = !manualSpeed;
+
     //document.getElementById('toggle_manual_speed').style.color = manualSpeed ? ...
     websocket.send(JSON.stringify({'command': 'sensor_mode',
 				   'value': 'speed'}));
   }
   if (e === 'incline') {
     manualIncline = !manualIncline;
+
     websocket.send(JSON.stringify({'command': 'sensor_mode',
 				   'value': 'incline'}));
   }
+//  setManualButtonState();
 }
+

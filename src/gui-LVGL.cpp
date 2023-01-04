@@ -25,6 +25,7 @@ static lv_obj_t * gfxLvScreenCurrent = nullptr;
 
 // Top Bar
 static lv_obj_t * gfxLvTopText = nullptr;
+static lv_obj_t * gfxLvVersionText = nullptr;
 static lv_obj_t * gfxLvLedSpeed = nullptr;
 static lv_obj_t * gfxLvLedIncline = nullptr;
 static lv_obj_t * gfxLvLedBT = nullptr;
@@ -71,6 +72,7 @@ static void showGfxTopBar(lv_obj_t *parent)
     lv_obj_set_flex_flow(gfxLvTopBar, LV_FLEX_FLOW_ROW);
 
     gfxLvTopText = lv_label_create(gfxLvTopBar);
+    gfxLvVersionText = lv_label_create(gfxLvTopBar);
     //lv_obj_set_width(gfxLvTopText, lv_pct(100));
     lv_label_set_text(gfxLvTopText, "FTMS");
     lv_obj_set_flex_grow(gfxLvTopText, 1); 
@@ -569,6 +571,10 @@ void lvgl_gfxUpdateBTConnectionStatus(bool connected)
   }
 }
 
+void lvgl_gfxUpdateVersion(const char* version)
+{
+
+}
 
 static void lvgl_gfxUpdateSpeedInclineMode(uint8_t mode)
 {
@@ -612,6 +618,7 @@ void lvgl_gfxUpdateWIFI(const unsigned long reconnect_counter, const String &ip)
   // if (wifi_reconnect_counter > wifi_reconnect_counter_prev) ... only update on change
   std::ostringstream oss;
   oss << "Wifi[" << reconnect_counter << "]: " << ip.c_str();
+  oss << " v" << VERSION;
   std::string str = oss.str();
   lv_label_set_text(gfxLvTopText, str.c_str());
 }
@@ -625,6 +632,8 @@ void lvgl_gfxUpdateHeader()
   lvgl_gfxUpdateBTConnectionStatus(bleClientConnected);
 
   lvgl_gfxUpdateWIFI(wifiReconnectCounter, getWifiIpAddr());
+
+  lvgl_gfxUpdateVersion(VERSION);
 }
 
 #endif //#if !defined(NO_DISPLAY) && defined(GUI_LVGL)
