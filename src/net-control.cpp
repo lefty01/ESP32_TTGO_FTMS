@@ -159,6 +159,14 @@ void loopHandleBLE()
 #endif    
   }
 }
+
+void setupDeviceID()
+{
+  esp_efuse_mac_get_default(macAddr);
+  MQTTDEVICEID += String(macAddr[4], HEX);
+  MQTTDEVICEID += String(macAddr[5], HEX);
+}
+
 void initBLE() {
   logText("init BLE...");
 
@@ -373,11 +381,6 @@ void setupMqttTopic(const String &id)
 int initMqtt(void)
 {
   logText("Init Mqtt...");
-
-  esp_efuse_mac_get_default(macAddr);
-
-  MQTTDEVICEID += String(macAddr[4], HEX);
-  MQTTDEVICEID += String(macAddr[5], HEX);
 
   setupMqttTopic(MQTTDEVICEID);
   isMqttAvailable = mqttConnect();

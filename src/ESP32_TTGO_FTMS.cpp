@@ -265,6 +265,7 @@ void setup()
   initDisplay();
 
   logText("Setup started:\n");
+  setupDeviceID();
   initWifi();
   initLittleFS();
   initButton();
