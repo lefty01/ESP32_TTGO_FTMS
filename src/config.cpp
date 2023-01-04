@@ -32,7 +32,7 @@
 
 struct TreadmillConfiguration configTreadmill;
 
-const char* VERSION = "0.4.0";
+const char* VERSION = "0.4.1";
 
 
 void dump_settings(void)

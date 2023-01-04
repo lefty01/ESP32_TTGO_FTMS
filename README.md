@@ -142,14 +142,14 @@ https://arduinojson.org/v6/assistant/
 ## Web interface
 This is how the website should look like.
 At the top you see four values for (top-left to bottom-right): speed, distance, incline, elevation gain.
-The two marked icons for speed and incline are clickable and will toggle between auto aka. sensor reading mode
-where speed and incline is measured via sensor or manual mode.
+The two switch buttons are clickable and will toggle between auto (green) aka. sensor reading mode
+where speed and incline is measured via sensor or manual mode (red).
 Manual mode means you override sensor readings by clicking the UP/DOWN buttons on the webinterface.
 
 ![Main Website](doc/web-main.png)
 
 ### OTA
-Under the /update URL you can upload a new firmware image or spiffs filesystem image over-the-air.
+Under the /update URL you can upload a new firmware image or littlefs filesystem image over-the-air.
 
 ![OTA](doc/ota-update.png)
 
@@ -231,13 +231,7 @@ Define as **NORDICTRACK_12SI**
 
 
 # PlatformIO
-## TFT_eSPI config
-Check:
-https://github.com/Bodmer/TFT_eSPI/blob/master/Tools/PlatformIO/Configuring%20options.txt
 
-and/or
-
-https://blog.emtwo.ch/2020/05/using-bodmer-tftespi-library-with.html
 
 ```
 $ pio run -e ESP32_TTGO_DISPLAY --list-targets
@@ -272,7 +266,7 @@ $ pio run -e ESP32_TTGO_DISPLAY -t upload
 
 ## Flash Files
 * firmware:   .pio/build/ESP32_TTGO_DISPLAY/firmware.bin
-* filesystem: .pio/build/ESP32_TTGO_DISPLAY/spiffs.bin
+* filesystem: .pio/build/ESP32_TTGO_DISPLAY/littlefs.bin
 
 
 ## Partition Table
