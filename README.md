@@ -142,8 +142,8 @@ https://arduinojson.org/v6/assistant/
 ## Web interface
 This is how the website should look like.
 At the top you see four values for (top-left to bottom-right): speed, distance, incline, elevation gain.
-The two marked icons for speed and incline are clickable and will toggle between auto aka. sensor reading mode
-where speed and incline is measured via sensor or manual mode.
+The two switch buttons clickable and will toggle between auto (green) aka. sensor reading mode
+where speed and incline is measured via sensor or manual mode (red).
 Manual mode means you override sensor readings by clicking the UP/DOWN buttons on the webinterface.
 
 ![Main Website](doc/web-main.png)
