@@ -49,10 +49,10 @@ enum class EventType {
 //      Maybe, but maybe in some nicer way?? Code is a bit messy right now and
 //      it's not 100% clear what it means 
 enum SensorModeFlags {
-		      MANUAL  = 0x00,
-		      SPEED   = 0x01, // b'01
-		      INCLINE = 0x02, // b'10
-		      SPEEDINCLINE_BITFIELD = 0x03 // b'11		  
+    MANUAL  = 0x00, // speed and incline can be adjusted via button or webui
+    SPEED   = 0x01, // b'01 ... only incline can be adjusted (speed from sensor)
+    INCLINE = 0x02, // b'10 ... only speed can be adjusted (incline from sensor)
+    SPEEDINCLINE_BITFIELD = 0x03 // b'11 ... no adjust/overwrite get speed and incline from sensor
 };
 
 extern bool setupDone;
