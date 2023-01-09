@@ -78,7 +78,6 @@ void initWebSocket();
 void notifyClientsWebSockets();
 void doReset(void);
 
-double angleSensorTreadmillConversion(double inAngle);
 void setSpeedInterval(float interval);
 void speedDown();
 void speedUp();

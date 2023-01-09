@@ -7,5 +7,6 @@ speed_interval_step=0.1
 incline_interval_step=1.0
 belt_distance=152
 hasMPU6050=0
+hasMPU6050inAngle=0
 hasIrSense=0
 hasReed=0

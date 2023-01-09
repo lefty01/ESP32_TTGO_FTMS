@@ -340,6 +340,39 @@ static void IRAM_ATTR speedSensor2_ISR(void)
   }
 }
 
+// angleSensorTreadmillConversion()
+// If a treadmill has some special placement of the angle sensor
+// here is where that value is converted from sensor read to proper angle of running area.
+
+double angleSensorTreadmillConversion(double inAngle) {
+  double convertedAngle = inAngle;
+
+  if (configTreadmill.hasMPU6050inAngle) {
+
+    /* If Sensor is placed in inside the treadmill engine
+      TODO: Maybe this can be automatic, e.g. Let user selct a incline at a time
+            and record values and select inbeween bounderies.
+            If treadmill support stearing the incline maybe it can also be an automatic
+            calibration step. e.g. move it max down, callibrate sensor, step up max and measure
+            User input treadmill "Max incline" value and Running are length somehow.
+                /|--- ___
+            c / |        --- ___ a
+              /  |x              --- ___  Running area
+            /   |_                      --- ___
+            / A  | |                           C ---  ___
+
+      A = inAngle (but we want the angle C)
+      sin(A)=x/c     sin(C)=x/a
+      x=c*sin(A)     x=a*sin(C)
+      C=asin(c*sin(A)/a)
+    */
+    double c = 32.0;  // lenght of motor part in cm TODO treadmill config?
+    double a = 150.0; // lenght of running area in cm TODO treadmill config?
+    convertedAngle = asin(c*sin(inAngle * DEG_TO_RAD)/a) * RAD_TO_DEG;
+  }
+  return convertedAngle;
+}
+
 // getIncline()
 // This will read the used "incline" sensor, run this periodically
 // The following global variables will be updated
@@ -353,14 +386,14 @@ float getIncline(void)
 
   if (configTreadmill.hasMPU6050) {
     // MPU6050 returns a incline/grade in degrees(!)
-    // TODO: configure sensor orientation  via webinterface
     // FIXME: maybe get some rolling-average of Y-angle to smooth things a bit (same for speed)
     // mpu.getAngle[XYZ]
     sensorAngle = mpu6050.getAngleY(); //This does not use I2C no need to I2C begin/end
 
-    angle = angleSensorTreadmillConversion(sensorAngle); // convert angle depending on treadmill placment of mpu6050
+    angle = angleSensorTreadmillConversion(sensorAngle); // convert angle depending placment of mpu6050 on treadmill
 
-    if (angle < 0) angle = 0;  // TODO We might allow running downhill
+    if (angle < 0) angle = 0; // TODO We might allow running downhill, some threadmill support it and pratically
+                              //      you could put something under it on the back side
 
     char yStr[5];
     snprintf(yStr, 5, "%.2f", angle);
