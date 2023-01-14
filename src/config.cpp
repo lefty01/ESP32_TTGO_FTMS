@@ -19,6 +19,7 @@
 #define default_incline_interval_step 1.0
 #define default_belt_distance 250
 #define default_hasMPU6050 false
+#define default_hasMPU6050inAngle false
 #define default_hasIrSense false
 #define default_hasReed false
 
@@ -55,6 +56,8 @@ void dump_settings(void)
   DEBUG_PRINTLN(configTreadmill.belt_distance);
   DEBUG_PRINT("hasMPU6050: "); 
   DEBUG_PRINTLN(configTreadmill.hasMPU6050);
+  DEBUG_PRINT("hasMPU6050inAngle: "); 
+  DEBUG_PRINTLN(configTreadmill.hasMPU6050inAngle);
   DEBUG_PRINT("hasIrSense: "); 
   DEBUG_PRINTLN(configTreadmill.hasIrSense);
   DEBUG_PRINT("hasReed: "); 
@@ -205,6 +208,7 @@ void initConfig(void)
   configTreadmill.belt_distance          = LittleFS_findFloat(F("belt_distance"));
   // Get Your HW config, e.g. interface to Treadmill and other added HW
   configTreadmill.hasMPU6050             = LittleFS_findInt(F("hasMPU6050"));
+  configTreadmill.hasMPU6050inAngle      = LittleFS_findInt(F("hasMPU6050inAngle"));
   configTreadmill.hasIrSense             = LittleFS_findInt(F("hasIrSense"));
   configTreadmill.hasReed                = LittleFS_findInt(F("hasReed"));
 
@@ -252,7 +256,11 @@ void initConfig(void)
   if ((configTreadmill.hasMPU6050 < 0) || (configTreadmill.hasMPU6050 > 1)) {
     configTreadmill.hasMPU6050 = default_hasMPU6050;
     logText("invalid MPU6050 setting, using default (false)\n");
+  }
 
+  if ((configTreadmill.hasMPU6050inAngle < 0) || (configTreadmill.hasMPU6050inAngle > 1)) {
+    configTreadmill.hasMPU6050inAngle = default_hasMPU6050inAngle;
+    logText("invalid hasMPU6050inAngle setting, using default (false)\n");
   }
 
   if ((configTreadmill.hasIrSense < 0) || (configTreadmill.hasIrSense > 1)) {

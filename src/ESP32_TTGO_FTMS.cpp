@@ -170,41 +170,6 @@ void inclineDown()
   logText("\n");
 }
 
-// angleSensorTreadmillConversion()
-// If a treadmill has some special placement of the angle sensor
-// here is where that value is converted from sensor read to proper angle of running area.
-
-double angleSensorTreadmillConversion(double inAngle) {
-  double convertedAngle = inAngle;
-
-#warning TODO make this a configurable depending on where on the threadmill you place the MPU6050   
-//#if TREADMILL_MODEL == NORDICTRACK_12SI
-  // TODO: Maybe this should be a config somewhere together with sensor orientation
-
-  /* If Sensor is placed in inside the treadmill engine
-    TODO: Maybe this can be automatic, e.g. Let user selct a incline at a time
-          and record values and select inbeween bounderies.
-          If treadmill support stearing the incline maybe it can also be an automatic
-          calibration step. e.g. move it max down, callibrate sensor, step up max and measure
-          User input treadmill "Max incline" value and Running are length somehow.
-              /|--- ___
-           c / |        --- ___ a
-            /  |x              --- ___  Running area
-           /   |_                      --- ___
-          / A  | |                           C ---  ___
-
-    A = inAngle (but we want the angle C)
-    sin(A)=x/c     sin(C)=x/a
-    x=c*sin(A)     x=a*sin(C)
-    C=asin(c*sin(A)/a)
-  */
-  double c = 32.0;  // lenght of motor part in cm
-  double a = 150.0; // lenght of running area in cm
-  convertedAngle = asin(c*sin(inAngle * DEG_TO_RAD)/a) * RAD_TO_DEG;
-//#endif
-  return convertedAngle;
-}
-
 void setSpeed(float speed)
 {
   kmph = speed;
@@ -243,6 +208,7 @@ static void showInfo()
   logText(intoText.c_str());
   intoText = String("HW: REED: ") + configTreadmill.hasReed +
              String(" MPU6050: ") + configTreadmill.hasMPU6050 +
+             String(" inAngle: ") + configTreadmill.hasMPU6050inAngle +
              String(" IrSense: ") + configTreadmill.hasIrSense +
              String(" GPIOExtender(AW9523): ") + GPIOExtender.isAvailable() + String("\n");
   logText(intoText.c_str());

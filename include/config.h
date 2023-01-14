@@ -19,6 +19,7 @@ struct TreadmillConfiguration
     float speed_interval_step;
     long  belt_distance; // mm ... actually circumfence of motor wheel!
     bool  hasMPU6050;
+    bool  hasMPU6050inAngle;
     bool  hasIrSense;
     bool  hasReed;
 };
