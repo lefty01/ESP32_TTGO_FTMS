@@ -64,7 +64,7 @@ void logText(const char *text)
   // Serial consol
   DEBUG_PRINTF(text);
 #warning todo cs:putback gfxlogtext
-#ifndef NO_DISPLAY 
+#ifndef NO_DISPLAY
   gfxLogText(text);
 #endif
 }
@@ -85,7 +85,7 @@ void logText(std::string text)
   logText(text.c_str());
 }
 
-void initLittleFS() 
+void initLittleFS()
 {
   logText("initLittleFS...");
 
@@ -214,7 +214,7 @@ static void showInfo()
   logText(intoText.c_str());
 }
 
-void setup() 
+void setup()
 {
   // initial min treadmill speed
   kmph = 0.5;
@@ -256,8 +256,8 @@ void setup()
 #endif
 }
 
-void loop() 
-{  
+void loop()
+{
   loopHandleHardware();
   loopHandleButton();
   loopHandleGfx();
@@ -315,6 +315,6 @@ void loop()
     gfxUpdateDisplay(false);
 #endif
     notifyClientsWebSockets();
-    updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain 
+    updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain
   }
 }
