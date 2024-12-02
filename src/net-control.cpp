@@ -5,22 +5,23 @@ TODO: Maybe we want to split this up in different files later? Lets see how it g
 */
 #define NIMBLE
 #include <LittleFS.h>
-#include <AsyncElegantOTA.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
 
+//#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
+#include <ESPAsyncWebServer.h>     //Local WebServer used to serve the configuration portal
+#include <ESPAsyncWiFiManager.h>   //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <ElegantOTA.h>
+
 #include "common.h"
 #include "display.h"
-#include "net-control.h" 
+#include "net-control.h"
 #include "config.h"
 #include "debug_print.h"
 #include "hardware.h"
 #include "wifi_mqtt_creds.h"
 
-//#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
-#include <ESPAsyncWebServer.h>     //Local WebServer used to serve the configuration portal
-#include "ESPAsyncWiFiManager.h"   //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
 #include <NimBLEDevice.h>
 #ifdef MQTT_USE_SSL
@@ -45,7 +46,7 @@ AsyncWebServer server(80);
 #endif
 AsyncWebSocket ws("/ws");
 PubSubClient client(espClient);  // mqtt client
-DNSServer dns;  
+DNSServer dns;
 
 //extern AsyncWebServer server;
 //extern AsyncWebSocket ws;
@@ -57,7 +58,7 @@ bool isMqttAvailable = false;
 bool isWifiAvailable = false;
 unsigned long wifiReconnectCounter = 0;
 
-static unsigned long mqtt_reconnect_counter = 0; 
+static unsigned long mqtt_reconnect_counter = 0;
 unsigned long wifi_reconnect_timer = 0;
 
 String ipAddr;
@@ -149,14 +150,14 @@ void loopHandleBLE()
     logText("BT Client connected!\n");
 #ifndef NO_DISPLAY
     gfxUpdateHeader();
-#endif    
+#endif
   }
   else if (!bleClientConnected && bleClientConnectedPrev) {
     bleClientConnectedPrev = false;
     logText("BT Client disconnected!\n");
-#ifndef NO_DISPLAY    
+#ifndef NO_DISPLAY
     gfxUpdateHeader();
-#endif    
+#endif
   }
 }
 
@@ -199,7 +200,7 @@ void initBLE() {
   //pAdvertising->setMinPreferred(0x06);  // set value to 0x00 to not advertise this parameter
 
   pAdvertising->start();
-  logText("done\n");  
+  logText("done\n");
 }
 
 void updateBLEdata(void)
@@ -267,7 +268,7 @@ void initWifi()
 {
   bool res;
 
-  logText("Init Wifi...");  
+  logText("Init Wifi...");
   // reset settings - wipe stored credentials for testing
   // these are stored by the esp library
   // wm.resetSettings();
@@ -284,18 +285,18 @@ void initWifi()
   //res = wifiManager.autoConnect(); // auto generated AP name from chipid
   // res = wm.autoConnect("AutoConnectAP"); // anonymous ap
   res = wifiManager.autoConnect("FTMS Threadmill AP");
-    
+
   if (!res) {
     isWifiAvailable = false;
     logText("failed\n");
-  } 
+  }
   else {
     isWifiAvailable = true;
-    //if you get here you have connected to the WiFi    
+    //if you get here you have connected to the WiFi
     ipAddr  = WiFi.localIP().toString();
     dnsAddr = WiFi.dnsIP().toString();
 
-    logText(" OK\n");  
+    logText(" OK\n");
     logText("IP address: ");
     logText(ipAddr.c_str());
     logText("DNS address: ");
@@ -304,12 +305,12 @@ void initWifi()
   }
 }
 
-void loopHandleWIFI() 
+void loopHandleWIFI()
 {
-//  static unsigned long mqtt_reconnect_counter = 0; 
+//  static unsigned long mqtt_reconnect_counter = 0;
 //  unsigned long wifi_reconnect_timer = 0;
 //  bool isWifiAvailable = false;
-  
+
   // re-connect to wifi
   if ((WiFi.status() != WL_CONNECTED) && ((millis() - wifi_reconnect_timer) > WIFI_CHECK)) {
     wifi_reconnect_timer = millis();
@@ -322,7 +323,7 @@ void loopHandleWIFI()
     WiFi.reconnect();
   }
 
-  if (!isWifiAvailable && (WiFi.status() == WL_CONNECTED)) 
+  if (!isWifiAvailable && (WiFi.status() == WL_CONNECTED))
   {
     // connection was lost and now got reconnected ...
     isWifiAvailable = true;
@@ -336,7 +337,7 @@ void loopHandleWIFI()
 
 #ifndef NO_DISPLAY
     gfxUpdateHeader();
-#endif    
+#endif
   }
 
   if (!isMqttAvailable && isWifiAvailable)
@@ -353,12 +354,12 @@ void loopHandleWIFI()
 #ifndef NO_DISPLAY
       gfxUpdateDisplay(true); //TODO replace this with gfxUpdateHeader();
       gfxUpdateHeader();
-#endif      
+#endif
     }
   }
 }
 
-const char* getTopic(topics_t topic) 
+const char* getTopic(topics_t topic)
 {
   return mqtt_topics[topic].c_str();
 }
@@ -391,7 +392,7 @@ int initMqtt(void)
   return isMqttAvailable;
 }
 
-bool mqttConnect(void) 
+bool mqttConnect(void)
 {
   bool result = false;
 
@@ -409,7 +410,7 @@ bool mqttConnect(void)
 
   client.setServer(mqtt_host, mqtt_port);
   if (client.connect(MQTTDEVICEID.c_str(), mqtt_user, mqtt_pass,
-	    getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE")) 
+		     getTopic(MQTT_TOPIC_STATE), 1, 1, "OFFLINE"))
   {
     // Once connected, publish an announcement...
     logText("publish connected...");
@@ -423,10 +424,10 @@ bool mqttConnect(void)
     rc |= client.publish(getTopic(MQTT_TOPIC_IPADDR), ipAddr.c_str(), true);
     if (rc) logText("OK\n");
       else  logText("ERROR\n");
-  
+
     logText("MQTT CONNECTED\n");
     result = true;
-  } 
+  }
   else
   {
     logText("MQTT FAILED, rc=");
@@ -462,20 +463,20 @@ String processor(const String& var)
   return String();
 }
 
-void onNotFound(AsyncWebServerRequest* request) 
+void onNotFound(AsyncWebServerRequest* request)
 {
   request->send(404, "text/plain", "Not found");
 }
 
-void onRootRequest(AsyncWebServerRequest *request) 
+void onRootRequest(AsyncWebServerRequest *request)
 {
   request->send(LittleFS, "/index.html", "text/html", false, processor);
 }
 
 #ifdef ASYNC_TCP_SSL_ENABLED
-int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf) 
+int sslFileRequestCallback(void *arg, const char *filename, uint8_t **buf)
 {
-  //Serial.printf("SSL File: %s\n", filename);  
+  //Serial.printf("SSL File: %s\n", filename);
   // sanitize filename!??
   File file = SPIFFS.open(filename, "r");
   if (file) {
@@ -502,7 +503,7 @@ void initAsyncWebserver()
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
   server.serveStatic("/", LittleFS, "/");
 
-  AsyncElegantOTA.begin(&server);
+  ElegantOTA.begin(&server);
   // Start server
 #ifdef ASYNC_TCP_SSL_ENABLED
   //server.onSslFileRequest(&sslFileRequestCallback, NULL);
@@ -519,7 +520,7 @@ void initAsyncWebserver()
 
 // https://arduinojson.org/v6/assistant/
 
-void notifyClientsWebSockets() 
+void notifyClientsWebSockets()
 {
   StaticJsonDocument<256> doc;
 
@@ -539,7 +540,7 @@ void notifyClientsWebSockets()
 }
 
 
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) 
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
 
@@ -561,47 +562,47 @@ void handleWebSocketMessage(void *arg, uint8_t *data, size_t len)
 
     if (strcmp(command, "sensor_mode") == 0) {
       if (strcmp(value, "speed") == 0)
-        speedInclineMode ^= SPEED; // b'01 toggle bit
+	speedInclineMode ^= SPEED; // b'01 toggle bit
 
       if (strcmp(value, "incline") == 0)
-        speedInclineMode ^= INCLINE; // b'10
+	speedInclineMode ^= INCLINE; // b'10
 
 #ifndef NO_DISPLAY
       gfxUpdateHeader();
-#endif      
+#endif
     }
     if (strcmp(command, "speed") == 0) {
       if (strcmp(value, "up") == 0)
-        speedUp();
+	speedUp();
       if (strcmp(value, "down") == 0)
-        speedDown();
+	speedDown();
     }
     if (strcmp(command, "incline") == 0) {
       if (strcmp(value, "up") == 0)
-        inclineUp();
+	inclineUp();
       if (strcmp(value, "down") == 0)
-        inclineDown();
+	inclineDown();
     }
     if (strcmp(command, "speed_interval") == 0) {
       if (strcmp(value, "0.1") == 0)
-        setSpeedInterval(0.1);
+	setSpeedInterval(0.1);
       if (strcmp(value, "0.5") == 0)
-        setSpeedInterval(0.5);
+	setSpeedInterval(0.5);
       if (strcmp(value, "1.0") == 0)
-        setSpeedInterval(1.0);
+	setSpeedInterval(1.0);
     }
     notifyClientsWebSockets();
   }
 }
 
 void onEvent(AsyncWebSocket       *server,
-             AsyncWebSocketClient *client,
-             AwsEventType          type, // connect/disconnect/data/pong
-             void                 *arg,
-             uint8_t              *data,
-             size_t                len) 
+	     AsyncWebSocketClient *client,
+	     AwsEventType          type, // connect/disconnect/data/pong
+	     void                 *arg,
+	     uint8_t              *data,
+	     size_t                len)
 {
-  switch (type) 
+  switch (type)
   {
     case WS_EVT_CONNECT:
       DEBUG_PRINTF("WebSocket client #%u connected from %s\n", client->id(),
@@ -664,7 +665,7 @@ String readSecond() {
   return sStr;
 }
 
-void initWebSocket() 
+void initWebSocket()
 {
   ws.onEvent(onEvent);
   server.addHandler(&ws);

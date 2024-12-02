@@ -74,8 +74,8 @@ static void showGfxTopBar(lv_obj_t *parent)
     gfxLvTopText = lv_label_create(gfxLvTopBar);
     gfxLvVersionText = lv_label_create(gfxLvTopBar);
     //lv_obj_set_width(gfxLvTopText, lv_pct(100));
-    lv_label_set_text(gfxLvTopText, "FTMS");
-    lv_obj_set_flex_grow(gfxLvTopText, 1); 
+    lv_label_set_text(gfxLvTopText, "FTMS by lefty01");
+    lv_obj_set_flex_grow(gfxLvTopText, 1);
 
     gfxLvLedSpeed  = lv_led_create(gfxLvTopBar);
     lv_obj_set_size(gfxLvLedSpeed, 12, 12);
@@ -116,7 +116,7 @@ static lv_obj_t * createScreenBoot() {
   lv_obj_add_state(gfxLvLogTextArea, LV_STATE_FOCUSED);  // show "cursor"
   lv_obj_set_size(gfxLvLogTextArea, lv_pct(100), lv_pct(100));
   lv_obj_center(gfxLvLogTextArea);
-  lv_obj_set_flex_grow(gfxLvLogTextArea, 1); 
+  lv_obj_set_flex_grow(gfxLvLogTextArea, 1);
 
   // TODO Could be good to have some progressbar also.
   return screenBoot;

@@ -1,6 +1,8 @@
 #ifndef _ESP32_TTGO_FTMS_H_
 #define _ESP32_TTGO_FTMS_H_
 
+#undef ARDUINO_RASPBERRY_PI_PICO_W
+
 //#define DEBUG 1
 //#define DEBUG_MQTT 1
 //#include "debug_print.h"
