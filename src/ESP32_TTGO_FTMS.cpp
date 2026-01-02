@@ -2,7 +2,7 @@
  *
  *
  * The MIT License (MIT)
- * Copyright © 2021, 2022 <Andreas Loeffler>
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
@@ -30,7 +30,11 @@
 
 #include <math.h>
 #include <SPI.h>
+#ifdef USE_LITTLEFS
 #include <LittleFS.h>
+#else
+#include <SPIFFS.h>
+#endif
 #include <Preferences.h>
 #include <unity.h>
 
@@ -64,7 +68,7 @@ void logText(const char *text)
   // Serial consol
   DEBUG_PRINTF(text);
 #warning todo cs:putback gfxlogtext
-#ifndef NO_DISPLAY 
+#ifndef NO_DISPLAY
   gfxLogText(text);
 #endif
 }
@@ -85,12 +89,17 @@ void logText(std::string text)
   logText(text.c_str());
 }
 
-void initLittleFS() 
+void initLittleFS()
 {
   logText("initLittleFS...");
 
   // begin, format if failed
+#ifdef USE_LITTLEFS
   if (!LittleFS.begin(true)) { // true = formatOnFail
+#else
+  if (!SPIFFS.begin(true)) { // true = formatOnFail
+#endif
+
     logText("Failed, Cannot mount LittkeFS volume\n");
     return;
   }
@@ -214,7 +223,7 @@ static void showInfo()
   logText(intoText.c_str());
 }
 
-void setup() 
+void setup()
 {
   // initial min treadmill speed
   kmph = 0.5;
@@ -256,8 +265,8 @@ void setup()
 #endif
 }
 
-void loop() 
-{  
+void loop()
+{
   loopHandleHardware();
   loopHandleButton();
   loopHandleGfx();
@@ -281,15 +290,15 @@ void loop()
       // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
       // and calc rpm from reed switch provide same unit
       if (configTreadmill.hasIrSense) {
-        kmph = kmphIRsense;
-        mps = kmph / 3.6; // meter per second (EVERY_SECOND)
-        totalDistance += mps;
+	kmph = kmphIRsense;
+	mps = kmph / 3.6; // meter per second (EVERY_SECOND)
+	totalDistance += mps;
       }
       else {
-        float rpm = calculateRPM();
-        mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
-        kmph = mps * 3.6;                          // km per hour
-        totalDistance = workoutDistance / 1000;   // conv mm to meter
+	float rpm = calculateRPM();
+	mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
+	kmph = mps * 3.6;                          // km per hour
+	totalDistance = workoutDistance / 1000;   // conv mm to meter
       }
     }
     else {
@@ -315,6 +324,6 @@ void loop()
     gfxUpdateDisplay(false);
 #endif
     notifyClientsWebSockets();
-    updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain 
+    updateBLEdata(); //Send FTMS mased in calulated globals kmph, incline, gradeDeg, elevationGain
   }
 }

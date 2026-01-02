@@ -1,3 +1,25 @@
+/**
+ *
+ *
+ * The MIT License (MIT)
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #if !defined(NO_DISPLAY) && defined(GUI_LVGL)
 
 #include "common.h"
@@ -12,11 +34,11 @@
 #include "lv_conf.h"
 
 // Setup screen resolution for LVGL
-static const uint16_t screenWidth = TFT_HEIGHT;
+#define BUFFER_LINES 6
+static const uint16_t screenWidth  = TFT_HEIGHT;
 static const uint16_t screenHeight = TFT_WIDTH;
-static lv_disp_draw_buf_t draw_buf;
-static lv_color_t buf[screenWidth * 10];
-
+static lv_draw_buf_t draw_buf;
+static lv_color_t buf[screenWidth * BUFFER_LINES];
 
 // Screens
 static lv_obj_t * gfxLvScreenBoot = nullptr;
@@ -40,14 +62,24 @@ static lv_obj_t * lvLabelSpeed = nullptr;
 static lv_obj_t * lvLabelIncline = nullptr;
 static lv_obj_t * lvLabelDistance = nullptr;
 static lv_obj_t * lvLabelElevation = nullptr;
-static lv_obj_t * gfxLvSpeedMeter = nullptr;  // Show speed
-static lv_obj_t * gfxLvInclineMeter = nullptr;  // Show Incline
+
+typedef struct {
+    lv_obj_t *scale;
+    lv_obj_t *needle;
+    lv_obj_t *arc_blue;
+    lv_obj_t *arc_red;
+    uint32_t minVal;
+    uint32_t maxVal;
+} meter_t;
+
+meter_t speedMeter;
+meter_t inclineMeter;
+
+
 #ifdef HAS_TOUCH_DISPLAY
 static lv_obj_t * gfxLvSwitchSpeedControlMode = nullptr;
 static lv_obj_t * gfxLvSwitchInclineControlMode = nullptr;
 #endif
-static lv_meter_indicator_t *gfxLvSpeedMeterIndicator = nullptr;
-static lv_meter_indicator_t *gfxLvInclineMeterIndicator = nullptr;
 
 static lv_obj_t * lvGraph = nullptr;
 static lv_chart_series_t * lvGraphSpeedSerie = nullptr;
@@ -122,43 +154,75 @@ static lv_obj_t * createScreenBoot() {
   return screenBoot;
 }
 
-static lv_meter_indicator_t * setupMeter(lv_obj_t * meter, uint32_t minVal, uint32_t maxVal, uint32_t minBlue, uint32_t maxRed)
+static meter_t setupMeter(lv_obj_t *parent,
+			  uint32_t minVal,
+			  uint32_t maxVal,
+			  uint32_t minBlue,
+			  uint32_t maxRed)
 {
-  lv_obj_set_scrollbar_mode(meter, LV_SCROLLBAR_MODE_OFF);
+  meter_t  m = {0};
+  uint32_t meterSize = (screenWidth / 2.4); //480 -> 200,  320 -> 133  // TODO something more clever?
+  int32_t  meterPosX = -15;
+  int32_t  meterPosY = (screenHeight > 135 ) ? 18 : -5;
 
-  /*Add a scale first*/
-  lv_meter_scale_t * scale = lv_meter_add_scale(meter);
-  lv_meter_set_scale_ticks(meter, scale, (maxVal-minVal)*2, 2, 10, lv_palette_main(LV_PALETTE_GREY));
-  lv_meter_set_scale_major_ticks(meter, scale, 4, 4, 15, lv_palette_main(LV_PALETTE_GREY), 10);
-  lv_meter_set_scale_range(meter, scale, minVal, maxVal, 180, 180);
+  m.minVal = minVal;
+  m.maxVal = maxVal;
 
-  lv_meter_indicator_t * indic;
+  /* SCALE */
+  m.scale = lv_scale_create(parent);
+  lv_obj_set_size(m.scale, lv_pct(100), lv_pct(100));
+  lv_scale_set_mode(m.scale, LV_SCALE_MODE_ROUND_INNER);
+  lv_obj_set_size(m.scale, meterSize, meterSize);
+  lv_obj_align(m.scale, LV_ALIGN_OUT_TOP_LEFT, meterPosX, meterPosY);
 
-  /*Add a blue arc to the start*/
-  indic = lv_meter_add_arc(meter, scale, 3, lv_palette_main(LV_PALETTE_BLUE), 0);
-  lv_meter_set_indicator_start_value(meter, indic, minVal);
-  lv_meter_set_indicator_end_value(meter, indic, minBlue);
+  lv_scale_set_range(m.scale, minVal, maxVal);
+  lv_scale_set_angle_range(m.scale, 180);
+  lv_scale_set_rotation(m.scale, 180);
 
-  /*Make the tick lines blue at the start of the scale*/
-  indic = lv_meter_add_scale_lines(meter, scale, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_BLUE), false, 0);
-  lv_meter_set_indicator_start_value(meter, indic, minVal);
-  lv_meter_set_indicator_end_value(meter, indic, minBlue);
+  /* TICKS */
+  lv_scale_set_total_tick_count(m.scale, (maxVal - minVal) * 2);
+  lv_scale_set_major_tick_every(m.scale, 4);
 
-  /*Add a red arc to the end*/
-  indic = lv_meter_add_arc(meter, scale, 3, lv_palette_main(LV_PALETTE_RED), 0);
-  lv_meter_set_indicator_start_value(meter, indic, maxRed);
-  lv_meter_set_indicator_end_value(meter, indic, maxVal);
+  lv_obj_set_style_length(m.scale, 10, LV_PART_MAIN);
+  lv_obj_set_style_length(m.scale, 15, LV_PART_ITEMS);
+  lv_obj_set_style_line_width(m.scale, 2, LV_PART_MAIN);
+  lv_obj_set_style_line_color(m.scale, lv_palette_main(LV_PALETTE_GREY), LV_PART_MAIN);
 
-  /*Make the tick lines red at the end of the scale*/
-  indic = lv_meter_add_scale_lines(meter, scale, lv_palette_main(LV_PALETTE_RED), lv_palette_main(LV_PALETTE_RED), false, 0);
-  lv_meter_set_indicator_start_value(meter, indic, maxRed);
-  lv_meter_set_indicator_end_value(meter, indic, maxVal);
+  /* BLUE ARC */
+  m.arc_blue = lv_arc_create(parent);
+  lv_obj_remove_style(m.arc_blue, NULL, LV_PART_KNOB);
+  lv_arc_set_bg_angles(m.arc_blue, 180, 360);
+  lv_arc_set_angles(m.arc_blue,
+		    lv_map(minBlue, minVal, maxVal, 180, 360),
+		    lv_map(minVal, minVal, maxVal, 180, 360));
+  lv_obj_set_style_arc_width(m.arc_blue, 6, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(m.arc_blue, lv_palette_main(LV_PALETTE_BLUE), LV_PART_INDICATOR);
+  lv_obj_center(m.arc_blue);
 
-  /*Add a needle line indicator*/
-  indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
+  /* RED ARC */
+  m.arc_red = lv_arc_create(parent);
+  lv_obj_remove_style(m.arc_red, NULL, LV_PART_KNOB);
+  lv_arc_set_bg_angles(m.arc_red, 180, 360);
+  lv_arc_set_angles(m.arc_red,
+		    lv_map(maxRed, minVal, maxVal, 180, 360),
+		    lv_map(maxVal, minVal, maxVal, 180, 360));
+  lv_obj_set_style_arc_width(m.arc_red, 6, LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(m.arc_red, lv_palette_main(LV_PALETTE_RED), LV_PART_INDICATOR);
+  lv_obj_center(m.arc_red);
 
-  return indic;
+  /* NEEDLE */
+  m.needle = lv_line_create(parent);
+
+  static lv_point_precise_t pts[] = { {0, 0}, {0, -50} };
+  lv_line_set_points(m.needle, pts, 2);
+
+  lv_obj_set_style_line_width(m.needle, 4, 0);
+  lv_obj_set_style_line_color(m.needle, lv_palette_main(LV_PALETTE_GREY), 0);
+  lv_obj_center(m.needle);
+
+  return m;
 }
+
 
 #ifdef HAS_TOUCH_DISPLAY
 
@@ -270,24 +334,13 @@ static lv_obj_t * createScreenMain()
   /*Cell to 0;0*/
   obj = lv_obj_create(objRow);
   lv_obj_set_size(obj, lv_pct(50), lv_pct(100));
-  lv_obj_set_flex_grow(obj, 1); 
+  lv_obj_set_flex_grow(obj, 1);
   lv_obj_set_style_pad_all(obj,0,0);
   lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
-
-  gfxLvSpeedMeter = lv_meter_create(obj);
-  uint32_t meterSize = (screenWidth/2.4); //480 -> 200,  320 -> 133  // TODO something more clever?
-  int32_t meterPosX = -15;
-  int32_t meterPosY = -5;
-  if (screenHeight > 135 ) { // TODO something more clever?
-    meterPosY = 18;
-  }
-  lv_obj_set_size(gfxLvSpeedMeter, meterSize, meterSize);
-  lv_obj_align(gfxLvSpeedMeter, LV_ALIGN_OUT_TOP_LEFT, meterPosX, meterPosY);
-  gfxLvSpeedMeterIndicator = setupMeter(gfxLvSpeedMeter, configTreadmill.min_speed, configTreadmill.max_speed, 6, 16);
+  speedMeter = setupMeter(obj, configTreadmill.min_speed, configTreadmill.max_speed,  6, 16);
 
 #ifdef HAS_TOUCH_DISPLAY
   gfxLvSwitchSpeedControlMode = lv_switch_create(obj);
-  //lv_obj_align_to(gfxLvSwitchSpeedControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_size(gfxLvSwitchSpeedControlMode, 40, 30);
   lv_obj_add_event_cb(gfxLvSwitchSpeedControlMode, gfxLvSwitchSpeedEventhandler, LV_EVENT_ALL, NULL);
 #endif
@@ -298,10 +351,9 @@ static lv_obj_t * createScreenMain()
 #endif
   lv_label_set_text(lvLabelSpeed, "Speed: --.-- km/h");
 
-  
+
 #ifdef HAS_TOUCH_DISPLAY
   lv_obj_t * buttonObj = lv_obj_create(obj);
-  //lv_obj_align_to(buttonObj, obj, LV_ALIGN_TOP_RIGHT, -50, 40);
   lv_obj_align(buttonObj, LV_ALIGN_TOP_RIGHT, 0, 40);
   lv_obj_set_size(buttonObj, 50, 100);
   lv_obj_set_layout(buttonObj, LV_LAYOUT_FLEX);
@@ -311,14 +363,12 @@ static lv_obj_t * createScreenMain()
   lv_obj_t * btn1;
   btn1 = lv_btn_create(buttonObj);
   lv_obj_add_event_cb(btn1, gfxLvSpeedUpEventHandler, LV_EVENT_ALL, NULL);
-  //lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -40);
   label = lv_label_create(btn1);
   lv_label_set_text(label, "+");
   lv_obj_center(label);
 
   btn1 = lv_btn_create(buttonObj);
   lv_obj_add_event_cb(btn1, gfxLvSpeedDownEventHandler, LV_EVENT_ALL, NULL);
-  //lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -40);
   label = lv_label_create(btn1);
   lv_label_set_text(label, "-");
   lv_obj_center(label);
@@ -331,15 +381,10 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_flex_grow(obj, 1);
   lv_obj_set_style_pad_all(obj,0,0);
   lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
-
-  gfxLvInclineMeter = lv_meter_create(obj);
-  lv_obj_set_size(gfxLvInclineMeter, meterSize, meterSize);
-  lv_obj_align(gfxLvInclineMeter, LV_ALIGN_OUT_TOP_LEFT, meterPosX, meterPosY);
-  gfxLvInclineMeterIndicator = setupMeter(gfxLvInclineMeter, configTreadmill.min_incline, configTreadmill.max_incline, 2, 7);
+  inclineMeter = setupMeter(obj, configTreadmill.min_incline, configTreadmill.max_incline, 2, 7);
 
 #ifdef HAS_TOUCH_DISPLAY
   gfxLvSwitchInclineControlMode = lv_switch_create(obj);
-//  lv_obj_align_to(gfxLvSwitchInclineControlMode, obj, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_size(gfxLvSwitchInclineControlMode, 40, 30);
   lv_obj_add_event_cb(gfxLvSwitchInclineControlMode, gfxLvSwitchInclineEventhandler, LV_EVENT_ALL, NULL);
 #endif
@@ -360,14 +405,12 @@ static lv_obj_t * createScreenMain()
 
   btn1 = lv_btn_create(buttonObj);
   lv_obj_add_event_cb(btn1, gfxLvInclineUpEventHandler, LV_EVENT_ALL, NULL);
-  //lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -40);
   label = lv_label_create(btn1);
   lv_label_set_text(label, "+");
   lv_obj_center(label);
 
   btn1 = lv_btn_create(buttonObj);
   lv_obj_add_event_cb(btn1, gfxLvInclineDownEventHandler, LV_EVENT_ALL, NULL);
-  //lv_obj_align(btn1, LV_ALIGN_CENTER, 0, -40);
   label = lv_label_create(btn1);
   lv_label_set_text(label, "-");
   lv_obj_center(label);
@@ -384,14 +427,14 @@ static lv_obj_t * createScreenMain()
 
   /*Add two data series*/
   lv_chart_set_point_count(lvGraph, graphDataPoints);
-  lvGraphSpeedSerie = lv_chart_add_series(lvGraph, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+  lvGraphSpeedSerie   = lv_chart_add_series(lvGraph, lv_palette_main(LV_PALETTE_RED),   LV_CHART_AXIS_PRIMARY_Y);
   lvGraphInclineSerie = lv_chart_add_series(lvGraph, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_SECONDARY_Y);
 
-  lv_chart_set_range(lvGraph, LV_CHART_AXIS_PRIMARY_Y, configTreadmill.min_speed, configTreadmill.max_speed);
+  lv_chart_set_range(lvGraph, LV_CHART_AXIS_PRIMARY_Y,   configTreadmill.min_speed,   configTreadmill.max_speed);
   lv_chart_set_range(lvGraph, LV_CHART_AXIS_SECONDARY_Y, configTreadmill.min_incline, configTreadmill.max_incline);
 
   /* Clear data in graphs*/
-  lv_chart_set_all_value(lvGraph, lvGraphSpeedSerie, 0);
+  lv_chart_set_all_value(lvGraph, lvGraphSpeedSerie,   0);
   lv_chart_set_all_value(lvGraph, lvGraphInclineSerie, 0);
   //lv_chart_refresh(lvGraph); /*Required after direct set*/
 
@@ -432,35 +475,44 @@ void lvgl_gfxShowScreenMain() {
 }
 
 /*** Display callback to flush the buffer to screen ***/
-static void lvgl_displayFlushCallBack(lv_disp_drv_t * disp, const lv_area_t *area, lv_color_t *color_p)
+void lvgl_displayFlushCallBack(lv_display_t * disp, const lv_area_t *area, uint8_t *px_map)
 {
   uint32_t w = (area->x2 - area->x1 + 1);
   uint32_t h = (area->y2 - area->y1 + 1);
 
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
-  tft.pushPixels((uint16_t *)&color_p->full, w * h, true);
+  tft.pushPixels((uint16_t *)px_map, w * h, true);
   tft.endWrite();
 
-  lv_disp_flush_ready(disp);
+  lv_display_flush_ready(disp);
 }
+
+void meter_set_value(meter_t *m, uint32_t value)
+{
+    int angle = lv_map(value, m->minVal, m->maxVal, 180, 360);
+    lv_obj_set_style_transform_angle(m->needle, angle * 10, 0);
+}
+
 
 #ifdef HAS_TOUCH_DISPLAY
 /*** Touchpad callback to read the touchpad ***/
-static void lvgl_touchPadReadCallback(lv_indev_drv_t * indev_driver, lv_indev_data_t * data)
+void lvgl_touchPadReadCallback(lv_indev_t *indev, lv_indev_data_t *data)
 {
-  uint16_t touchX, touchY;
+  uint16_t touchX = 0;
+  uint16_t touchY = 0;
   bool touched = tft.getTouch(&touchX, &touchY);
 
-  if (!touched) {
-    data->state = LV_INDEV_STATE_REL;
+  if (! touched) {
+    data->state = LV_INDEV_STATE_RELEASED;
   }
   else {
-    data->state = LV_INDEV_STATE_PR;
+    data->state = LV_INDEV_STATE_PRESSED;
 
     /*Set the coordinates*/
     data->point.x = touchX;
     data->point.y = touchY;
+    // fixme: in case rotated? data->point.x = screenWidth - touchX; data->point.y = screenHeight - touchY;
 
     // Serial.printf("Touch (x,y): (%03d,%03d)\n",touchX,touchY );
   }
@@ -472,28 +524,25 @@ void lvgl_initDisplay()
   // TFT init has already been done
   lv_init();
 
-  /* LVGL : Setting up buffer to use for display */
-  lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * 10);
+  lv_display_t *disp = lv_display_create(screenWidth, screenHeight);
 
-  /*** LVGL : Setup & Initialize the display device driver ***/
-  static lv_disp_drv_t disp_drv;
-  lv_disp_drv_init(&disp_drv);
-  disp_drv.hor_res = screenWidth;
-  disp_drv.ver_res = screenHeight;
-  disp_drv.flush_cb = lvgl_displayFlushCallBack;
-  disp_drv.draw_buf = &draw_buf;
-  lv_disp_drv_register(&disp_drv);
+  // init draw buffer
+  lv_draw_buf_init(&draw_buf,
+		   screenWidth,                      // w
+		   BUFFER_LINES,                     // h (height of buffer, not screenHeight!)
+		   LV_COLOR_FORMAT_RGB565,           // cf
+		   screenWidth * sizeof(lv_color_t), // stride (bytes/line)
+		   buf,                              // data
+		   sizeof(buf));                     // data_size (total bytes)
 
+  lv_display_set_flush_cb(disp, lvgl_displayFlushCallBack);
+  lv_display_set_draw_buffers(disp, &draw_buf, NULL);
 
 #ifdef HAS_TOUCH_DISPLAY
-  /*** LVGL : Setup & Initialize the input device driver ***/
-  static lv_indev_drv_t indev_drv;
-  lv_indev_drv_init(&indev_drv);
-  indev_drv.type = LV_INDEV_TYPE_POINTER;
-  indev_drv.read_cb = lvgl_touchPadReadCallback;
-  lv_indev_drv_register(&indev_drv);
+  lv_indev_t * indev = lv_indev_create();
+  lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(indev, lvgl_touchPadReadCallback);
 #endif
-
   lvgl_gfxShowScreenBoot();
 }
 
@@ -523,40 +572,38 @@ void lvgl_gfxUpdateDisplay(bool clean)
     lvgl_gfxShowScreenMain();
     lvgl_gfxUpdateHeader();
   }
-  //static float kmphCopy = 0.0;
+
   static int count = 0;
   count++;
 
-  // Update if changed
-  //if (kmphCopy != kmph) {
-    lv_label_set_text_fmt(lvLabelSpeed, "Speed: %2.2f km/h",kmph);
-    lv_meter_set_indicator_value(gfxLvSpeedMeter, gfxLvSpeedMeterIndicator, kmph);
-    //kmphCopy = kmph;
-  //}
+  lv_label_set_text_fmt(lvLabelSpeed, "Speed: %2.2f km/h", kmph);
+  meter_set_value(&speedMeter, kmph);
 
-  lv_label_set_text_fmt(lvLabelIncline, "Incline:  %2.2f %%",incline);
-  lv_label_set_text_fmt(lvLabelDistance, "Dist %2.2f km",totalDistance/1000);
-  lv_label_set_text_fmt(lvLabelElevation, "Elevation gain %d m",(uint32_t)elevationGain);
-
-  lv_meter_set_indicator_value(gfxLvInclineMeter, gfxLvInclineMeterIndicator, incline);
+  lv_label_set_text_fmt(lvLabelIncline, "Incline:  %2.2f %%", incline);
+  lv_label_set_text_fmt(lvLabelDistance, "Dist %2.2f km", totalDistance / 1000);
+  lv_label_set_text_fmt(lvLabelElevation, "Elevation gain %d m", (uint32_t)elevationGain);
+  meter_set_value(&inclineMeter, incline);
 
   // Update graph
   if (count >= graphDataPointAdvanceTime) {
-    // scroll
-    if (kmph > 0) {
+    if (kmph > 0) { // scroll right
       lv_chart_set_next_value(lvGraph, lvGraphSpeedSerie, kmph);
       lv_chart_set_next_value(lvGraph, lvGraphInclineSerie, incline);
-        uint16_t nextPointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
-        lvGraphSpeedSerie->y_points[nextPointID] = LV_CHART_POINT_NONE;
-        lvGraphInclineSerie->y_points[nextPointID] = LV_CHART_POINT_NONE;
-      //}
+
+      uint16_t nextPointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
+      // clear "free-up" point
+      lv_chart_set_value_by_id(lvGraph, lvGraphSpeedSerie,   nextPointID, LV_CHART_POINT_NONE);
+      lv_chart_set_value_by_id(lvGraph, lvGraphInclineSerie, nextPointID, LV_CHART_POINT_NONE);
     }
     count = 0;
   }
+  // set current point directly
   uint16_t updatePointID = lv_chart_get_x_start_point(lvGraph, lvGraphSpeedSerie); //should be the same for both
-  updatePointID = (updatePointID -1) % graphDataPoints;
-  lvGraphSpeedSerie->y_points[updatePointID] = kmph;
-  lvGraphInclineSerie->y_points[updatePointID] = incline;
+  updatePointID = (updatePointID - 1 + graphDataPoints) % graphDataPoints;
+
+  lv_chart_set_value_by_id(lvGraph, lvGraphSpeedSerie,   updatePointID, kmph);
+  lv_chart_set_value_by_id(lvGraph, lvGraphInclineSerie, updatePointID, incline);
+
   lv_chart_refresh(lvGraph); /*Required after direct set*/
 }
 

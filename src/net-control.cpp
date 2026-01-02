@@ -1,10 +1,36 @@
+/**
+ *
+ *
+ * The MIT License (MIT)
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 /*
 Handle BT, Wifisetup, webserver and mqtt
 
 TODO: Maybe we want to split this up in different files later? Lets see how it grows
 */
 #define NIMBLE
+#ifdef USE_LITTLEFS
 #include <LittleFS.h>
+#else
+#include <SPIFFS.h>
+#endif
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
@@ -13,6 +39,8 @@ TODO: Maybe we want to split this up in different files later? Lets see how it g
 #include <ESPAsyncWebServer.h>     //Local WebServer used to serve the configuration portal
 #include <ESPAsyncWiFiManager.h>   //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ElegantOTA.h>
+#include <esp_mac.h>
+//#include <esp_system.h>
 
 #include "common.h"
 #include "display.h"
@@ -163,6 +191,7 @@ void loopHandleBLE()
 
 void setupDeviceID()
 {
+  logText("setupDeviceID...");
   esp_efuse_mac_get_default(macAddr);
   MQTTDEVICEID += String(macAddr[4], HEX);
   MQTTDEVICEID += String(macAddr[5], HEX);
@@ -470,7 +499,11 @@ void onNotFound(AsyncWebServerRequest* request)
 
 void onRootRequest(AsyncWebServerRequest *request)
 {
+#ifdef USE_LITTLEFS
   request->send(LittleFS, "/index.html", "text/html", false, processor);
+#else
+  request->send(SPIFFS, "/index.html", "text/html", false, processor);
+#endif
 }
 
 #ifdef ASYNC_TCP_SSL_ENABLED
@@ -501,7 +534,11 @@ void initAsyncWebserver()
   logText("init webserver...");
   server.on("/", HTTP_GET, onRootRequest);
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
+#ifdef USE_LITTLEFS
   server.serveStatic("/", LittleFS, "/");
+#else
+  server.serveStatic("/", SPIFFS, "/");
+#endif
 
   ElegantOTA.begin(&server);
   // Start server

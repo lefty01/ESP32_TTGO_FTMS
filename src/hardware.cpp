@@ -2,7 +2,7 @@
  *
  *
  * The MIT License (MIT)
- * Copyright © 2022 <Andreas Loeffler> <Zingo Andersen>
+ * Copyright © 2022,2025,2026 <Andreas Loeffler> <Zingo Andersen>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the “Software”), to deal in the Software without
@@ -284,7 +284,7 @@ void initSensors(void)
 
       logText(" done\n");
     }
-    I2C_0.end();
+//    I2C_0.end();
   }
 }
 // ------------------ Mesure speed with something triggering a GPIO pin periodicle
@@ -434,18 +434,18 @@ void loopHandleHardware(void)
   if ((millis() - sw_timer_clock) > EVERY_SECOND) {
     sw_timer_clock = millis();
     timer_tick = true;
-  } 
+  }
 
   if (configTreadmill.hasMPU6050) {
-    I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ); 
+    I2C_0.begin(SDA_0 , SCL_0 , I2C_FREQ);
     mpu6050.update();  // read out data from the sensor
-    I2C_0.end();
-  }  
+//    I2C_0.end();
+  }
 
   // IrSensor to check speed
   if (configTreadmill.hasIrSense) {
     unsigned long t;
-#warning remove this constant to some config/file  
+#warning remove this constant to some config/file
     const unsigned long c = 359712; // d=10cm
     t = t2 - t1;
     // check ir-speed sensor if not manual mode
@@ -453,12 +453,13 @@ void loopHandleHardware(void)
      // hasIrSense = detected
       kmphIRsense = (float)(1.0 / t) * c;
       noInterrupts();
-      t1_valid = t2_valid = false;
+      t1_valid = false;
+      t2_valid = false;
       interrupts();
       DEBUG_PRINTF("IrSense: t=%li kmph_sense=%f\n",t,kmphIRsense);
     }
   }
-} 
+}
 
 // A simple event handler, currenly just a call stack, an event queue would be smarter
 // but this solves the problem as a start, not sure it we really have the usecase where
@@ -643,7 +644,7 @@ uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
   wire->requestFrom(AW9523_ADDR, static_cast<uint8_t>(1));
   uint8_t ret = wire->read();
   if (!i2cHandled) {
-    I2C_0.end();    
+    //I2C_0.end();
   }
   return ret;
 
@@ -663,7 +664,7 @@ bool GPIOExtenderAW9523::write(uint8_t reg, uint8_t data)
   wire->write(reg);
   wire->write(data);
   uint8_t ret = wire->endTransmission();  // 0 if OK
-  I2C_0.end();
+//  I2C_0.end();
   if (ret != 0) {
       DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n",reg, data, ret);
       return false;
@@ -717,11 +718,11 @@ uint16_t GPIOExtenderAW9523::getPins(void)
     uint8_t port0 = read(INPUT_PORT0,true);
     uint8_t port1 = read(INPUT_PORT1,true);
 
-    I2C_0.end();
+//    I2C_0.end();
     return ((port1 << 8) | port0);
   }
   return 0;
-}  
+}
 
 bool GPIOExtenderAW9523::checkInterrupt(void)
 {
@@ -730,7 +731,7 @@ bool GPIOExtenderAW9523::checkInterrupt(void)
 
 void initHardware(void)
 {
-  logText("init Hardware...");  
+  logText("init Hardware...");
   reset_reason = esp_reset_reason();
 #if defined(SPEED_IR_SENSOR1) && defined(SPEED_IR_SENSOR2)
   // pinMode(SPEED_IR_SENSOR1, INPUT_PULLUP); //TODO used?

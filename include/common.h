@@ -1,24 +1,18 @@
 #ifndef _ESP32_TTGO_FTMS_H_
 #define _ESP32_TTGO_FTMS_H_
 
-#undef ARDUINO_RASPBERRY_PI_PICO_W
 
 //#define DEBUG 1
 //#define DEBUG_MQTT 1
 //#include "debug_print.h"
 //#include "display.h"
-//#include "wifi_mqtt_creds.h"
 
-//#include <stdint.h>
 #include <Arduino.h>
+#include <string>
 
-//#include <WiFi.h>
 #if ASYNC_TCP_SSL_ENABLED
 #include <AsyncTCP_SSL.h>
 #endif
-//#include <ESPAsyncWebServer.h>
-//#include <PubSubClient.h>
-//#include <ArduinoJson.h>
 
 //const int BORDER = 2;
 //const int HEADER = 16; // percent
@@ -49,7 +43,7 @@ enum class EventType {
 // TODO clean up speedInclineMode some day, Is it needed outside debugging mode?
 //      Yes maybe a user just want a unconected ESP32, if so should we support it?
 //      Maybe, but maybe in some nicer way?? Code is a bit messy right now and
-//      it's not 100% clear what it means 
+//      it's not 100% clear what it means
 enum SensorModeFlags {
     MANUAL  = 0x00, // speed and incline can be adjusted via button or webui
     SPEED   = 0x01, // b'01 ... only incline can be adjusted (speed from sensor)

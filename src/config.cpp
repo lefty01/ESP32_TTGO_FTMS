@@ -1,7 +1,32 @@
-#include <string.h> 
-#include "debug_print.h"
-#include <LittleFS.h>
+/**
+ *
+ *
+ * The MIT License (MIT)
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
+#include <string.h>
+#include "debug_print.h"
+#ifdef USE_LITTLEFS
+#include <LittleFS.h>
+#else
+#include <SPIFFS.h>
+#endif
 #include "config.h"
 #include "common.h"
 
@@ -33,34 +58,34 @@
 
 struct TreadmillConfiguration configTreadmill;
 
-const char* VERSION = "0.4.1";
+const char* VERSION = "0.5.0";
 
 
 void dump_settings(void)
 {
-  DEBUG_PRINT("treadmillname: "); 
+  DEBUG_PRINT("treadmillname: ");
   DEBUG_PRINTLN(configTreadmill.treadmill_name);
-  DEBUG_PRINT("max_speed: "); 
+  DEBUG_PRINT("max_speed: ");
   DEBUG_PRINTLN(configTreadmill.max_speed);
-  DEBUG_PRINT("min_speed: "); 
+  DEBUG_PRINT("min_speed: ");
   DEBUG_PRINTLN(configTreadmill.min_speed);
-  DEBUG_PRINT("max_incline: "); 
+  DEBUG_PRINT("max_incline: ");
   DEBUG_PRINTLN(configTreadmill.max_incline);
-  DEBUG_PRINT("min_incline: "); 
+  DEBUG_PRINT("min_incline: ");
   DEBUG_PRINTLN(configTreadmill.min_incline);
-  DEBUG_PRINT("speed_interval step: "); 
+  DEBUG_PRINT("speed_interval step: ");
   DEBUG_PRINTLN(configTreadmill.speed_interval_step);
-  DEBUG_PRINT("incline_interval step: "); 
+  DEBUG_PRINT("incline_interval step: ");
   DEBUG_PRINTLN(configTreadmill.incline_interval_step);
-  DEBUG_PRINT("belt_distance: "); 
+  DEBUG_PRINT("belt_distance: ");
   DEBUG_PRINTLN(configTreadmill.belt_distance);
-  DEBUG_PRINT("hasMPU6050: "); 
+  DEBUG_PRINT("hasMPU6050: ");
   DEBUG_PRINTLN(configTreadmill.hasMPU6050);
-  DEBUG_PRINT("hasMPU6050inAngle: "); 
+  DEBUG_PRINT("hasMPU6050inAngle: ");
   DEBUG_PRINTLN(configTreadmill.hasMPU6050inAngle);
-  DEBUG_PRINT("hasIrSense: "); 
+  DEBUG_PRINT("hasIrSense: ");
   DEBUG_PRINTLN(configTreadmill.hasIrSense);
-  DEBUG_PRINT("hasReed: "); 
+  DEBUG_PRINT("hasReed: ");
   DEBUG_PRINTLN(configTreadmill.hasReed);
   DEBUG_PRINTLN("");
 }
@@ -75,7 +100,7 @@ int HELPER_ascii2Int(char *ascii, int length) {
       sign = -1;
     else {
       if (c >= '0' && c <= '9')
-        number = number * 10 + (c - '0');
+	number = number * 10 + (c - '0');
     }
   }
 
@@ -94,14 +119,14 @@ float HELPER_ascii2Float(char *ascii, int length) {
       sign = -1;
     else {
       if (c == '.')
-        decimalPlace = 1;
+	decimalPlace = 1;
       else if (c >= '0' && c <= '9') {
-        if (!decimalPlace)
-          number = number * 10 + (c - '0');
-        else {
-          decimal += ((float)(c - '0') / pow(10.0, decimalPlace));
-          decimalPlace++;
-        }
+	if (!decimalPlace)
+	  number = number * 10 + (c - '0');
+	else {
+	  decimal += ((float)(c - '0') / pow(10.0, decimalPlace));
+	  decimalPlace++;
+	}
       }
     }
   }
@@ -122,18 +147,20 @@ String HELPER_ascii2String(char *ascii, int length) {
   return str;
 }
 
-int LittleFS_findKey(const __FlashStringHelper * key, char * value) 
+int LittleFS_findKey(const __FlashStringHelper * key, char * value)
 {
   char key_string[KEY_MAX_LENGTH];
   char LittleFS_buffer[KEY_MAX_LENGTH + VALUE_MAX_LENGTH + 1]; // 1 is = character
   int key_length = 0;
   int value_length = 0;
   File configFile;
-
-  configFile = LittleFS.open(FILE_NAME, "r");  
-
+#ifdef USE_LITTLEFS
+  configFile = LittleFS.open(FILE_NAME, "r");
+#else
+  configFile = SPIFFS.open(FILE_NAME, "r");
+#endif
   if (!configFile) {
-    logText("LittleFS: error on opening file ");    
+    logText("FS: error on opening file ");
     logText(FILE_NAME);
     logText("\n");
     return 0;
@@ -157,11 +184,11 @@ int LittleFS_findKey(const __FlashStringHelper * key, char * value)
 
     if (buffer_length > (key_length + 1)) { // 1 is = character
       if (memcmp(LittleFS_buffer, key_string, key_length) == 0) { // equal
-        if (LittleFS_buffer[key_length] == '=') {
-          value_length = buffer_length - key_length - 1;
-          memcpy(value, LittleFS_buffer + key_length + 1, value_length);
-          break;
-        }
+	if (LittleFS_buffer[key_length] == '=') {
+	  value_length = buffer_length - key_length - 1;
+	  memcpy(value, LittleFS_buffer + key_length + 1, value_length);
+	  break;
+	}
       }
     }
   }
@@ -217,7 +244,7 @@ void initConfig(void)
     configTreadmill.treadmill_name = default_treadmill_name;
     logText("no treadmill name defined, using default\n");
   }
-  
+
   if ((configTreadmill.max_speed > abs_max_speed) || (configTreadmill.max_speed < 0)) {
     configTreadmill.max_speed = default_max_speed;
     logText("invalid max speed, using default\n");
@@ -225,7 +252,7 @@ void initConfig(void)
 
   if ((configTreadmill.min_speed < abs_min_speed) || (configTreadmill.min_speed < 0)) {
     configTreadmill.min_speed = default_min_speed;
-    logText("invalid min speed, using default\n");  
+    logText("invalid min speed, using default\n");
   }
 
   if ((configTreadmill.max_incline > abs_max_incline) || (configTreadmill.max_incline < 0)) {
@@ -276,5 +303,5 @@ void initConfig(void)
   speedInclineMode = configTreadmill.hasReed ? SPEED : MANUAL;
 
   dump_settings();
-  logText("done\n");  
+  logText("done\n");
 }

@@ -25,7 +25,7 @@ bool mqttConnect(void);
 String getWifiIpAddr(void);
 void loopHandleWIFI(void);
 void initBLE(void);
-void loopHandleBLE(void); 
+void loopHandleBLE(void);
 void updateBLEdata(void);
 void resetStopWatch(void);
 void publishTopicsMqtt(void);

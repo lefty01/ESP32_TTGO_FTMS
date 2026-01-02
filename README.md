@@ -101,6 +101,18 @@ include/server_mqtt.crt.h.sample
 include/client.crt.h.sample
 include/client.key.sample
 
+### WifiManager
+The project now makes use of the ESPAsyncWiFiManager. This means upon initial setup the ESP32 device should boot as an Wifi Access Point unless credentials are stored already from an earlier connection.
+```
+*WM: Configuring access point...
+*WM: FTMS Threadmill AP
+*WM: AP IP address:
+*WM: 192.168.4.1
+```
+Connect to this AP (no password) and setup your wifi connection.
+
+
+
 ## Filesystem
 
 At this point the filesystem (files within the data folder) contain the files for the webinterface:
