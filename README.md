@@ -346,3 +346,7 @@ So if you only want mqtt/ssl then unset/undefine or remove this -DASYNC_TCP_SSL_
   * Zingo Andersen
   * Reiner Ziegler
   * Chris Smith
+
+### Development Notes
+Recently some parts of the debugging and migration process were supported using AI-assisted developer tools.
+All code has been reviewed and integrated manually.
