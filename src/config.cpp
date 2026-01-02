@@ -22,11 +22,7 @@
 
 #include <string.h>
 #include "debug_print.h"
-#ifdef USE_LITTLEFS
 #include <LittleFS.h>
-#else
-#include <SPIFFS.h>
-#endif
 #include "config.h"
 #include "common.h"
 
@@ -154,11 +150,7 @@ int LittleFS_findKey(const __FlashStringHelper * key, char * value)
   int key_length = 0;
   int value_length = 0;
   File configFile;
-#ifdef USE_LITTLEFS
   configFile = LittleFS.open(FILE_NAME, "r");
-#else
-  configFile = SPIFFS.open(FILE_NAME, "r");
-#endif
   if (!configFile) {
     logText("FS: error on opening file ");
     logText(FILE_NAME);

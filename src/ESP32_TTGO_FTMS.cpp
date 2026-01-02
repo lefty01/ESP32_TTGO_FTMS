@@ -30,11 +30,7 @@
 
 #include <math.h>
 #include <SPI.h>
-#ifdef USE_LITTLEFS
 #include <LittleFS.h>
-#else
-#include <SPIFFS.h>
-#endif
 #include <Preferences.h>
 #include <unity.h>
 
@@ -94,12 +90,7 @@ void initLittleFS()
   logText("initLittleFS...");
 
   // begin, format if failed
-#ifdef USE_LITTLEFS
   if (!LittleFS.begin(true)) { // true = formatOnFail
-#else
-  if (!SPIFFS.begin(true)) { // true = formatOnFail
-#endif
-
     logText("Failed, Cannot mount LittkeFS volume\n");
     return;
   }

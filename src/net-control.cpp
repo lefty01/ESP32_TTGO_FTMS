@@ -26,11 +26,7 @@ Handle BT, Wifisetup, webserver and mqtt
 TODO: Maybe we want to split this up in different files later? Lets see how it grows
 */
 #define NIMBLE
-#ifdef USE_LITTLEFS
 #include <LittleFS.h>
-#else
-#include <SPIFFS.h>
-#endif
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 #include <TimeLib.h>  // https://playground.arduino.cc/Code/Time/
@@ -499,11 +495,7 @@ void onNotFound(AsyncWebServerRequest* request)
 
 void onRootRequest(AsyncWebServerRequest *request)
 {
-#ifdef USE_LITTLEFS
   request->send(LittleFS, "/index.html", "text/html", false, processor);
-#else
-  request->send(SPIFFS, "/index.html", "text/html", false, processor);
-#endif
 }
 
 #ifdef ASYNC_TCP_SSL_ENABLED
@@ -534,11 +526,7 @@ void initAsyncWebserver()
   logText("init webserver...");
   server.on("/", HTTP_GET, onRootRequest);
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
-#ifdef USE_LITTLEFS
   server.serveStatic("/", LittleFS, "/");
-#else
-  server.serveStatic("/", SPIFFS, "/");
-#endif
 
   ElegantOTA.begin(&server);
   // Start server
