@@ -115,3 +115,4 @@ void gfxUpdateHeader()
 
 #endif
 }
+

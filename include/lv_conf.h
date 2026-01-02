@@ -22,6 +22,12 @@
 #include "my_include.h"
 #endif
 
+/* Use a custom tick source that tells LVGL the system time in milliseconds */
+#define LV_TICK_CUSTOM 1
+#if LV_TICK_CUSTOM
+    #define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())    /* for arduino framework */
+#endif
+
 /*====================
    COLOR SETTINGS
  *====================*/
@@ -69,7 +75,7 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (32 * 1024U)          /**< [bytes] */
+    #define LV_MEM_SIZE (48 * 1024U)          /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0

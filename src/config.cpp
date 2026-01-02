@@ -54,7 +54,7 @@
 
 struct TreadmillConfiguration configTreadmill;
 
-const char* VERSION = "0.5.0";
+const char* VERSION = "0.6.0";
 
 
 void dump_settings(void)

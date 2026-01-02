@@ -254,6 +254,7 @@ void setup()
 #ifndef NO_DISPLAY
   gfxUpdateDisplay(true);
 #endif
+  delay(10);
 }
 
 void loop()

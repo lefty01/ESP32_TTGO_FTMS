@@ -35,10 +35,12 @@
 
 // Setup screen resolution for LVGL
 #define BUFFER_LINES 6
+//static const uint16_t screenWidth = tft.width();
+//static const uint16_t screenHeight = tft.height();
 static const uint16_t screenWidth  = TFT_HEIGHT;
 static const uint16_t screenHeight = TFT_WIDTH;
 static lv_draw_buf_t draw_buf;
-static lv_color_t buf[screenWidth * BUFFER_LINES];
+LV_ATTRIBUTE_MEM_ALIGN static lv_color_t buf[screenWidth * BUFFER_LINES * 2];
 
 // Screens
 static lv_obj_t * gfxLvScreenBoot = nullptr;
@@ -335,7 +337,7 @@ static lv_obj_t * createScreenMain()
   obj = lv_obj_create(objRow);
   lv_obj_set_size(obj, lv_pct(50), lv_pct(100));
   lv_obj_set_flex_grow(obj, 1);
-  lv_obj_set_style_pad_all(obj,0,0);
+  lv_obj_set_style_pad_all(obj, 0, 0);
   lv_obj_set_scrollbar_mode(obj, LV_SCROLLBAR_MODE_OFF);
   speedMeter = setupMeter(obj, configTreadmill.min_speed, configTreadmill.max_speed,  6, 16);
 
@@ -350,7 +352,6 @@ static lv_obj_t * createScreenMain()
   lv_obj_align_to(lvLabelSpeed, gfxLvSwitchSpeedControlMode, LV_ALIGN_TOP_RIGHT, 30, 0);
 #endif
   lv_label_set_text(lvLabelSpeed, "Speed: --.-- km/h");
-
 
 #ifdef HAS_TOUCH_DISPLAY
   lv_obj_t * buttonObj = lv_obj_create(obj);
@@ -422,7 +423,7 @@ static lv_obj_t * createScreenMain()
   lv_obj_set_width(lvGraph, lv_pct(100));
   lv_obj_set_flex_grow(lvGraph, 1);
   lv_chart_set_type(lvGraph, LV_CHART_TYPE_LINE);   /*Show lines and points too*/
-  lv_obj_set_style_pad_all(lvGraph,0,0);
+  lv_obj_set_style_pad_all(lvGraph, 0, 0);
   lv_chart_set_update_mode(lvGraph, graphCircular ? LV_CHART_UPDATE_MODE_CIRCULAR : LV_CHART_UPDATE_MODE_SHIFT);
 
   /*Add two data series*/
@@ -446,16 +447,17 @@ static lv_obj_t * createScreenMain()
   lv_obj_align(lvLabelElevation, LV_ALIGN_TOP_RIGHT, 0, 0);
   lv_label_set_text(lvLabelElevation, "Elevation gain: ---- m");
 
+  //lv_obj_invalidate(...); // force flush callback
   return screenMain;
 }
 
 
 void lvgl_gfxShowScreenBoot() {
-  if (gfxLvScreenBoot==nullptr) {
+  if (gfxLvScreenBoot == nullptr) {
     gfxLvScreenBoot = createScreenBoot();
   }
-  if (gfxLvScreenCurrent != gfxLvScreenBoot) {
-    lv_scr_load(gfxLvScreenBoot);
+  if ((gfxLvScreenBoot != nullptr) && (gfxLvScreenCurrent != gfxLvScreenBoot)) {
+    lv_screen_load(gfxLvScreenBoot);
     showGfxTopBar(gfxLvBootTopBarPlaceholder);
 
     gfxLvScreenCurrent = gfxLvScreenBoot;
@@ -463,22 +465,27 @@ void lvgl_gfxShowScreenBoot() {
 }
 
 void lvgl_gfxShowScreenMain() {
-  if (gfxLvScreenMain==nullptr) {
+  if (gfxLvScreenMain == nullptr) {
     gfxLvScreenMain = createScreenMain();
   }
-  if (gfxLvScreenCurrent != gfxLvScreenMain) {
-    lv_scr_load(gfxLvScreenMain);
+  if ((gfxLvScreenMain != nullptr) && (gfxLvScreenCurrent != gfxLvScreenMain)) {
+    lv_screen_load(gfxLvScreenMain);
     showGfxTopBar(gfxLvMainTopBarPlaceholder);
-    lv_obj_set_size(gfxLvMainTopBarPlaceholder, lv_pct(100), LV_SIZE_CONTENT);
+
+    lv_obj_set_size(gfxLvMainTopBarPlaceholder, lv_pct(100), 25/*LV_SIZE_CONTENT*/);
     gfxLvScreenCurrent = gfxLvScreenMain;
+    //lv_obj_invalidate(lv_screen_active());
   }
 }
 
 /*** Display callback to flush the buffer to screen ***/
 void lvgl_displayFlushCallBack(lv_display_t * disp, const lv_area_t *area, uint8_t *px_map)
 {
-  uint32_t w = (area->x2 - area->x1 + 1);
-  uint32_t h = (area->y2 - area->y1 + 1);
+//  uint32_t w = (area->x2 - area->x1 + 1);
+//  uint32_t h = (area->y2 - area->y1 + 1);
+
+  uint32_t w = lv_area_get_width(area);
+  uint32_t h = lv_area_get_height(area);
 
   tft.startWrite();
   tft.setAddrWindow(area->x1, area->y1, w, h);
@@ -523,15 +530,17 @@ void lvgl_initDisplay()
 {
   // TFT init has already been done
   lv_init();
-
   lv_display_t *disp = lv_display_create(screenWidth, screenHeight);
+  lv_display_set_default(disp); // force active display
+
+  uint32_t stride = lv_draw_buf_width_to_stride(screenWidth, LV_COLOR_FORMAT_RGB565);
 
   // init draw buffer
   lv_draw_buf_init(&draw_buf,
 		   screenWidth,                      // w
 		   BUFFER_LINES,                     // h (height of buffer, not screenHeight!)
 		   LV_COLOR_FORMAT_RGB565,           // cf
-		   screenWidth * sizeof(lv_color_t), // stride (bytes/line)
+		   stride, // stride (bytes/line)
 		   buf,                              // data
 		   sizeof(buf));                     // data_size (total bytes)
 
@@ -548,6 +557,12 @@ void lvgl_initDisplay()
 
 void lvgl_loopHandleGfx()
 {
+  static uint32_t last_ms = 0;
+  uint32_t now = millis();
+  uint32_t diff = now - last_ms;
+  last_ms = now;
+  lv_tick_inc(diff);
+
   lv_timer_handler();
 }
 
@@ -605,6 +620,7 @@ void lvgl_gfxUpdateDisplay(bool clean)
   lv_chart_set_value_by_id(lvGraph, lvGraphInclineSerie, updatePointID, incline);
 
   lv_chart_refresh(lvGraph); /*Required after direct set*/
+
 }
 
 
