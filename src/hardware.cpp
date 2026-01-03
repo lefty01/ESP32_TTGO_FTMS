@@ -139,7 +139,7 @@ void btn1TapHandler(Button2 & b)
       DEBUG_PRINTLN(speedInclineMode);
 #ifndef NO_DISPLAY
     gfxUpdateHeader();
-#endif      
+#endif
   }
   else {
     // button1 short click toggle speed/incline mode
@@ -148,9 +148,9 @@ void btn1TapHandler(Button2 & b)
     speedInclineMode &= SPEEDINCLINE_BITFIELD; //wrap around MANUAL,SPEED,INCLINE,SPEED & INCLINE
     DEBUG_PRINT("speedInclineMode=");
     DEBUG_PRINTLN(speedInclineMode);
-#ifndef NO_DISPLAY      
+#ifndef NO_DISPLAY
     gfxUpdateHeader();
-#endif      
+#endif
   }
 }
 
@@ -216,7 +216,7 @@ void loopHandleButton()
 
 void initButton()
 {
-  logText("initButton...");  
+  logText("initButton...");
 #ifdef BUTTON_1
   // button 1 (GPIO 0) control auto/manual mode and reset timers
   btn1.setTapHandler(btn1TapHandler);
@@ -238,7 +238,7 @@ void initButton()
   // short  click = down
   btn3.setTapHandler(btn3TapHandler);
 #endif
-  logText("done\n");  
+  logText("done\n");
 }
 
 void delayWithDisplayUpdate(unsigned long delayMilli)
@@ -248,7 +248,7 @@ void delayWithDisplayUpdate(unsigned long delayMilli)
   while((currentMilli - timeStartMilli) < delayMilli) {
 #warning todo cs: add gxloop handler again.
 //    gfxUpdateLoopHandler();
-    unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ; 
+    unsigned long timeLeftMilli = delayMilli - (currentMilli - timeStartMilli) ;
     if (timeLeftMilli >= 5 ) {
       delay(5);
     }
@@ -379,7 +379,7 @@ double angleSensorTreadmillConversion(double inAngle) {
 //    angle - the angle of the running are
 //    incline - the incline value (% of angle between 0 and 45 degree)
 //              incline is usally the value shown by your treadmill.
-float getIncline(void) 
+float getIncline(void)
 {
   double sensorAngle = 0.0;
   float temp_incline = 0.0;
@@ -489,7 +489,7 @@ float calculateRPM(void)
       revCount = 0;
       accumulatorInterval = 0;
       interrupts();
-    } 
+    }
   }
   else {
     temp_rpm = 0;
@@ -500,14 +500,13 @@ float calculateRPM(void)
 }
 
 static void initGPIOExtender(void) {
-  logText("initGPIOExtender...");  
-  while (!GPIOExtender.begin())
-  {
+  logText("initGPIOExtender...");
+  while (!GPIOExtender.begin()) {
     DEBUG_PRINTLN("GPIOExtender not found");
     return;
   }
 
-   logText("done\n");  
+  logText("done\n");
 }
 
 void GPIOExtenderAW9523::scanButtons(void)
@@ -522,34 +521,34 @@ void GPIOExtenderAW9523::scanButtons(void)
     //DEBUG_PRINTF("GPIOExtender KEY IN:0x%x (0x%x)\n",keys,pins);
 
     if ((keys & AW9523_KEY_UP) && AW9523_KEY_UP) {
-        DEBUG_PRINTLN("AW9523_KEY_UP");
-        handleEvent(EventType::KEY_UP);
-        //handleEvent(EventType::TREADMILL_INC_UP);
+      DEBUG_PRINTLN("AW9523_KEY_UP");
+      handleEvent(EventType::KEY_UP);
+      //handleEvent(EventType::TREADMILL_INC_UP);
     }
     if ((keys & AW9523_KEY_LEFT) && AW9523_KEY_LEFT) {
-        DEBUG_PRINTLN("AW9523_KEY_LEFT");
-        handleEvent(EventType::KEY_LEFT);
-        //handleEvent(EventType::TREADMILL_SPEED_DOWN);
+      DEBUG_PRINTLN("AW9523_KEY_LEFT");
+      handleEvent(EventType::KEY_LEFT);
+      //handleEvent(EventType::TREADMILL_SPEED_DOWN);
     }
     if ((keys & AW9523_KEY_DOWN) && AW9523_KEY_DOWN) {
-        DEBUG_PRINTLN("AW9523_KEY_DOWN");
-        handleEvent(EventType::KEY_DOWN);
-        //handleEvent(EventType::TREADMILL_INC_DOWN);
+      DEBUG_PRINTLN("AW9523_KEY_DOWN");
+      handleEvent(EventType::KEY_DOWN);
+      //handleEvent(EventType::TREADMILL_INC_DOWN);
     }
     if ((keys & AW9523_KEY_RIGHT) && AW9523_KEY_RIGHT) {
-        DEBUG_PRINTLN("AW9523_KEY_RIGHT");
-        handleEvent(EventType::KEY_RIGHT);
-        //handleEvent(EventType::TREADMILL_SPEED_UP);
+      DEBUG_PRINTLN("AW9523_KEY_RIGHT");
+      handleEvent(EventType::KEY_RIGHT);
+      //handleEvent(EventType::TREADMILL_SPEED_UP);
     }
     if ((keys & AW9523_KEY_OK) && AW9523_KEY_OK) {
-        DEBUG_PRINTLN("AW9523_KEY_OK");
-        handleEvent(EventType::KEY_OK);
-        //handleEvent(EventType::TREADMILL_START);
+      DEBUG_PRINTLN("AW9523_KEY_OK");
+      handleEvent(EventType::KEY_OK);
+      //handleEvent(EventType::TREADMILL_START);
     }
     if ((keys & AW9523_KEY_BACK) && AW9523_KEY_BACK) {
-        DEBUG_PRINTLN("AW9523_KEY_BACK");
-        handleEvent(EventType::KEY_BACK);
-        //handleEvent(EventType::TREADMILL_STOP);
+      DEBUG_PRINTLN("AW9523_KEY_BACK");
+      handleEvent(EventType::KEY_BACK);
+      //handleEvent(EventType::TREADMILL_STOP);
     }
 
     if ((keys & 0xffc0)  != 0)  DEBUG_PRINTF("Non key pins: 0x%x\n",keys);
@@ -583,9 +582,9 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
       case EventType::TREADMILL_SPEED_UP:   line = AW9523_TREADMILL_SPEED_UP; break;
       case EventType::TREADMILL_INC_UP:     line = AW9523_TREADMILL_INC_UP; break;
       default:
-        // Cant handle Event
-        DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n",static_cast<uint32_t>(eventButton));
-        return false;
+	// Cant handle Event
+	DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n",static_cast<uint32_t>(eventButton));
+	return false;
     }
     if (line ==-1) {
       DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n",static_cast<uint32_t>(eventButton));
@@ -602,7 +601,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
       // digitalWrite(pin, LOW);
       if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
 
-#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode.
       delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
       // digitalWrite(pin, HIGH);
@@ -618,7 +617,7 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
       // digitalWrite(pin, LOW);
       if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
 
-#warning Remove delay and schedule last part later in some way and go back to "main" loop mode. 
+#warning Remove delay and schedule last part later in some way and go back to "main" loop mode.
       delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
       // digitalWrite(pin, HIGH);
