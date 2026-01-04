@@ -36,12 +36,9 @@ jobs:
           sudo ./llvm.sh 21
           sudo apt-get install -y clang-format-21
           sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
-          ls -l /usr/bin/clang-format-21
-          #sudo ln -sf /usr/bin/clang-format-21 /usr/bin/clang-format
 
       - name: Show clang-format version
         run: |
-          which clang-format
           clang-format --version
 
       # -------------------------------

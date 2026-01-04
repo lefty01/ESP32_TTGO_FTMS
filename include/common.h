@@ -1,7 +1,6 @@
 #ifndef _ESP32_TTGO_FTMS_H_
 #define _ESP32_TTGO_FTMS_H_
 
-
 //#define DEBUG 1
 //#define DEBUG_MQTT 1
 //#include "debug_print.h"
@@ -21,7 +20,7 @@
 //const int Y_05 = tft.height() / 2;
 
 #define EVERY_SECOND 1000
-#define WIFI_CHECK   30 * EVERY_SECOND
+#define WIFI_CHECK 30 * EVERY_SECOND
 
 // Events
 enum class EventType {
@@ -45,10 +44,10 @@ enum class EventType {
 //      Maybe, but maybe in some nicer way?? Code is a bit messy right now and
 //      it's not 100% clear what it means
 enum SensorModeFlags {
-    MANUAL  = 0x00, // speed and incline can be adjusted via button or webui
-    SPEED   = 0x01, // b'01 ... only incline can be adjusted (speed from sensor)
-    INCLINE = 0x02, // b'10 ... only speed can be adjusted (incline from sensor)
-    SPEEDINCLINE_BITFIELD = 0x03 // b'11 ... no adjust/overwrite get speed and incline from sensor
+  MANUAL  = 0x00, // speed and incline can be adjusted via button or webui
+  SPEED   = 0x01, // b'01 ... only incline can be adjusted (speed from sensor)
+  INCLINE = 0x02, // b'10 ... only speed can be adjusted (incline from sensor)
+  SPEEDINCLINE_BITFIELD = 0x03 // b'11 ... no adjust/overwrite get speed and incline from sensor
 };
 
 extern bool setupDone;

@@ -55,7 +55,7 @@ private:
   bool write(uint8_t reg, uint8_t data);
   bool enabled = false;
   bool isInterrupted = false;
-  TwoWire *wire;
+  TwoWire* wire;
   static constexpr uint8_t AW9523_ADDR = 0x5B;
   static constexpr uint8_t INPUT_PORT0 = 0x00; //P0 port input state
   static constexpr uint8_t INPUT_PORT1 = 0x01; //P1 port input state
@@ -118,6 +118,5 @@ extern esp_reset_reason_t reset_reason;
 extern const char* getRstReason(esp_reset_reason_t r);
 extern TwoWire I2C_0;
 extern GPIOExtenderAW9523 GPIOExtender;
-
 
 #endif
