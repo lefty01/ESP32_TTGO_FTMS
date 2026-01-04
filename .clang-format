@@ -21,4 +21,4 @@ IndentWidth: 2
 TabWidth: 2
 UseTab: Never
 ColumnLimit: 120
-SpacesInLineCommentPrefix: false
+#SpacesInLineCommentPrefix: false
