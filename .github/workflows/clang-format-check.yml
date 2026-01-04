@@ -27,10 +27,13 @@ jobs:
       # -------------------------------
       # Install clang-format 21 via apt
       # -------------------------------
-      - name: Install clang-format-21
+      - name: Install clang-format 21
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format-21
+          sudo apt-get install -y wget gnupg lsb-release
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21
           sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
 
       - name: Show clang-format version
