@@ -63,7 +63,7 @@ extern double elevationGain;
 extern double gradeDeg;
 extern double angle;
 
-void logText(const char *text);
+void logText(const char* text);
 void logText(String text);
 void logText(std::string text);
 
