@@ -49,19 +49,24 @@ jobs:
             echo "needs_formatting=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Upload diff artifact
+      - name: Read diff into variable
         if: steps.format-check.outputs.needs_formatting == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: clang-format-diff-${{ matrix.path }}
-          path: clang-format-diff-${{ matrix.path }}.txt
+        id: read-diff
+        run: |
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo '```diff' >> $GITHUB_OUTPUT
+          cat clang-format-diff-${{ matrix.path }}.txt >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Comment on PR with diff
         if: steps.format-check.outputs.needs_formatting == 'true'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: false
-          path: clang-format-diff-${{ matrix.path }}.txt
+          message: |
+            ### ⚠️ Clang-format issues detected in `${{ matrix.path }}`
+            ${{ steps.read-diff.outputs.diff }}
 
       - name: Fail if formatting is incorrect
         if: steps.format-check.outputs.needs_formatting == 'true'
