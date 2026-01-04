@@ -41,7 +41,7 @@ jobs:
           fi
 
           clang-format --style=file -i $FILES
-          git diff --color > clang-format-diff-${{ matrix.path }}.txt
+          git diff > clang-format-diff-${{ matrix.path }}.txt
 
           if [ -s clang-format-diff-${{ matrix.path }}.txt ]; then
             echo "needs_formatting=true" >> $GITHUB_OUTPUT
