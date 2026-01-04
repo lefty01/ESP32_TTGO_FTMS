@@ -39,7 +39,6 @@ jobs:
 
       - name: Show clang-format version
         run: |
-          which clang-format
           clang-format --version
 
       # -------------------------------
