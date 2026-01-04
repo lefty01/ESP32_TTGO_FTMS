@@ -79,6 +79,7 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: false
+          header: clang-format-${{ matrix.path }}
           message: |
             ### ⚠️ Clang-format issues detected in `${{ matrix.path }}`
             ${{ steps.read-diff.outputs.diff }}
