@@ -21,14 +21,16 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
+# Prevent clang-format from rewriting comment text
 ReflowComments: Never
-#SpacesInLineCommentPrefix: false
 
+# Disable alignment features that fight your manual formatting
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignConsecutiveMacros: false
 AlignTrailingComments: false
+
+# Keep short constructs readable
 AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
-

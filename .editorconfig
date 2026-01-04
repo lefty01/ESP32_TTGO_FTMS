@@ -16,13 +16,12 @@ indent_size = 2
 # C / C++ source and header files
 # ---------------------------------------------------------
 [*.{c,cpp,h,hpp}]
-indent_size = 2
 indent_style = space
+indent_size = 2
 tab_width = 2
 
 # ---------------------------------------------------------
 # PlatformIO configuration
-# PlatformIO examples use spaces, not tabs
 # ---------------------------------------------------------
 [platformio.ini]
 indent_style = space
@@ -30,14 +29,14 @@ indent_size = 2
 tab_width = 2
 
 # ---------------------------------------------------------
-# YAML / JSON (common in PlatformIO + CI)
+# YAML / JSON (CI, configs)
 # ---------------------------------------------------------
 [*.{yml,yaml,json}]
 indent_style = space
 indent_size = 2
 
 # ---------------------------------------------------------
-# Markdown (avoid trimming whitespace)
+# Markdown (preserve whitespace)
 # ---------------------------------------------------------
 [*.md]
 trim_trailing_whitespace = false
@@ -45,7 +44,7 @@ indent_style = space
 indent_size = 2
 
 # ---------------------------------------------------------
-# Python scripts (PlatformIO build scripts, tools)
+# Python scripts (PEP8)
 # ---------------------------------------------------------
 [*.py]
 indent_style = space

@@ -67,7 +67,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Comment on PR with diff
-        if: steps.format-check.outputs.needs_formatting == 'true'
+        if: "steps.format-check.outputs.needs_formatting == 'true'"
 	uses: marocchino/sticky-pull-request-comment@v3
         with:
           recreate: false
