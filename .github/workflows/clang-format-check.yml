@@ -24,11 +24,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install clang-format-16
+      # -------------------------------
+      # Install LLVM 21 clang-format
+      # -------------------------------
+      - name: Install clang-format 21
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-16
-          sudo ln -s /usr/bin/clang-format-16 /usr/local/bin/clang-format
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xf clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          sudo mv clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04 /opt/llvm-21
+          echo "/opt/llvm-21/bin" >> $GITHUB_PATH
+
+      - name: Show clang-format version
+        run: clang-format --version
 
       - name: Run clang-format on ${{ matrix.path }}
         id: format-check
