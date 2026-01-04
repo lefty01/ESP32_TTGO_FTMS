@@ -23,10 +23,10 @@
 #if !defined(NO_DISPLAY) && !defined(GUI_LVGL)
 
 #include "common.h"
+#include "debug_print.h"
+#include "display.h"
 #include "hardware.h"
 #include "net-control.h"
-#include "display.h"
-#include "debug_print.h"
 
 #define TFT_SETUP_FONT_SIZE 4
 #define TFT_STATS_FONT_SIZE 2
@@ -136,7 +136,7 @@ void tft_initDisplay(void)
 #endif
 }
 
-void tft_gfxLogText(const char *text)
+void tft_gfxLogText(const char* text)
 {
   if (!setupDone) {
     tft.print(text);

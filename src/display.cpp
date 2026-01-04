@@ -79,7 +79,7 @@ void loopHandleGfx(void)
 #endif
 }
 
-void gfxLogText(const char *text)
+void gfxLogText(const char* text)
 {
 #ifndef NO_DISPLAY
 

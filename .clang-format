@@ -6,7 +6,9 @@ UseTab: Never
 ColumnLimit: 120
 PointerAlignment: Left
 
+#BreakBeforeElse: true
 BreakBeforeBraces: Custom
+
 BraceWrapping:
   AfterFunction: true
   AfterControlStatement: Never
@@ -32,7 +34,7 @@ AlignConsecutiveMacros: false
 AlignTrailingComments: false
 
 # Keep short constructs readable
-AllowShortFunctionsOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: false
 #AllowShortFunctionsOnASingleLine: Leave
 #AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false

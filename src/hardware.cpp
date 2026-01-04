@@ -22,15 +22,15 @@
 
 #include <Arduino.h>
 #include <Button2.h>
-#include <Wire.h>
 #include <MPU6050_light.h> // accelerometer and gyroscope -> measure incline
+#include <Wire.h>
 
 #include "common.h"
-#include "display.h"
-#include "net-control.h"
-#include "hardware.h"
-#include "debug_print.h"
 #include "config.h"
+#include "debug_print.h"
+#include "display.h"
+#include "hardware.h"
+#include "net-control.h"
 
 esp_reset_reason_t reset_reason;
 unsigned long sw_timer_clock = 0;
@@ -121,7 +121,7 @@ static MPU6050 mpu6050(I2C_0);
 //cs static GPIOExtenderAW9523 GPIOExtender(I2C_0);
 GPIOExtenderAW9523 GPIOExtender(I2C_0);
 
-void btn1TapHandler(Button2 & b)
+void btn1TapHandler(Button2& b)
 {
   unsigned int time = b.wasPressedFor();
   DEBUG_PRINTLN("Button 1 TapHandler");
@@ -154,7 +154,7 @@ void btn1TapHandler(Button2 & b)
   }
 }
 
-void btn2TapHandler(Button2 & b)
+void btn2TapHandler(Button2& b)
 {
   unsigned int time = b.wasPressedFor();
   DEBUG_PRINTLN("Button 2 TapHandler");
@@ -183,7 +183,7 @@ void btn2TapHandler(Button2 & b)
 }
 
 
-void btn3TapHandler(Button2 & b)
+void btn3TapHandler(Button2& b)
 {
   unsigned int time = b.wasPressedFor();
   DEBUG_PRINTLN("Button 3 TapHandler");
@@ -569,12 +569,11 @@ void GPIOExtenderAW9523::logPins(void)
 // Currently only support one button at time
 bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
 {
-  DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x)\n",static_cast<uint32_t>(eventButton));
+  DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x)\n", static_cast<uint32_t>(eventButton));
   if (enabled) {
     // convert event to HW line
-    uint16_t line=-1;
-    switch(eventButton)
-    {
+    uint16_t line = -1;
+    switch (eventButton) {
       case EventType::TREADMILL_START:      line = AW9523_TREADMILL_START; break;
       case EventType::TREADMILL_SPEED_DOWN: line = AW9523_TREADMILL_SPEED_DOWN; break;
       case EventType::TREADMILL_INC_DOWN:   line = AW9523_TREADMILL_INC_DOWN; break;
@@ -582,48 +581,50 @@ bool GPIOExtenderAW9523::pressEvent(EventType eventButton)
       case EventType::TREADMILL_SPEED_UP:   line = AW9523_TREADMILL_SPEED_UP; break;
       case EventType::TREADMILL_INC_UP:     line = AW9523_TREADMILL_INC_UP; break;
       default:
-	// Cant handle Event
-	DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n",static_cast<uint32_t>(eventButton));
-	return false;
+        // Cant handle Event
+        DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: Unknown event 0x%x\n", static_cast<uint32_t>(eventButton));
+        return false;
     }
-    if (line ==-1) {
-      DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n",static_cast<uint32_t>(eventButton));
+    if (line == -1) {
+      DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: event not converted to line 0x%x\n", static_cast<uint32_t>(eventButton));
       return false;
     }
-    DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n",static_cast<uint32_t>(eventButton),line);
+    DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x \n", static_cast<uint32_t>(eventButton), line);
 
     if (line & 0xff) {
       uint8_t port0Bit = line & 0xff;
-      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port0=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port0Bit,~port0Bit);
+      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port0=0x%x ~x%x\n", static_cast<uint32_t>(eventButton),
+                   line, port0Bit, ~port0Bit);
 
       // pinMode(pin, OUTPUT);
-      if (!write(CONFIG_PORT0,~port0Bit)) return false; //0-output 1-input
+      if (!write(CONFIG_PORT0, ~port0Bit)) return false; //0-output 1-input
       // digitalWrite(pin, LOW);
-      if (!write(OUTPUT_PORT0,~port0Bit)) return false; //0-low 1-high
+      if (!write(OUTPUT_PORT0, ~port0Bit)) return false; //0-low 1-high
 
 #warning Remove delay and schedule last part later in some way and go back to "main" loop mode.
       delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
       // digitalWrite(pin, HIGH);
-      if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
+      if (!write(OUTPUT_PORT0, 0xff)) return false; //0-low 1-high
       // pinMode(pin, INPUT);
-      if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
+      if (!write(CONFIG_PORT0, 0xff)) return false; //0-output 1-input
     }
     else {
       uint8_t port1Bit = (line & 0xff00) >> 8;
-      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port1=0x%x ~x%x\n",static_cast<uint32_t>(eventButton),line,port1Bit,~port1Bit);
+      DEBUG_PRINTF("GPIOExtenderAW9523: pressEvent(0x%x) -> 0x%x port1=0x%x ~x%x\n", static_cast<uint32_t>(eventButton),
+                   line, port1Bit, ~port1Bit);
       // pinMode(pin, OUTPUT);
-      if (!write(CONFIG_PORT1,~port1Bit)) return false; //0-output 1-input
+      if (!write(CONFIG_PORT1, ~port1Bit)) return false; //0-output 1-input
       // digitalWrite(pin, LOW);
-      if (!write(OUTPUT_PORT1,~port1Bit)) return false; //0-low 1-high
+      if (!write(OUTPUT_PORT1, ~port1Bit)) return false; //0-low 1-high
 
 #warning Remove delay and schedule last part later in some way and go back to "main" loop mode.
       delay(TREADMILL_BUTTON_PRESS_SIGNAL_TIME_MS);
 
       // digitalWrite(pin, HIGH);
-      if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
+      if (!write(OUTPUT_PORT1, 0xff)) return false; //0-low 1-high
       // pinMode(pin, INPUT);
-      if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
+      if (!write(CONFIG_PORT1, 0xff)) return false; //0-output 1-input
     }
     return true;
   }
@@ -651,7 +652,7 @@ uint8_t GPIOExtenderAW9523::read(uint8_t reg, bool i2cHandled)
 
 uint8_t GPIOExtenderAW9523::read(uint8_t reg)
 {
-  return read(reg,false);
+  return read(reg, false);
 }
 
 bool GPIOExtenderAW9523::write(uint8_t reg, uint8_t data)
@@ -665,8 +666,8 @@ bool GPIOExtenderAW9523::write(uint8_t reg, uint8_t data)
   uint8_t ret = wire->endTransmission();  // 0 if OK
 //  I2C_0.end();
   if (ret != 0) {
-      DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n",reg, data, ret);
-      return false;
+    DEBUG_PRINTF("GPIOExtenderAW9523 ERROR: write reg: 0x%x value:0x%x -> Error: 0x%x\n", reg, data, ret);
+    return false;
   }
   return true;
 }
@@ -676,26 +677,26 @@ bool GPIOExtenderAW9523::begin()
   enabled = false;
   isInterrupted = false;
   uint8_t id = read(ID);
-  DEBUG_PRINTF("GPIOExtenderAW9523: Read ID: 0x%x = 0x%x\n",ID,id);
+  DEBUG_PRINTF("GPIOExtenderAW9523: Read ID: 0x%x = 0x%x\n", ID, id);
 
   if (id != ID_AW9523) {
     return false;
   }
 
-  if (!write(OUTPUT_PORT0,0xff)) return false; //0-low 1-high
-  if (!write(OUTPUT_PORT1,0xff)) return false; //0-low 1-high
+  if (!write(OUTPUT_PORT0, 0xff)) return false; //0-low 1-high
+  if (!write(OUTPUT_PORT1, 0xff)) return false; //0-low 1-high
 
   // All input
-  if (!write(CONFIG_PORT0,0xff)) return false; //0-output 1-input
-  if (!write(CONFIG_PORT1,0xff)) return false; //0-output 1-input
+  if (!write(CONFIG_PORT0, 0xff)) return false; //0-output 1-input
+  if (!write(CONFIG_PORT1, 0xff)) return false; //0-output 1-input
 
-  if (!write(CTL,0x08)) return false; //0000x000  0-Open Drain 1-Push-Pull
+  if (!write(CTL, 0x08)) return false; //0000x000  0-Open Drain 1-Push-Pull
 
-  if (!write(INT_PORT0,0xff)) return false; //0-enable 1-disable
-  if (!write(INT_PORT1,0xff)) return false; //0-enable 1-disable
+  if (!write(INT_PORT0, 0xff)) return false; //0-enable 1-disable
+  if (!write(INT_PORT1, 0xff)) return false; //0-enable 1-disable
 
-  if (!write(LED_MODE_SWITCH0,0xff)) return false; //0-LED mode 1-GPIO mode
-  if (!write(LED_MODE_SWITCH1,0xff)) return false; //0-LED mode 1-GPIO mode
+  if (!write(LED_MODE_SWITCH0, 0xff)) return false; //0-LED mode 1-GPIO mode
+  if (!write(LED_MODE_SWITCH1, 0xff)) return false; //0-LED mode 1-GPIO mode
   enabled = true;
   getPins();
   return true;
@@ -714,8 +715,8 @@ uint16_t GPIOExtenderAW9523::getPins(void)
     // to speed thing up.
     I2C_0.begin(SDA_0, SCL_0, I2C_FREQ);
 
-    uint8_t port0 = read(INPUT_PORT0,true);
-    uint8_t port1 = read(INPUT_PORT1,true);
+    uint8_t port0 = read(INPUT_PORT0, true);
+    uint8_t port1 = read(INPUT_PORT1, true);
 
 //    I2C_0.end();
     return ((port1 << 8) | port0);
