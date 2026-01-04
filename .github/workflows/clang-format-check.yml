@@ -1,21 +1,70 @@
-name: clang-format Check
+name: Clang Format Check
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  pull_request:
+    paths:
+      - "**/*.c"
+      - "**/*.cpp"
+      - "**/*.h"
+      - ".clang-format"
 
 jobs:
   formatting-check:
-    name: Formatting Check
+    name: Formatting Check (${{ matrix.path }})
     runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         path:
           - 'src'
           - 'include'
+
     steps:
-    - uses: actions/checkout@v3
-    - name: Run clang-format style check for C/C++/Protobuf programs.
-      uses: jidicula/clang-format-action@v4.10.1
-      with:
-        clang-format-version: '13'
-        check-path: ${{ matrix.path }}
-        fallback-style: 'GNU' # optional
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format-16
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-16
+          sudo ln -s /usr/bin/clang-format-16 /usr/local/bin/clang-format
+
+      - name: Run clang-format on ${{ matrix.path }}
+        id: format-check
+        run: |
+          FILES=$(git ls-files '${{ matrix.path }}/*.c' '${{ matrix.path }}/*.cpp' '${{ matrix.path }}/*.h')
+          if [ -z "$FILES" ]; then
+            echo "No files to check in ${{ matrix.path }}"
+            echo "needs_formatting=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          clang-format --style=file -i $FILES
+          git diff --color > clang-format-diff-${{ matrix.path }}.txt
+
+          if [ -s clang-format-diff-${{ matrix.path }}.txt ]; then
+            echo "needs_formatting=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_formatting=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload diff artifact
+        if: steps.format-check.outputs.needs_formatting == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-format-diff-${{ matrix.path }}
+          path: clang-format-diff-${{ matrix.path }}.txt
+
+      - name: Comment on PR with diff
+        if: steps.format-check.outputs.needs_formatting == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          recreate: false
+          path: clang-format-diff-${{ matrix.path }}.txt
+
+      - name: Fail if formatting is incorrect
+        if: steps.format-check.outputs.needs_formatting == 'true'
+        run: |
+          echo "Formatting issues detected in ${{ matrix.path }}."
+          exit 1
