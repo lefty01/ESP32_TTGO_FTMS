@@ -4,8 +4,11 @@ IndentWidth: 2
 TabWidth: 2
 UseTab: Never
 ColumnLimit: 120
+PointerAlignment: Left
 
+#BreakBeforeElse: true
 BreakBeforeBraces: Custom
+
 BraceWrapping:
   AfterFunction: true
   AfterControlStatement: Never
@@ -21,14 +24,17 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
+# Prevent clang-format from rewriting comment text
 ReflowComments: Never
-#SpacesInLineCommentPrefix: false
 
+# Disable alignment features that fight your manual formatting
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignConsecutiveMacros: false
 AlignTrailingComments: false
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
 
+# Keep short constructs readable
+AllowShortFunctionsOnASingleLine: false
+#AllowShortFunctionsOnASingleLine: Leave
+#AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false

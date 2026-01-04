@@ -1,10 +1,32 @@
+/**
+ *
+ *
+ * The MIT License (MIT)
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #if !defined(NO_DISPLAY) && !defined(GUI_LVGL)
 
 #include "common.h"
+#include "debug_print.h"
+#include "display.h"
 #include "hardware.h"
 #include "net-control.h"
-#include "display.h"
-#include "debug_print.h"
 
 #define TFT_SETUP_FONT_SIZE 4
 #define TFT_STATS_FONT_SIZE 2
@@ -74,7 +96,7 @@ void initLovyanGFXTouchAreas(void)
   //     touchButtons[n] = LGFX_Button();
   // }
   // fixme: ...
-  //logText("initLovyanGFXTouchAreas...");  
+  //logText("initLovyanGFXTouchAreas...");
   btnSpeedToggle   .initButtonUL(&tft, btnSpeedToggle_X,    btnSpeedToggle_Y,   100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "SPEED");
   btnInclineToggle .initButtonUL(&tft, btnInclineToggle_X,  btnInclineToggle_Y, 100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "INCL.");
   btnSpeedUp       .initButtonUL(&tft, btnSpeedUp_X,        btnSpeedUp_Y,       100, 50, TFT_WHITE, TFT_BLUE, TFT_WHITE, "UP");
@@ -114,7 +136,7 @@ void tft_initDisplay(void)
 #endif
 }
 
-void tft_gfxLogText(const char *text)
+void tft_gfxLogText(const char* text)
 {
   if (!setupDone) {
     tft.print(text);
@@ -141,11 +163,11 @@ void tft_gfxUpdateDisplay(bool clear)
 
   // for (uint8_t row=0; row<5; row++) {
   //     for (uint8_t col=0; col<3; col++) {
-  // 	  buttons[col + row*3].initButton(&tft, BUTTON_X+col*(BUTTON_W+BUTTON_SPACING_X),
-  // 					  BUTTON_Y+row*(BUTTON_H+BUTTON_SPACING_Y),    // x, y, w, h, outline, fill, text
-  // 					  BUTTON_W, BUTTON_H, ILI9341_WHITE, buttoncolors[col+row*3], ILI9341_WHITE,
-  // 					  buttonlabels[col + row*3], BUTTON_TEXTSIZE);
-  // 	  buttons[col + row*3].drawButton();
+  //	  buttons[col + row*3].initButton(&tft, BUTTON_X+col*(BUTTON_W+BUTTON_SPACING_X),
+  //					  BUTTON_Y+row*(BUTTON_H+BUTTON_SPACING_Y),    // x, y, w, h, outline, fill, text
+  //					  BUTTON_W, BUTTON_H, ILI9341_WHITE, buttoncolors[col+row*3], ILI9341_WHITE,
+  //					  buttonlabels[col + row*3], BUTTON_TEXTSIZE);
+  //	  buttons[col + row*3].drawButton();
   //   }
   // }
 
@@ -267,7 +289,7 @@ void tft_gfxUpdateDisplay(bool clear)
 
 void tft_loopHandleGfx(void)
 {
-#ifndef NO_DISPLAY    
+#ifndef NO_DISPLAY
 #if defined (HAS_TOUCH_DISPLAY)
   int32_t touch_x = 0, touch_y = 0;
 
@@ -349,7 +371,7 @@ void tft_loopHandleGfx(void)
   }
 
 #endif
-#endif //#ifndef NO_DISPLAY    
+#endif //#ifndef NO_DISPLAY
 
 }
 

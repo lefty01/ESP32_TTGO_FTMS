@@ -1,18 +1,39 @@
-#include <string.h> 
-#include "debug_print.h"
-#include <LittleFS.h>
+/**
+ *
+ *
+ * The MIT License (MIT)
+ * Copyright © 2021, 2022, 2025, 2026 <Andreas Loeffler>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ * and associated documentation files (the “Software”), to deal in the Software without
+ * restriction, including without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+ * BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 #include "config.h"
 #include "common.h"
+#include "debug_print.h"
+#include <LittleFS.h>
+#include <string.h>
 
 #define FILE_NAME "/treadmill.txt"
 
-#define KEY_MAX_LENGTH    30 // change it if key is longer
-#define VALUE_MAX_LENGTH  30 // change it if value is longer
+#define KEY_MAX_LENGTH 30 // change it if key is longer
+#define VALUE_MAX_LENGTH 30 // change it if value is longer
 
 #define default_treadmill_name "Treadmill"
-#define default_max_speed  5.0
-#define default_min_speed  0.5
+#define default_max_speed 5.0
+#define default_min_speed 0.5
 #define default_max_incline 5.0
 #define default_min_incline 0.0
 #define default_speed_interval_step 0.1
@@ -23,8 +44,8 @@
 #define default_hasIrSense false
 #define default_hasReed false
 
-#define abs_max_speed  22.0
-#define abs_min_speed  0.0
+#define abs_max_speed 22.0
+#define abs_min_speed 0.0
 #define abs_max_incline 12.0
 #define abs_min_incline 0.0
 #define abs_speed_interval_step 1.0
@@ -33,39 +54,39 @@
 
 struct TreadmillConfiguration configTreadmill;
 
-const char* VERSION = "0.4.1";
-
+const char* VERSION = "0.6.0";
 
 void dump_settings(void)
 {
-  DEBUG_PRINT("treadmillname: "); 
+  DEBUG_PRINT("treadmillname: ");
   DEBUG_PRINTLN(configTreadmill.treadmill_name);
-  DEBUG_PRINT("max_speed: "); 
+  DEBUG_PRINT("max_speed: ");
   DEBUG_PRINTLN(configTreadmill.max_speed);
-  DEBUG_PRINT("min_speed: "); 
+  DEBUG_PRINT("min_speed: ");
   DEBUG_PRINTLN(configTreadmill.min_speed);
-  DEBUG_PRINT("max_incline: "); 
+  DEBUG_PRINT("max_incline: ");
   DEBUG_PRINTLN(configTreadmill.max_incline);
-  DEBUG_PRINT("min_incline: "); 
+  DEBUG_PRINT("min_incline: ");
   DEBUG_PRINTLN(configTreadmill.min_incline);
-  DEBUG_PRINT("speed_interval step: "); 
+  DEBUG_PRINT("speed_interval step: ");
   DEBUG_PRINTLN(configTreadmill.speed_interval_step);
-  DEBUG_PRINT("incline_interval step: "); 
+  DEBUG_PRINT("incline_interval step: ");
   DEBUG_PRINTLN(configTreadmill.incline_interval_step);
-  DEBUG_PRINT("belt_distance: "); 
+  DEBUG_PRINT("belt_distance: ");
   DEBUG_PRINTLN(configTreadmill.belt_distance);
-  DEBUG_PRINT("hasMPU6050: "); 
+  DEBUG_PRINT("hasMPU6050: ");
   DEBUG_PRINTLN(configTreadmill.hasMPU6050);
-  DEBUG_PRINT("hasMPU6050inAngle: "); 
+  DEBUG_PRINT("hasMPU6050inAngle: ");
   DEBUG_PRINTLN(configTreadmill.hasMPU6050inAngle);
-  DEBUG_PRINT("hasIrSense: "); 
+  DEBUG_PRINT("hasIrSense: ");
   DEBUG_PRINTLN(configTreadmill.hasIrSense);
-  DEBUG_PRINT("hasReed: "); 
+  DEBUG_PRINT("hasReed: ");
   DEBUG_PRINTLN(configTreadmill.hasReed);
   DEBUG_PRINTLN("");
 }
 
-int HELPER_ascii2Int(char *ascii, int length) {
+int HELPER_ascii2Int(char* ascii, int length)
+{
   int sign = 1;
   int number = 0;
 
@@ -82,10 +103,11 @@ int HELPER_ascii2Int(char *ascii, int length) {
   return number * sign;
 }
 
-float HELPER_ascii2Float(char *ascii, int length) {
+float HELPER_ascii2Float(char* ascii, int length)
+{
   int sign = 1;
   int decimalPlace = 0;
-  float number  = 0;
+  float number = 0;
   float decimal = 0;
 
   for (int i = 0; i < length; i++) {
@@ -109,7 +131,8 @@ float HELPER_ascii2Float(char *ascii, int length) {
   return (number + decimal) * sign;
 }
 
-String HELPER_ascii2String(char *ascii, int length) {
+String HELPER_ascii2String(char* ascii, int length)
+{
   String str;
   str.reserve(length);
   str = "";
@@ -122,18 +145,16 @@ String HELPER_ascii2String(char *ascii, int length) {
   return str;
 }
 
-int LittleFS_findKey(const __FlashStringHelper * key, char * value) 
+int LittleFS_findKey(const __FlashStringHelper* key, char* value)
 {
   char key_string[KEY_MAX_LENGTH];
   char LittleFS_buffer[KEY_MAX_LENGTH + VALUE_MAX_LENGTH + 1]; // 1 is = character
   int key_length = 0;
   int value_length = 0;
   File configFile;
-
-  configFile = LittleFS.open(FILE_NAME, "r");  
-
+  configFile = LittleFS.open(FILE_NAME, "r");
   if (!configFile) {
-    logText("LittleFS: error on opening file ");    
+    logText("FS: error on opening file ");
     logText(FILE_NAME);
     logText("\n");
     return 0;
@@ -166,29 +187,33 @@ int LittleFS_findKey(const __FlashStringHelper * key, char * value)
     }
   }
 
-  configFile.close();  // close the file
+  configFile.close(); // close the file
   return value_length;
 }
 
-bool LittleFS_available(const __FlashStringHelper * key) {
+bool LittleFS_available(const __FlashStringHelper* key)
+{
   char value_string[VALUE_MAX_LENGTH];
   int value_length = LittleFS_findKey(key, value_string);
   return value_length > 0;
 }
 
-int LittleFS_findInt(const __FlashStringHelper * key) {
+int LittleFS_findInt(const __FlashStringHelper* key)
+{
   char value_string[VALUE_MAX_LENGTH];
   int value_length = LittleFS_findKey(key, value_string);
   return HELPER_ascii2Int(value_string, value_length);
 }
 
-float LittleFS_findFloat(const __FlashStringHelper * key) {
+float LittleFS_findFloat(const __FlashStringHelper* key)
+{
   char value_string[VALUE_MAX_LENGTH];
   int value_length = LittleFS_findKey(key, value_string);
   return HELPER_ascii2Float(value_string, value_length);
 }
 
-String LittleFS_findString(const __FlashStringHelper * key) {
+String LittleFS_findString(const __FlashStringHelper* key)
+{
   char value_string[VALUE_MAX_LENGTH];
   int value_length = LittleFS_findKey(key, value_string);
   return HELPER_ascii2String(value_string, value_length);
@@ -198,26 +223,26 @@ void initConfig(void)
 {
   logText("initConfig...");
   // Get Treadmill config
-  configTreadmill.treadmill_name         = LittleFS_findString(F("treadmillname"));
-  configTreadmill.max_speed              = LittleFS_findFloat(F("max_speed"));
-  configTreadmill.min_speed              = LittleFS_findFloat(F("min_speed"));
-  configTreadmill.max_incline            = LittleFS_findFloat(F("max_incline"));
-  configTreadmill.min_incline            = LittleFS_findFloat(F("min_incline"));
-  configTreadmill.speed_interval_step    = LittleFS_findFloat(F("speed_interval_step"));
-  configTreadmill.incline_interval_step  = LittleFS_findFloat(F("incline_interval_step"));
-  configTreadmill.belt_distance          = LittleFS_findFloat(F("belt_distance"));
+  configTreadmill.treadmill_name        = LittleFS_findString(F("treadmillname"));
+  configTreadmill.max_speed             = LittleFS_findFloat(F("max_speed"));
+  configTreadmill.min_speed             = LittleFS_findFloat(F("min_speed"));
+  configTreadmill.max_incline           = LittleFS_findFloat(F("max_incline"));
+  configTreadmill.min_incline           = LittleFS_findFloat(F("min_incline"));
+  configTreadmill.speed_interval_step   = LittleFS_findFloat(F("speed_interval_step"));
+  configTreadmill.incline_interval_step = LittleFS_findFloat(F("incline_interval_step"));
+  configTreadmill.belt_distance         = LittleFS_findFloat(F("belt_distance"));
   // Get Your HW config, e.g. interface to Treadmill and other added HW
-  configTreadmill.hasMPU6050             = LittleFS_findInt(F("hasMPU6050"));
-  configTreadmill.hasMPU6050inAngle      = LittleFS_findInt(F("hasMPU6050inAngle"));
-  configTreadmill.hasIrSense             = LittleFS_findInt(F("hasIrSense"));
-  configTreadmill.hasReed                = LittleFS_findInt(F("hasReed"));
+  configTreadmill.hasMPU6050            = LittleFS_findInt(F("hasMPU6050"));
+  configTreadmill.hasMPU6050inAngle     = LittleFS_findInt(F("hasMPU6050inAngle"));
+  configTreadmill.hasIrSense            = LittleFS_findInt(F("hasIrSense"));
+  configTreadmill.hasReed               = LittleFS_findInt(F("hasReed"));
 
   // check if values were valid, else set to safe defaults
   if (configTreadmill.treadmill_name.length() == 0) {
     configTreadmill.treadmill_name = default_treadmill_name;
     logText("no treadmill name defined, using default\n");
   }
-  
+
   if ((configTreadmill.max_speed > abs_max_speed) || (configTreadmill.max_speed < 0)) {
     configTreadmill.max_speed = default_max_speed;
     logText("invalid max speed, using default\n");
@@ -225,7 +250,7 @@ void initConfig(void)
 
   if ((configTreadmill.min_speed < abs_min_speed) || (configTreadmill.min_speed < 0)) {
     configTreadmill.min_speed = default_min_speed;
-    logText("invalid min speed, using default\n");  
+    logText("invalid min speed, using default\n");
   }
 
   if ((configTreadmill.max_incline > abs_max_incline) || (configTreadmill.max_incline < 0)) {
@@ -243,7 +268,8 @@ void initConfig(void)
     logText("invalid speed interval step, using default\n");
   }
 
-  if ((configTreadmill.incline_interval_step > abs_incline_interval_step) || (configTreadmill.incline_interval_step < 0)) {
+  if ((configTreadmill.incline_interval_step > abs_incline_interval_step) ||
+      (configTreadmill.incline_interval_step < 0)) {
     configTreadmill.incline_interval_step = default_incline_interval_step;
     logText("invalid incline interval step, using default\n");
   }
@@ -276,5 +302,5 @@ void initConfig(void)
   speedInclineMode = configTreadmill.hasReed ? SPEED : MANUAL;
 
   dump_settings();
-  logText("done\n");  
+  logText("done\n");
 }

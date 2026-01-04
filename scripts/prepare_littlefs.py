@@ -24,4 +24,3 @@ def copy_treadmill_txt(source, target, env):
         print("no config file: {}".format(config_dir + treadmill_config_file))
 
 env.AddPreAction('$BUILD_DIR/littlefs.bin', copy_treadmill_txt)
-

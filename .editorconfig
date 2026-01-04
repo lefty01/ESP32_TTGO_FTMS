@@ -1,0 +1,57 @@
+# Top-level EditorConfig file
+root = true
+
+# ---------------------------------------------------------
+# Default settings for all files
+# ---------------------------------------------------------
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ---------------------------------------------------------
+# C / C++ source and header files
+# ---------------------------------------------------------
+[*.{c,cpp,h,hpp}]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+# ---------------------------------------------------------
+# PlatformIO configuration
+# ---------------------------------------------------------
+[platformio.ini]
+indent_style = space
+indent_size = 2
+tab_width = 2
+
+# ---------------------------------------------------------
+# YAML / JSON (CI, configs)
+# ---------------------------------------------------------
+[*.{yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+# ---------------------------------------------------------
+# Markdown (preserve whitespace)
+# ---------------------------------------------------------
+[*.md]
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# ---------------------------------------------------------
+# Python scripts (PEP8)
+# ---------------------------------------------------------
+[*.py]
+indent_style = space
+indent_size = 4
+
+# ---------------------------------------------------------
+# Makefiles (tabs required)
+# ---------------------------------------------------------
+[Makefile]
+indent_style = tab
