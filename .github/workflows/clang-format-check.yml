@@ -1,21 +1,82 @@
-name: clang-format Check
+name: Clang Format Check
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  pull_request:
+    paths:
+      - "**/*.c"
+      - "**/*.cpp"
+      - "**/*.h"
+      - ".clang-format"
 
 jobs:
   formatting-check:
-    name: Formatting Check
+    name: Formatting Check (${{ matrix.path }})
     runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         path:
           - 'src'
           - 'include'
+
     steps:
-    - uses: actions/checkout@v3
-    - name: Run clang-format style check for C/C++/Protobuf programs.
-      uses: jidicula/clang-format-action@v4.10.1
-      with:
-        clang-format-version: '13'
-        check-path: ${{ matrix.path }}
-        fallback-style: 'GNU' # optional
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------
+      # Install LLVM 21 clang-format
+      # -------------------------------
+      - name: Install clang-format 21
+        run: |
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          tar -xf clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+          sudo mv clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04 /opt/llvm-21
+          echo "/opt/llvm-21/bin" >> $GITHUB_PATH
+
+      - name: Show clang-format version
+        run: clang-format --version
+
+      - name: Run clang-format on ${{ matrix.path }}
+        id: format-check
+        run: |
+          FILES=$(git ls-files '${{ matrix.path }}/*.c' '${{ matrix.path }}/*.cpp' '${{ matrix.path }}/*.h')
+          if [ -z "$FILES" ]; then
+            echo "No files to check in ${{ matrix.path }}"
+            echo "needs_formatting=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          clang-format --style=file -i $FILES
+          git diff > clang-format-diff-${{ matrix.path }}.txt
+
+          if [ -s clang-format-diff-${{ matrix.path }}.txt ]; then
+            echo "needs_formatting=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_formatting=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Read diff into variable
+        if: steps.format-check.outputs.needs_formatting == 'true'
+        id: read-diff
+        run: |
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo '```diff' >> $GITHUB_OUTPUT
+          cat clang-format-diff-${{ matrix.path }}.txt >> $GITHUB_OUTPUT
+          echo '```' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR with diff
+        if: steps.format-check.outputs.needs_formatting == 'true'
+	uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          recreate: false
+          message: |
+            ### ⚠️ Clang-format issues detected in `${{ matrix.path }}`
+            ${{ steps.read-diff.outputs.diff }}
+
+      - name: Fail if formatting is incorrect
+        if: steps.format-check.outputs.needs_formatting == 'true'
+        run: |
+          echo "Formatting issues detected in ${{ matrix.path }}."
+          exit 1
