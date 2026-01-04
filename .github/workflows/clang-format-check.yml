@@ -17,30 +17,33 @@ jobs:
       fail-fast: false
       matrix:
         path:
-          - 'src'
-          - 'include'
+          - "src"
+          - "include"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # -------------------------------
-      # Install LLVM 21 clang-format
+      # Install clang-format 21 via apt
       # -------------------------------
-      - name: Install clang-format 21
+      - name: Install clang-format-21
         run: |
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.0/clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          tar -xf clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-          sudo mv clang+llvm-21.1.0-x86_64-linux-gnu-ubuntu-22.04 /opt/llvm-21
-          echo "/opt/llvm-21/bin" >> $GITHUB_PATH
+          sudo apt-get update
+          sudo apt-get install -y clang-format-21
+          sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
 
       - name: Show clang-format version
         run: clang-format --version
 
+      # -------------------------------
+      # Run clang-format
+      # -------------------------------
       - name: Run clang-format on ${{ matrix.path }}
         id: format-check
         run: |
-          FILES=$(git ls-files '${{ matrix.path }}/*.c' '${{ matrix.path }}/*.cpp' '${{ matrix.path }}/*.h')
+          FILES=$(git ls-files "${{ matrix.path }}/*.c" "${{ matrix.path }}/*.cpp" "${{ matrix.path }}/*.h")
+
           if [ -z "$FILES" ]; then
             echo "No files to check in ${{ matrix.path }}"
             echo "needs_formatting=false" >> $GITHUB_OUTPUT
