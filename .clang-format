@@ -1,7 +1,11 @@
 BasedOnStyle: LLVM
 
-BreakBeforeBraces: Custom
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+ColumnLimit: 120
 
+BreakBeforeBraces: Custom
 BraceWrapping:
   AfterFunction: true
   AfterControlStatement: Never
@@ -17,8 +21,14 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
-IndentWidth: 2
-TabWidth: 2
-UseTab: Never
-ColumnLimit: 120
+ReflowComments: Never
 #SpacesInLineCommentPrefix: false
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveMacros: false
+AlignTrailingComments: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
