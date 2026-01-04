@@ -68,7 +68,7 @@ jobs:
 
       - name: Comment on PR with diff
         if: "steps.format-check.outputs.needs_formatting == 'true'"
-        uses: marocchino/sticky-pull-request-comment@v3
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
           recreate: false
           message: |
