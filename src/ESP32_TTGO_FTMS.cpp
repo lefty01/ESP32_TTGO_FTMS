@@ -28,28 +28,28 @@
 // FIXME: elevation gain
 // TODO:  web config menu (+https, +setup initial user password)
 
-#include <math.h>
-#include <SPI.h>
 #include <LittleFS.h>
 #include <Preferences.h>
+#include <SPI.h>
+#include <math.h>
 #include <unity.h>
 
 #include "common.h"
+#include "config.h"
 #include "debug_print.h"
+#include "display.h"
 #include "hardware.h"
 #include "net-control.h"
-#include "display.h"
-#include "config.h"
 
-float  kmph = 0;
-float  kmphIRsense = 0;
-float  incline = 0;
+float kmph = 0;
+float kmphIRsense = 0;
+float incline = 0;
 double totalDistance = 0;
 double elevationGain = 0;
 //uint8_t     inst_cadence = 1;                 /* Instantaneous Cadence. */
 //uint16_t    inst_stride_length = 1;           /* Instantaneous Stride Length. */
-double      elevation;
-float mps;  // meter per second
+double elevation;
+float mps; // meter per second
 double angle = 0;
 double gradeDeg = 0;
 Preferences prefs;
@@ -59,7 +59,7 @@ bool setupDone = false;
 uint8_t speedInclineMode = SPEED;
 static unsigned long touch_timer = 0;
 
-void logText(const char *text)
+void logText(const char* text)
 {
   // Serial consol
   DEBUG_PRINTF(text);
@@ -73,7 +73,6 @@ void logText(uint32_t text)
 {
   logText(std::to_string(text));
 }
-
 
 void logText(String text)
 {
@@ -115,7 +114,8 @@ void speedUp()
   }
 
   kmph += configTreadmill.speed_interval_step;
-  if (kmph > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
+  if (kmph > configTreadmill.max_speed)
+    kmph = configTreadmill.max_speed;
   logText("speed_up,   new speed: ");
   logText(kmph);
   logText("\n");
@@ -130,7 +130,8 @@ void speedDown()
   }
 
   kmph -= configTreadmill.speed_interval_step;
-  if (kmph < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
+  if (kmph < configTreadmill.min_speed)
+    kmph = configTreadmill.min_speed;
   logText("speed_down, new speed: ");
   logText(kmph);
   logText("\n");
@@ -145,7 +146,8 @@ void inclineUp()
   }
 
   incline += configTreadmill.incline_interval_step; // incline in %
-  if (incline > configTreadmill.max_incline) incline = configTreadmill.max_incline;
+  if (incline > configTreadmill.max_incline)
+    incline = configTreadmill.max_incline;
   angle = atan2(incline, 100);
   gradeDeg = angle * 57.296;
   logText("incline_up, new incline: ");
@@ -162,7 +164,8 @@ void inclineDown()
   }
 
   incline -= configTreadmill.incline_interval_step;
-  if (incline <= configTreadmill.min_incline) incline = configTreadmill.min_incline;
+  if (incline <= configTreadmill.min_incline)
+    incline = configTreadmill.min_incline;
   angle = atan2(incline, 100);
   gradeDeg = angle * 57.296;
   logText("incline_down, new incline: ");
@@ -173,8 +176,10 @@ void inclineDown()
 void setSpeed(float speed)
 {
   kmph = speed;
-  if (speed > configTreadmill.max_speed) kmph = configTreadmill.max_speed;
-  if (speed < configTreadmill.min_speed) kmph = configTreadmill.min_speed;
+  if (speed > configTreadmill.max_speed)
+    kmph = configTreadmill.max_speed;
+  if (speed < configTreadmill.min_speed)
+    kmph = configTreadmill.min_speed;
 
   logText("setSpeed: ");
   logText(kmph);
@@ -201,8 +206,11 @@ static void showInfo()
   intoText = String("ESP32 FTMS - ") + VERSION + String("\n");
   logText(intoText.c_str());
   logText(configTreadmill.treadmill_name.c_str());
-  intoText = String("\nSpeed[") + configTreadmill.min_speed + String(", ") + configTreadmill.max_speed +
-             String(" Incline[") + configTreadmill.min_incline + String(", ") + configTreadmill.max_incline + String("]\n");
+  intoText = String("\nSpeed[") + configTreadmill.min_speed +
+             String(", ") + configTreadmill.max_speed +
+             String(" Incline[") + configTreadmill.min_incline +
+             String(", ") + configTreadmill.max_incline +
+             String("]\n");
   logText(intoText.c_str());
   intoText = String("Dist/REED: ") + configTreadmill.belt_distance + String("mm\n");
   logText(intoText.c_str());
@@ -210,7 +218,8 @@ static void showInfo()
              String(" MPU6050: ") + configTreadmill.hasMPU6050 +
              String(" inAngle: ") + configTreadmill.hasMPU6050inAngle +
              String(" IrSense: ") + configTreadmill.hasIrSense +
-             String(" GPIOExtender(AW9523): ") + GPIOExtender.isAvailable() + String("\n");
+             String(" GPIOExtender(AW9523): ") + GPIOExtender.isAvailable() +
+             String("\n");
   logText(intoText.c_str());
 }
 
@@ -265,7 +274,7 @@ void loop()
   loopHandleWIFI();
   loopHandleBLE();
 
- // timertick... every second
+  // timertick... every second
   if (timer_tick == true) {
     timer_tick = false;
 
@@ -274,33 +283,31 @@ void loop()
 
       incline = getIncline(); // sets global 'angle' and 'incline' variable
       snprintf(inclineStr, 6, "%.1f", incline);
-    //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
+      //client.publish(getTopic(MQTT_TOPIC_INCLINE), inclineStr);
     }
 
     // totalDistance = ... v = d/t -> d = v*t -> use v[m/s]
-    if (speedInclineMode & SPEED) {  // get speed from sensor (no-manual mode)
+    if (speedInclineMode & SPEED) { // get speed from sensor (no-manual mode)
       // FIXME: ... probably can get rid of this if/else if ISR for the ir-sensor
       // and calc rpm from reed switch provide same unit
       if (configTreadmill.hasIrSense) {
-	kmph = kmphIRsense;
-	mps = kmph / 3.6; // meter per second (EVERY_SECOND)
-	totalDistance += mps;
+        kmph = kmphIRsense;
+        mps  = kmph / 3.6; // meter per second (EVERY_SECOND)
+        totalDistance += mps;
+      } else {
+        float rpm = calculateRPM();
+        mps  = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
+        kmph = mps * 3.6; // km per hour
+        totalDistance = workoutDistance / 1000; // conv mm to meter
       }
-      else {
-	float rpm = calculateRPM();
-	mps = configTreadmill.belt_distance * (rpm) / (60 * 1000); // meter per sec
-	kmph = mps * 3.6;                          // km per hour
-	totalDistance = workoutDistance / 1000;   // conv mm to meter
-      }
-    }
-    else {
+    } else {
       mps = kmph / 3.6;
       totalDistance += mps;
     }
     //elevationGain += (double)(sin(angle) * mps);
     elevationGain += incline / 100 * mps;
 
- #if 0
+#if 0
     logText("mps = d: ");       logText(mps);
     logText("   angle: ");      logText(angle);
     logText("   h (m): ");      logText(sin(angle) * mps);

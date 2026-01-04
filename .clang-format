@@ -33,5 +33,6 @@ AlignTrailingComments: false
 
 # Keep short constructs readable
 AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
+#AllowShortFunctionsOnASingleLine: Leave
+#AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
