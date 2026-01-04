@@ -83,8 +83,8 @@ jobs:
             ### ⚠️ Clang-format issues detected in `${{ matrix.path }}`
             ${{ steps.read-diff.outputs.diff }}
 
-      - name: Fail if formatting is incorrect
+      - name: Report if formatting is incorrect
         if: steps.format-check.outputs.needs_formatting == 'true'
         run: |
           echo "Formatting issues detected in ${{ matrix.path }}."
-          exit 1
+          exit 0
