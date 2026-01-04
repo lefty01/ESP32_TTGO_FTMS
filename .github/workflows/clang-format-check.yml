@@ -35,9 +35,12 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 21
           sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
+          sudo ln -sf /usr/bin/clang-format-21 /usr/bin/clang-format
 
       - name: Show clang-format version
-        run: clang-format --version
+        run: |
+          which clang-format
+          clang-format --version
 
       # -------------------------------
       # Run clang-format
