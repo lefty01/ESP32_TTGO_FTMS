@@ -50,13 +50,13 @@ function onClose(event) {
 function onMessage(event) {
   let data = JSON.parse(event.data);
 
-  document.getElementById('speed')    .innerHTML = data.speed.toFixed(1);
-  document.getElementById('distance') .innerHTML = data.distance.toFixed(2);
-  document.getElementById('incline')  .innerHTML = data.incline.toFixed(1);
-  document.getElementById('elevation').innerHTML = data.elevation.toFixed(1);
-  document.getElementById('hour')     .innerHTML = data.hour;
-  document.getElementById('minute')   .innerHTML = data.minute;
-  document.getElementById('second')   .innerHTML = data.second;
+  document.getElementById('speed')    .textContent = Number(data.speed).toFixed(1);
+  document.getElementById('distance') .textContent = Number(data.distance).toFixed(2);
+  document.getElementById('incline')  .textContent = Number(data.incline).toFixed(1);
+  document.getElementById('elevation').textContent = Number(data.elevation).toFixed(1);
+  document.getElementById('hour')     .textContent = String(data.hour);
+  document.getElementById('minute')   .textContent = String(data.minute);
+  document.getElementById('second')   .textContent = String(data.second);
 
   //manualIncline = 0 === (data.sensor_mode & 1);
   //manualSpeed   = 0 === (data.sensor_mode & 2);
