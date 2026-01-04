@@ -34,7 +34,9 @@
 #include "lv_conf.h"
 
 // Setup screen resolution for LVGL
-#define BUFFER_LINES 6
+#ifndef BUFFER_LINES
+#define BUFFER_LINES 8
+#endif
 //static const uint16_t screenWidth = tft.width();
 //static const uint16_t screenHeight = tft.height();
 static const uint16_t screenWidth  = TFT_HEIGHT;
