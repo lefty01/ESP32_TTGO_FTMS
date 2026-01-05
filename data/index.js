@@ -1,10 +1,15 @@
 
 
-var gateway = `ws://${window.location.hostname}/ws`;
-var websocket;
-var manualSpeed   = false;
-var manualIncline = false;
-var sensorMode    = 0;
+const gateway = `ws://${window.location.hostname}/ws`;
+let websocket;
+let manualSpeed   = false;
+let manualIncline = false;
+let sensorMode    = 0;
+let elapsedTime   = 0;
+let startTime     = 0;
+let stopwatchInterval = null;
+let isRunning         = false;
+let autoPauseEnabled  = false; // default manual mode
 
 window.addEventListener('load', onLoad);
 
@@ -21,8 +26,53 @@ function toggleStopwatch() {
 
 // style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
 // style="color:#00add6;" -> default manual incline  auto: fade to #24ffe2
+// Funktion für den Switch
 
+function toggleAutopause() {
+  autoPauseEnabled = !autoPauseEnabled;
+  // if we switch to manual mode, start stopwatch immediately
+  if (!autoPauseEnabled && !isRunning) {
+    startClock();
+  }
+}
 
+function startClock() {
+  if (!isRunning) {
+    isRunning = true;
+    startTime = Date.now() - elapsedTime;
+    stopwatchInterval = setInterval(updateDisplay, 200);
+  }
+}
+
+function stopClock() {
+  if (isRunning) {
+    isRunning = false;
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+  }
+}
+
+function updateDisplay() {
+  if (isRunning) {
+    elapsedTime = Date.now() - startTime;
+  }
+  const totalSeconds = Math.floor(elapsedTime / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  document.getElementById('hour')  .textContent = String(h);
+  document.getElementById('minute').textContent = m.toString().padStart(2, '0');
+  document.getElementById('second').textContent = s.toString().padStart(2, '0');
+}
+
+function resetClock() {
+  elapsedTime = 0;
+  startTime = Date.now();
+  if (!isRunning) {
+    updateDisplay(); // set to 00:00:00
+  }
+}
 
 // ----------------------------------------------------------------------------
 // WebSocket handling
@@ -49,15 +99,29 @@ function onClose(event) {
 
 function onMessage(event) {
   let data = JSON.parse(event.data);
+  const currentSpeed = data.speed;
 
-  document.getElementById('speed')    .innerHTML = data.speed.toFixed(1);
-  document.getElementById('distance') .innerHTML = data.distance.toFixed(2);
-  document.getElementById('incline')  .innerHTML = data.incline.toFixed(1);
-  document.getElementById('elevation').innerHTML = data.elevation.toFixed(1);
-  document.getElementById('hour')     .innerHTML = data.hour;
-  document.getElementById('minute')   .innerHTML = data.minute;
-  document.getElementById('second')   .innerHTML = data.second;
+  // auto-pause
+  if (currentSpeed > 0 && !isRunning) {
+    // start/resume
+    isRunning = true;
+    startTime = Date.now() - elapsedTime;
+    stopwatchInterval = setInterval(updateDisplay, 200); 
+  }
+  else if (currentSpeed <= 0 && isRunning) {
+    // auto-pause
+    isRunning = false;
+    clearInterval(stopwatchInterval);
+    stopwatchInterval = null;
+  }
 
+  document.getElementById('speed')    .textContent = Number(currentSpeed).toFixed(1);
+  document.getElementById('distance') .textContent = Number(data.distance).toFixed(2);
+  document.getElementById('incline')  .textContent = Number(data.incline).toFixed(1);
+  document.getElementById('elevation').textContent = Number(data.elevation).toFixed(1);
+  //if (data.running) ... stop watch running
+ 
+  
   //manualIncline = 0 === (data.sensor_mode & 1);
   //manualSpeed   = 0 === (data.sensor_mode & 2);
   if (data.sensor_mode === 0) {
@@ -103,8 +167,13 @@ function initButtons() {
 //  document.getElementById('toggle_manual_speed').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
 //  document.getElementById('toggle_manual_incline').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
 
-  document.getElementById('manual_speed_button').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
+  document.getElementById('manual_speed_button')  .addEventListener('click', onSensorModeChange.bind(this, 'speed'));
   document.getElementById('manual_incline_button').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
+  document.getElementById('auto_pause_watch')     .addEventListener('click', toggleAutopause);
+
+  document.getElementById('stopwatch_start').addEventListener('click', onStopWatchStart);
+  document.getElementById('stopwatch_stop') .addEventListener('click', onStopWatchStop);
+  document.getElementById('stopwatch_rst')  .addEventListener('click', onStopWatchRst);
 }
 
 function onInterval(e, arg) {
@@ -147,6 +216,22 @@ function onInclineUp(e) {
 function onInclineDown(e) {
   websocket.send(JSON.stringify({'command': 'incline',
 				 'value': 'down'}));
+}
+
+function onStopWatchStart(e) {
+  startClock();
+  websocket.send(JSON.stringify({'command': 'stopwatch',
+				 'value': 'start'}));
+}
+function onStopWatchStop(e) {
+  stopClock()
+  websocket.send(JSON.stringify({'command': 'stopwatch',
+				 'value': 'stop'}));
+}
+function onStopWatchRst(e) {
+  resetClock();
+  websocket.send(JSON.stringify({'command': 'stopwatch',
+				 'value': 'reset'}));
 }
 
 function setManualButtonState() {
@@ -193,4 +278,3 @@ function onSensorModeChange(e, arg) {
   }
 //  setManualButtonState();
 }
-

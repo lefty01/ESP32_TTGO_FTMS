@@ -17,29 +17,30 @@
       <div class="speed-dist">
 	<p class="toggle_switch"><i id="manual_speed_button" class="fa fa-toggle-off inactive"></i></p>
 	<p>
-	<i id="toggle_manual_speed" class="fas fa-running" style="color:#059e8a;"></i>
-        <span id="speed">%SPEED%</span>
-        <sup class="units">kph</sup>
+	  <i id="toggle_manual_speed" class="fas fa-running" style="color:#059e8a;"></i>
+          <span id="speed">%SPEED%</span>
+          <sup class="units">kph</sup>
 	</p>
+	&nbsp;&nbsp;
 	<p>
-        <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
-        &nbsp;&nbsp;
-        <span id="distance">%DISTANCE%</span>
-        <sup class="units">KM</sup>
+          <i class="fas fa-shoe-prints" style="color:#2d0000;"></i>
+          <span id="distance">%DISTANCE%</span>
+          <sup class="units">KM</sup>
 	</p>
       </div>
 
       <div class="incline-elevation">
 	<p class="toggle_switch"><i id="manual_incline_button" class="fa fa-toggle-off inactive"></i></p>
 	<p>
-        <i id="toggle_manual_incline" class="fas fa-chart-line" style="color:#00add6;"></i>
-        <span id="incline">%INCLINE%</span>
-        <sup class="units">&percnt;</sup>
+          <i id="toggle_manual_incline" class="fas fa-chart-line" style="color:#00add6;"></i>
+          <span id="incline">%INCLINE%</span>
+          <sup class="units">&percnt;</sup>
 	</p>
+	&nbsp;&nbsp;
 	<p>
-        <i class="fas fa-mountain" style="color:#00add6;"></i>
-        <span id="elevation">%ELEVATION%</span>
-        <sup class="units">M</sup>
+          <i class="fas fa-mountain" style="color:#00add6;"></i>
+          <span id="elevation">%ELEVATION%</span>
+          <sup class="units">M</sup>
 	</p>
       </div>
     </div>
@@ -70,17 +71,22 @@
     </p>
     <div id="stopwatch">
       <p>
-	<i class="fas fa-stopwatch" style="color:#059e8a;"></i>
-	<!-- <span class="dht-labels">Time</span> -->
-	<span id="hour">%HOUR%</span>
-	:
-	<span id="minute">%MINUTE%</span>
-	:
-	<span id="second">%SECOND%</span>
+
+        <p class="toggle_switch"><i id="auto_pause_watch" class="fa fa-toggle-off inactive"></i></p>
+	<p>
+	  <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
+	  <!-- <span class="dht-labels">Time</span> -->
+	  <span id="hour">00</span>
+	  :
+	  <span id="minute">00</span>
+	  :
+	  <span id="second">00</span>
+	</p>
 	<br>
-	<button id="start" class="button button_start">START</button>
-	<button id="stop"  class="button button_stop" >STOP</button>
-	<button id="reset" class="button button_reset">RESET</button>
+
+	<button id="stopwatch_start" class="button button_start">START</button>
+	<button id="stopwatch_stop"  class="button button_stop" >STOP</button>
+	<button id="stopwatch_rst"   class="button button_reset">RESET</button>
       </p>
     </div>
     <hr>

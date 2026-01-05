@@ -29,14 +29,10 @@ TODO: Maybe we want to split this up in different files later? Lets see how it g
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <PubSubClient.h>
-#include <TimeLib.h> // https://playground.arduino.cc/Code/Time/
-
-//#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <ESPAsyncWebServer.h> //Local WebServer used to serve the configuration portal
 #include <ESPAsyncWiFiManager.h> //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <ElegantOTA.h>
 #include <esp_mac.h>
-//#include <esp_system.h>
 
 #include "common.h"
 #include "config.h"
@@ -56,6 +52,8 @@ extern WiFiClient espClient;
 
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
+bool stopWatchRunning = false;
+
 
 #ifdef MQTT_USE_SSL
 WiFiClientSecure espClient;
@@ -278,11 +276,6 @@ void resetWifiConnection(AsyncWebServerRequest* request)
   }
 }
 
-void resetStopWatch(void)
-{
-  setTime(0, 0, 0, 0, 0, 0);
-}
-
 //csint initWifi()
 void initWifi()
 {
@@ -459,11 +452,11 @@ bool mqttConnect(void)
 String processor(const String& var)
 {
   if (var == "HOUR")
-    return readHour();
+    return String("00");
   else if (var == "MINUTE")
-    return readMinute();
+    return String("00");
   else if (var == "SECOND")
-    return readSecond();
+    return String("00");
   else if (var == "SPEED")
     return readSpeed();
   else if (var == "DISTANCE")
@@ -547,9 +540,7 @@ void notifyClientsWebSockets()
   doc["sensor_mode"]    = speedInclineMode;
   doc["distance"]       = totalDistance / 1000;
   doc["elevation"]      = elevationGain;
-  doc["hour"]   = readHour();
-  doc["minute"] = readMinute();
-  doc["second"] = readSecond();
+  doc["running"]        = stopWatchRunning;
 
   char buffer[192];
   size_t len = serializeJson(doc, buffer);
@@ -606,7 +597,12 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
       if (strcmp(value, "1.0") == 0)
         setSpeedInterval(1.0);
     }
-    // fixme: start/stop/reset stopwatch
+    if (strcmp(command, "stopwatch") == 0) {
+      if (strcmp(value, "start") == 0) stopWatchRunning = true;
+      if (strcmp(value, "stop")  == 0) stopWatchRunning = false;
+      //if (strcmp(value, "reset") == 0) ... now what?;
+    }
+
     notifyClientsWebSockets();
   }
 }
@@ -649,33 +645,6 @@ String readIncline()
 String readElevation()
 {
   return String(elevationGain);
-}
-
-String readHour()
-{
-  return String(hour());
-}
-
-String readMinute()
-{
-  int m = minute();
-  String mStr(m);
-
-  if (m < 10)
-    mStr = "0" + mStr;
-
-  return mStr;
-}
-
-String readSecond()
-{
-  int s = second();
-  String sStr(s);
-
-  if (s < 10)
-    sStr = "0" + sStr;
-
-  return sStr;
 }
 
 void initWebSocket()
