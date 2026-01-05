@@ -518,7 +518,7 @@ void initAsyncWebserver()
   logText("init webserver...");
   server.on("/", HTTP_GET, onRootRequest);
   server.on("/resetwifi", HTTP_GET, resetWifiConnection);
-  server.serveStatic("/", LittleFS, "/");
+  server.serveStatic("/", LittleFS, "/").setCacheControl("no-cache, no-store, must-revalidate");
 
   ElegantOTA.begin(&server);
   // Start server
@@ -556,59 +556,54 @@ void notifyClientsWebSockets()
   ws.textAll(buffer, len);
 }
 
-void handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
+void handleWebSocketMessage(uint8_t* data, size_t len)
 {
-  AwsFrameInfo* info = (AwsFrameInfo*)arg;
+  StaticJsonDocument<32> doc;
+  DeserializationError err = deserializeJson(doc, data, len);
 
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+  if (err) {
+    logText("deserializeJson() failed with code: ");
+    logText(err.f_str());
+    logText("\n");
+    return;
+  }
 
-    StaticJsonDocument<32> doc;
-    DeserializationError err = deserializeJson(doc, data, len);
+  const char* command = doc["command"]; // e.g. "speed_interval"
+  const char* value   = doc["value"];   // e.g. "0.5", "down"
 
-    if (err) {
-      logText("deserializeJson() failed with code: ");
-      logText(err.f_str());
-      logText("\n");
-      return;
-    }
+  if (strcmp(command, "sensor_mode") == 0) {
+    if (strcmp(value, "speed") == 0)
+      speedInclineMode ^= SPEED; // b'01 toggle bit
 
-    const char* command = doc["command"]; // e.g. "speed_interval"
-    const char* value   = doc["value"];   // e.g. "0.5", "down"
-
-    if (strcmp(command, "sensor_mode") == 0) {
-      if (strcmp(value, "speed") == 0)
-        speedInclineMode ^= SPEED; // b'01 toggle bit
-
-      if (strcmp(value, "incline") == 0)
-        speedInclineMode ^= INCLINE; // b'10
+    if (strcmp(value, "incline") == 0)
+      speedInclineMode ^= INCLINE; // b'10
 
 #ifndef NO_DISPLAY
-      gfxUpdateHeader();
+    gfxUpdateHeader();
 #endif
-    }
-    if (strcmp(command, "speed") == 0) {
-      if (strcmp(value, "up") == 0)
-        speedUp();
-      if (strcmp(value, "down") == 0)
-        speedDown();
-    }
-    if (strcmp(command, "incline") == 0) {
-      if (strcmp(value, "up") == 0)
-        inclineUp();
-      if (strcmp(value, "down") == 0)
-        inclineDown();
-    }
-    if (strcmp(command, "speed_interval") == 0) {
-      if (strcmp(value, "0.1") == 0)
-        setSpeedInterval(0.1);
-      if (strcmp(value, "0.5") == 0)
-        setSpeedInterval(0.5);
-      if (strcmp(value, "1.0") == 0)
-        setSpeedInterval(1.0);
-    }
-    // fixme: start/stop/reset stopwatch
-    notifyClientsWebSockets();
   }
+  if (strcmp(command, "speed") == 0) {
+    if (strcmp(value, "up") == 0)
+      speedUp();
+    if (strcmp(value, "down") == 0)
+      speedDown();
+  }
+  if (strcmp(command, "incline") == 0) {
+    if (strcmp(value, "up") == 0)
+      inclineUp();
+    if (strcmp(value, "down") == 0)
+      inclineDown();
+  }
+  if (strcmp(command, "speed_interval") == 0) {
+    if (strcmp(value, "0.1") == 0)
+      setSpeedInterval(0.1);
+    if (strcmp(value, "0.5") == 0)
+      setSpeedInterval(0.5);
+    if (strcmp(value, "1.0") == 0)
+      setSpeedInterval(1.0);
+  }
+  // fixme: start/stop/reset stopwatch
+  notifyClientsWebSockets();
 }
 
 void onEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
@@ -622,9 +617,17 @@ void onEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
   case WS_EVT_DISCONNECT:
     DEBUG_PRINTF("WebSocket client #%u disconnected\n", client->id());
     break;
-  case WS_EVT_DATA:
-    handleWebSocketMessage(arg, data, len);
+  case WS_EVT_DATA: {
+    AwsFrameInfo* info = (AwsFrameInfo*)arg;
+    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+      if (!wsQueue.pending && len < sizeof(wsQueue.data)) {
+        memcpy(wsQueue.data, data, len);
+        wsQueue.len = len;
+        wsQueue.pending = true;
+      }
+    }
     break;
+  }
   case WS_EVT_PONG:
   case WS_EVT_ERROR:
     break;

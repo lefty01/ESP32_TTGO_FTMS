@@ -6,6 +6,8 @@ var manualSpeed   = false;
 var manualIncline = false;
 var sensorMode    = 0;
 
+const debounceTimers = {};
+
 window.addEventListener('load', onLoad);
 
 function onLoad(event) {
@@ -14,14 +16,15 @@ function onLoad(event) {
 }
 
 
-function toggleStopwatch() {
-  document.getElementById('stopwatch').style.visibility = 'visible';
-  document.getElementById('stopwatch').style.visibility = 'hidden';
+/**
+ * @param {string} key - unique name(eg. 'speed_up')
+ * @param {function} func - callback
+ * @param {number} delay -  wait in ms
+ */
+function debounce(key, func, delay = 200) {
+  clearTimeout(debounceTimers[key]);
+  debounceTimers[key] = setTimeout(func, delay);
 }
-
-// style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
-// style="color:#00add6;" -> default manual incline  auto: fade to #24ffe2
-
 
 
 // ----------------------------------------------------------------------------
@@ -99,10 +102,6 @@ function initButtons() {
   document.getElementById('incline_up')  .addEventListener('click', onInclineUp);
   document.getElementById('incline_down').addEventListener('click', onInclineDown);
 
-  // add handler to toggle manual speed/incline by clicking on the runner (kmh) or incline (%) icon
-//  document.getElementById('toggle_manual_speed').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
-//  document.getElementById('toggle_manual_incline').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
-
   document.getElementById('manual_speed_button').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
   document.getElementById('manual_incline_button').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
 }
@@ -113,40 +112,47 @@ function onInterval(e, arg) {
     document.getElementById("interval_01").style.backgroundColor = "#00C8DC";
     document.getElementById("interval_05").style.backgroundColor = "#008CBA";
     document.getElementById("interval_10").style.backgroundColor = "#008CBA";
-    websocket.send(JSON.stringify({'command': 'speed_interval',
-				   'value': '0.1'}));
+    debounce('sensor_interval', () => {
+      websocket.send(JSON.stringify({'command': 'speed_interval', 'value': '0.1'}));
+    });
   }
   if (e === "interval_05") {
     document.getElementById("interval_01").style.backgroundColor = "#008CBA";
     document.getElementById("interval_05").style.backgroundColor = "#00C8DC";
     document.getElementById("interval_10").style.backgroundColor = "#008CBA";
-    websocket.send(JSON.stringify({'command': 'speed_interval',
-				   'value': '0.5'}));
+    debounce('sensor_interval', () => {
+      websocket.send(JSON.stringify({'command': 'speed_interval', 'value': '0.5'}));
+    });
   }
   if (e === "interval_10") {
     document.getElementById("interval_01").style.backgroundColor = "#008CBA";
     document.getElementById("interval_05").style.backgroundColor = "#008CBA";
     document.getElementById("interval_10").style.backgroundColor = "#00C8DC";
-    websocket.send(JSON.stringify({'command': 'speed_interval',
-				   'value': '1.0'}));
+    debounce('sensor_interval', () => {
+      websocket.send(JSON.stringify({'command': 'speed_interval', 'value': '1.0'}));
+    });
   }
 }
 
 function onSpeedUp(e) {
-  websocket.send(JSON.stringify({'command': 'speed',
-				 'value': 'up'}));
+  debounce('speed_action', () => {
+    websocket.send(JSON.stringify({'command': 'speed', 'value': 'up'}));
+  }, 150);
 }
 function onSpeedDown(e) {
-  websocket.send(JSON.stringify({'command': 'speed',
-				 'value': 'down'}));
+  debounce('speed_action', () => {
+    websocket.send(JSON.stringify({'command': 'speed', 'value': 'down'}));
+  }, 150);
 }
 function onInclineUp(e) {
-  websocket.send(JSON.stringify({'command': 'incline',
-				 'value': 'up'}));
+  debounce('incline_action', () => {
+    websocket.send(JSON.stringify({'command': 'incline', 'value': 'up'}));
+  }, 150);
 }
 function onInclineDown(e) {
-  websocket.send(JSON.stringify({'command': 'incline',
-				 'value': 'down'}));
+  debounce('incline_action', () => {
+    websocket.send(JSON.stringify({'command': 'incline', 'value': 'down'}));
+  }, 150);
 }
 
 function setManualButtonState() {
@@ -181,15 +187,16 @@ function onSensorModeChange(e, arg) {
   if (e === 'speed') {
     manualSpeed = !manualSpeed;
 
-    //document.getElementById('toggle_manual_speed').style.color = manualSpeed ? ...
-    websocket.send(JSON.stringify({'command': 'sensor_mode',
-				   'value': 'speed'}));
+    debounce('sensor_speed', () => {
+      websocket.send(JSON.stringify({'command': 'sensor_mode', 'value': 'speed'}));
+    });
   }
   if (e === 'incline') {
     manualIncline = !manualIncline;
 
-    websocket.send(JSON.stringify({'command': 'sensor_mode',
-				   'value': 'incline'}));
+    debounce('sensor_incline', () => {
+      websocket.send(JSON.stringify({'command': 'sensor_mode', 'value': 'incline'}));
+    });
   }
 //  setManualButtonState();
 }
