@@ -48,6 +48,7 @@ function stopClock() {
   isRunning = false;
   clearInterval(stopwatchInterval);
   stopwatchInterval = null;
+  setAutopaseButtonState();
 }
 
 function updateDisplay() {
