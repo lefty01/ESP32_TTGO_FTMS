@@ -52,7 +52,7 @@ extern WiFiClient espClient;
 
 bool bleClientConnected = false;
 bool bleClientConnectedPrev = false;
-bool stopWatchRunning = false;
+//bool stopWatchRunning = false;
 
 
 #ifdef MQTT_USE_SSL
@@ -451,13 +451,7 @@ bool mqttConnect(void)
 // replaces placeholders
 String processor(const String& var)
 {
-  if (var == "HOUR")
-    return String("00");
-  else if (var == "MINUTE")
-    return String("00");
-  else if (var == "SECOND")
-    return String("00");
-  else if (var == "SPEED")
+  if (var == "SPEED")
     return readSpeed();
   else if (var == "DISTANCE")
     return readDist();
@@ -540,7 +534,8 @@ void notifyClientsWebSockets()
   doc["sensor_mode"]    = speedInclineMode;
   doc["distance"]       = totalDistance / 1000;
   doc["elevation"]      = elevationGain;
-  doc["running"]        = stopWatchRunning;
+  //doc["running"]      = stopWatchRunning;
+  DEBUG_PRINTF("notifyClientsWebSockets: kmph=%f", kmph);
 
   char buffer[192];
   size_t len = serializeJson(doc, buffer);
@@ -565,6 +560,7 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
 
     const char* command = doc["command"]; // e.g. "speed_interval"
     const char* value   = doc["value"];   // e.g. "0.5", "down"
+    DEBUG_PRINTF("handleWebSocketMessage command=%s, value=%s\n", command, value);
 
     if (strcmp(command, "sensor_mode") == 0) {
       if (strcmp(value, "speed") == 0)
@@ -597,11 +593,11 @@ void handleWebSocketMessage(void* arg, uint8_t* data, size_t len)
       if (strcmp(value, "1.0") == 0)
         setSpeedInterval(1.0);
     }
-    if (strcmp(command, "stopwatch") == 0) {
-      if (strcmp(value, "start") == 0) stopWatchRunning = true;
-      if (strcmp(value, "stop")  == 0) stopWatchRunning = false;
-      //if (strcmp(value, "reset") == 0) ... now what?;
-    }
+    // if (strcmp(command, "stopwatch") == 0) {
+    //   if (strcmp(value, "start") == 0) stopWatchRunning = true;
+    //   if (strcmp(value, "stop")  == 0) stopWatchRunning = false;
+    //   //if (strcmp(value, "reset") == 0) ... now what?;
+    // }
 
     notifyClientsWebSockets();
   }

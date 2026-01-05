@@ -1,6 +1,6 @@
 
-
 const gateway = `ws://${window.location.hostname}/ws`;
+
 let websocket;
 let manualSpeed   = false;
 let manualIncline = false;
@@ -19,37 +19,36 @@ function onLoad(event) {
 }
 
 
-function toggleStopwatch() {
-  document.getElementById('stopwatch').style.visibility = 'visible';
-  document.getElementById('stopwatch').style.visibility = 'hidden';
-}
-
 // style="color:#059e8a;" -> default manual speed    auto: fade to #24ffe2
 // style="color:#00add6;" -> default manual incline  auto: fade to #24ffe2
-// Funktion für den Switch
 
 function toggleAutopause() {
-  autoPauseEnabled = !autoPauseEnabled;
+  autoPauseEnabled = !autoPauseEnabled; // if true start stopwatch if speed > 0, stop if 0
+  console.log("toggleAutopause: " + autoPauseEnabled);
   // if we switch to manual mode, start stopwatch immediately
   if (!autoPauseEnabled && !isRunning) {
     startClock();
   }
+  setAutopaseButtonState();
 }
 
 function startClock() {
+  console.log("startClock: isRunning=" + isRunning);
+
   if (!isRunning) {
     isRunning = true;
     startTime = Date.now() - elapsedTime;
-    stopwatchInterval = setInterval(updateDisplay, 200);
+    stopwatchInterval = setInterval(updateDisplay, 400);
   }
 }
 
 function stopClock() {
-  if (isRunning) {
-    isRunning = false;
-    clearInterval(stopwatchInterval);
-    stopwatchInterval = null;
-  }
+  console.log("stopClock: isRunning=" + isRunning);
+  autoPauseEnabled = false;
+
+  isRunning = false;
+  clearInterval(stopwatchInterval);
+  stopwatchInterval = null;
 }
 
 function updateDisplay() {
@@ -100,19 +99,22 @@ function onClose(event) {
 function onMessage(event) {
   let data = JSON.parse(event.data);
   const currentSpeed = data.speed;
+  console.log("onMessage: isRunning=" + isRunning);
 
   // auto-pause
-  if (currentSpeed > 0 && !isRunning) {
-    // start/resume
-    isRunning = true;
-    startTime = Date.now() - elapsedTime;
-    stopwatchInterval = setInterval(updateDisplay, 200); 
-  }
-  else if (currentSpeed <= 0 && isRunning) {
-    // auto-pause
-    isRunning = false;
-    clearInterval(stopwatchInterval);
-    stopwatchInterval = null;
+  if (autoPauseEnabled) {
+    if (currentSpeed > 0 && !isRunning) {
+      // start/resume
+      isRunning = true;
+      startTime = Date.now() - elapsedTime;
+      stopwatchInterval = setInterval(updateDisplay, 400);
+    }
+    else if (currentSpeed <= 0 && isRunning) {
+      // auto-pause
+      isRunning = false;
+      clearInterval(stopwatchInterval);
+      stopwatchInterval = null;
+    }
   }
 
   document.getElementById('speed')    .textContent = Number(currentSpeed).toFixed(1);
@@ -171,9 +173,9 @@ function initButtons() {
   document.getElementById('manual_incline_button').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
   document.getElementById('auto_pause_watch')     .addEventListener('click', toggleAutopause);
 
-  document.getElementById('stopwatch_start').addEventListener('click', onStopWatchStart);
-  document.getElementById('stopwatch_stop') .addEventListener('click', onStopWatchStop);
-  document.getElementById('stopwatch_rst')  .addEventListener('click', onStopWatchRst);
+  document.getElementById('stopwatch_start').addEventListener('click', startClock);
+  document.getElementById('stopwatch_stop') .addEventListener('click', stopClock);
+  document.getElementById('stopwatch_rst')  .addEventListener('click', resetClock);
 }
 
 function onInterval(e, arg) {
@@ -218,21 +220,6 @@ function onInclineDown(e) {
 				 'value': 'down'}));
 }
 
-function onStopWatchStart(e) {
-  startClock();
-  websocket.send(JSON.stringify({'command': 'stopwatch',
-				 'value': 'start'}));
-}
-function onStopWatchStop(e) {
-  stopClock()
-  websocket.send(JSON.stringify({'command': 'stopwatch',
-				 'value': 'stop'}));
-}
-function onStopWatchRst(e) {
-  resetClock();
-  websocket.send(JSON.stringify({'command': 'stopwatch',
-				 'value': 'reset'}));
-}
 
 function setManualButtonState() {
   if (manualSpeed === false) {
@@ -259,6 +246,21 @@ function setManualButtonState() {
     document.getElementById('manual_incline_button').classList.remove('active');
     document.getElementById('manual_incline_button').classList.add('fa-toggle-off');
     document.getElementById('manual_incline_button').classList.add('inactive');
+  }
+}
+
+function setAutopaseButtonState() {
+  if (autoPauseEnabled == true) {
+    document.getElementById('auto_pause_watch').classList.remove('fa-toggle-off');
+    document.getElementById('auto_pause_watch').classList.remove('inactive');
+    document.getElementById('auto_pause_watch').classList.add('fa-toggle-on');
+    document.getElementById('auto_pause_watch').classList.add('active');
+  }
+  else {
+    document.getElementById('auto_pause_watch').classList.remove('fa-toggle-on');
+    document.getElementById('auto_pause_watch').classList.remove('active');
+    document.getElementById('auto_pause_watch').classList.add('fa-toggle-off');
+    document.getElementById('auto_pause_watch').classList.add('inactive');
   }
 }
 

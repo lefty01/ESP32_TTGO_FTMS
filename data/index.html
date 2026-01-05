@@ -71,17 +71,19 @@
     </p>
     <div id="stopwatch">
       <p>
+        <div class="speed-dist">
+          <p class="toggle_switch"><i id="auto_pause_watch" class="fa fa-toggle-off inactive"></i></p>
+          <p>
+	    <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
+	    <!-- <span class="dht-labels">Time</span> -->
+	    <span id="hour">00</span>
+	    :
+	    <span id="minute">00</span>
+	    :
+	    <span id="second">00</span>
+          </p>
+        </div>
 
-        <p class="toggle_switch"><i id="auto_pause_watch" class="fa fa-toggle-off inactive"></i></p>
-	<p>
-	  <i class="fas fa-stopwatch" style="color:#059e8a;"></i>
-	  <!-- <span class="dht-labels">Time</span> -->
-	  <span id="hour">00</span>
-	  :
-	  <span id="minute">00</span>
-	  :
-	  <span id="second">00</span>
-	</p>
 	<br>
 
 	<button id="stopwatch_start" class="button button_start">START</button>
