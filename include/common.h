@@ -50,6 +50,12 @@ enum SensorModeFlags {
   SPEEDINCLINE_BITFIELD = 0x03 // b'11 ... no adjust/overwrite get speed and incline from sensor
 };
 
+struct webSocektMsg {
+  uint8_t data[256]; // Maximale Größe einer Nachricht (anpassen falls nötig)
+  size_t len;
+  bool pending = false;
+};
+
 extern bool setupDone;
 
 extern uint8_t speedInclineMode;
@@ -62,6 +68,10 @@ extern double elevationGain;
 //extern volatile float speed_interval_step;
 extern double gradeDeg;
 extern double angle;
+
+extern bool pendingWebSocketEvent;
+extern struct webSocektMsg wsQueue;
+
 
 void logText(const char* text);
 void logText(String text);

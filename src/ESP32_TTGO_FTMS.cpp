@@ -53,6 +53,7 @@ float mps; // meter per second
 double angle = 0;
 double gradeDeg = 0;
 Preferences prefs;
+struct webSocektMsg wsQueue;
 
 bool setupDone = false;
 
@@ -273,6 +274,10 @@ void loop()
   loopHandleGfx();
   loopHandleWIFI();
   loopHandleBLE();
+  if (wsQueue.pending) {
+    handleWebSocketMessage(wsQueue.data, wsQueue.len);
+    wsQueue.pending = false;
+  }
 
   // timertick... every second
   if (timer_tick == true) {
