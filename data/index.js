@@ -1,10 +1,15 @@
 
+const gateway = `ws://${window.location.hostname}/ws`;
 
-var gateway = `ws://${window.location.hostname}/ws`;
-var websocket;
-var manualSpeed   = false;
-var manualIncline = false;
-var sensorMode    = 0;
+let websocket;
+let manualSpeed   = false;
+let manualIncline = false;
+let sensorMode    = 0;
+let elapsedTime   = 0;
+let startTime     = 0;
+let stopwatchInterval = null;
+let isRunning         = false;
+let autoPauseEnabled  = false; // default manual mode
 
 const debounceTimers = {};
 
@@ -16,6 +21,57 @@ function onLoad(event) {
 }
 
 
+function toggleAutopause() {
+  autoPauseEnabled = !autoPauseEnabled; // if true start stopwatch if speed > 0, stop if 0
+  console.log("toggleAutopause: " + autoPauseEnabled);
+  // if we switch to manual mode, start stopwatch immediately
+  if (!autoPauseEnabled && !isRunning) {
+    startClock();
+  }
+  setAutopaseButtonState();
+}
+
+function startClock() {
+  console.log("startClock: isRunning=" + isRunning);
+
+  if (!isRunning) {
+    isRunning = true;
+    startTime = Date.now() - elapsedTime;
+    stopwatchInterval = setInterval(updateDisplay, 400);
+  }
+}
+
+function stopClock() {
+  console.log("stopClock: isRunning=" + isRunning);
+  autoPauseEnabled = false;
+
+  isRunning = false;
+  clearInterval(stopwatchInterval);
+  stopwatchInterval = null;
+  setAutopaseButtonState();
+}
+
+function updateDisplay() {
+  if (isRunning) {
+    elapsedTime = Date.now() - startTime;
+  }
+  const totalSeconds = Math.floor(elapsedTime / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  document.getElementById('hour')  .textContent = String(h);
+  document.getElementById('minute').textContent = m.toString().padStart(2, '0');
+  document.getElementById('second').textContent = s.toString().padStart(2, '0');
+}
+
+function resetClock() {
+  elapsedTime = 0;
+  startTime = Date.now();
+  if (!isRunning) {
+    updateDisplay(); // set to 00:00:00
+  }
+}
 /**
  * @param {string} key - unique name(eg. 'speed_up')
  * @param {function} func - callback
@@ -52,15 +108,31 @@ function onClose(event) {
 
 function onMessage(event) {
   let data = JSON.parse(event.data);
+  const currentSpeed = data.speed;
+  console.log("onMessage: isRunning=" + isRunning);
 
-  document.getElementById('speed')    .innerHTML = data.speed.toFixed(1);
-  document.getElementById('distance') .innerHTML = data.distance.toFixed(2);
-  document.getElementById('incline')  .innerHTML = data.incline.toFixed(1);
-  document.getElementById('elevation').innerHTML = data.elevation.toFixed(1);
-  document.getElementById('hour')     .innerHTML = data.hour;
-  document.getElementById('minute')   .innerHTML = data.minute;
-  document.getElementById('second')   .innerHTML = data.second;
+  // auto-pause
+  if (autoPauseEnabled) {
+    if (currentSpeed > 0 && !isRunning) {
+      // start/resume
+      isRunning = true;
+      startTime = Date.now() - elapsedTime;
+      stopwatchInterval = setInterval(updateDisplay, 400);
+    }
+    else if (currentSpeed <= 0 && isRunning) {
+      // auto-pause
+      isRunning = false;
+      clearInterval(stopwatchInterval);
+      stopwatchInterval = null;
+    }
+  }
 
+  document.getElementById('speed')    .textContent = Number(currentSpeed).toFixed(1);
+  document.getElementById('distance') .textContent = Number(data.distance).toFixed(2);
+  document.getElementById('incline')  .textContent = Number(data.incline).toFixed(1);
+  document.getElementById('elevation').textContent = Number(data.elevation).toFixed(1);
+
+  
   //manualIncline = 0 === (data.sensor_mode & 1);
   //manualSpeed   = 0 === (data.sensor_mode & 2);
   if (data.sensor_mode === 0) {
@@ -104,6 +176,11 @@ function initButtons() {
 
   document.getElementById('manual_speed_button').  addEventListener('click', onSensorModeChange.bind(this, 'speed'));
   document.getElementById('manual_incline_button').addEventListener('click', onSensorModeChange.bind(this, 'incline'));
+  document.getElementById('auto_pause_watch')     .addEventListener('click', toggleAutopause);
+
+  document.getElementById('stopwatch_start').addEventListener('click', startClock);
+  document.getElementById('stopwatch_stop') .addEventListener('click', stopClock);
+  document.getElementById('stopwatch_rst')  .addEventListener('click', resetClock);
 }
 
 function onInterval(e, arg) {
@@ -155,6 +232,7 @@ function onInclineDown(e) {
   }, 150);
 }
 
+
 function setManualButtonState() {
   if (manualSpeed === false) {
     document.getElementById('manual_speed_button').classList.remove('fa-toggle-off');
@@ -183,6 +261,21 @@ function setManualButtonState() {
   }
 }
 
+function setAutopaseButtonState() {
+  if (autoPauseEnabled == true) {
+    document.getElementById('auto_pause_watch').classList.remove('fa-toggle-off');
+    document.getElementById('auto_pause_watch').classList.remove('inactive');
+    document.getElementById('auto_pause_watch').classList.add('fa-toggle-on');
+    document.getElementById('auto_pause_watch').classList.add('active');
+  }
+  else {
+    document.getElementById('auto_pause_watch').classList.remove('fa-toggle-on');
+    document.getElementById('auto_pause_watch').classList.remove('active');
+    document.getElementById('auto_pause_watch').classList.add('fa-toggle-off');
+    document.getElementById('auto_pause_watch').classList.add('inactive');
+  }
+}
+
 function onSensorModeChange(e, arg) {
   if (e === 'speed') {
     manualSpeed = !manualSpeed;
@@ -200,4 +293,3 @@ function onSensorModeChange(e, arg) {
   }
 //  setManualButtonState();
 }
-

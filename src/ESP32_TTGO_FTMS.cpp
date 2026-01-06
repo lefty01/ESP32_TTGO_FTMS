@@ -99,7 +99,6 @@ void initLittleFS()
 
 void doReset()
 {
-  resetStopWatch();
   totalDistance = 0;
   elevationGain = 0;
   kmph = 0.5;
@@ -257,7 +256,6 @@ void setup()
 
   showInfo();
   delay(4000); //allow showInfo() to display for a short while
-  resetStopWatch();
 
   logText("setup done\n");
   setupDone = true;

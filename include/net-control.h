@@ -27,7 +27,6 @@ void loopHandleWIFI(void);
 void initBLE(void);
 void loopHandleBLE(void);
 void updateBLEdata(void);
-void resetStopWatch(void);
 void publishTopicsMqtt(void);
 void handleWebSocketMessage(uint8_t* data, size_t len);
 
